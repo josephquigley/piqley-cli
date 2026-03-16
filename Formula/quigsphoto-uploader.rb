@@ -11,7 +11,7 @@ class QuigsphotoUploader < Formula
   # head "https://github.com/josephquigley/quigsphoto-uploader.git", branch: "main"
   head "file:///Users/wash/Developer/tools/quigsphoto-uploader", using: :git, branch: "main"
 
-  depends_on xcode: ["16.0", :build]
+  depends_on xcode: ["26.0", :build]
   depends_on :macos
 
   def install

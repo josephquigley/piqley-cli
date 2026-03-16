@@ -37,7 +37,7 @@ Options:
 ### Prerequisites
 
 - macOS 13+
-- Xcode 16+ or Swift 6.2+ toolchain
+- Xcode 26+ or Swift 6.2+ toolchain
 
 ### Build and test
 
