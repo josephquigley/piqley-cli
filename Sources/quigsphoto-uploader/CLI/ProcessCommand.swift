@@ -73,7 +73,7 @@ struct ProcessCommand: AsyncParsableCommand {
         let scheduler = GhostScheduler(client: ghostClient, config: config.ghost)
 
         // Seed email log from Ghost if it doesn't exist
-        if !emailLog.fileExists && !dryRun {
+        if !emailLog.fileExists {
             logger.info("Email log not found — seeding from Ghost...")
             await seedEmailLog(emailLog: emailLog, client: ghostClient, config: config)
         }
@@ -110,18 +110,18 @@ struct ProcessCommand: AsyncParsableCommand {
                 }
                 let is365 = image.metadata.is365Project(keyword: config.project365.keyword)
 
-                if !dryRun {
-                    // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)
-                    let isDup: Bool
-                    do {
-                        isDup = try await deduplicator.isDuplicate(filename: image.filename)
-                    } catch is GhostDeduplicatorError {
-                        logger.error("Fatal: Ghost API dedup query failed — aborting to avoid duplicates")
-                        throw ExitCode(1)
-                    }
-                    if isDup {
-                        logger.info("[\(image.filename)] Duplicate — skipping Ghost upload")
-                        results.duplicates.append(image.filename)
+                // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)
+                let isDup: Bool
+                do {
+                    isDup = try await deduplicator.isDuplicate(filename: image.filename)
+                } catch is GhostDeduplicatorError {
+                    logger.error("Fatal: Ghost API dedup query failed — aborting to avoid duplicates")
+                    throw ExitCode(1)
+                }
+                if isDup {
+                    logger.info("[\(image.filename)] Duplicate — skipping")
+                    results.duplicates.append(image.filename)
+                    if !dryRun {
                         // Still check email for 365 Project
                         if is365 {
                             let resizedPath = tempDir + image.filename
@@ -135,8 +135,8 @@ struct ProcessCommand: AsyncParsableCommand {
                             }
                             emailCandidates.append((image, resizedPath))
                         }
-                        continue
                     }
+                    continue
                 }
 
                 // Resize image
@@ -188,10 +188,14 @@ struct ProcessCommand: AsyncParsableCommand {
                 let status = hasTitle ? "scheduled" : "draft"
 
                 if dryRun {
-                    logger.info("[\(image.filename)] Would \(status == "scheduled" ? "schedule" : "save as draft"): \"\(postTitle)\"")
                     if status == "scheduled" {
+                        let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365)
+                        let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
+                        let formatted = GhostScheduler.formatForGhost(date: dateTime)
+                        logger.info("[\(image.filename)] Would schedule: \"\(postTitle)\" on \(formatted)")
                         results.scheduled.append(image.filename)
                     } else {
+                        logger.info("[\(image.filename)] Would save as draft: \"\(postTitle)\"")
                         results.drafts.append(image.filename)
                     }
                     results.successes.append(image.filename)
