@@ -14,8 +14,23 @@ struct ImageMetadata {
         return parts.last ?? keyword
     }
 
-    static func processKeywords(_ raw: [String], blocklist: [String]) -> [String] {
-        raw.map { leafKeyword($0) }.filter { !blocklist.contains($0) }
+    static func processKeywords(_ raw: [String], blocklist: [TagMatcher]) -> [String] {
+        raw.map { leafKeyword($0) }.filter { keyword in
+            !blocklist.contains { $0.matches(keyword) }
+        }
+    }
+
+    static func filterKeywords(_ raw: [String], blocklist: [TagMatcher]) -> KeywordFilterResult {
+        var kept: [String] = []
+        var blocked: [(keyword: String, matcher: String)] = []
+        for keyword in raw.map({ leafKeyword($0) }) {
+            if let matcher = blocklist.first(where: { $0.matches(keyword) }) {
+                blocked.append((keyword: keyword, matcher: matcher.description))
+            } else {
+                kept.append(keyword)
+            }
+        }
+        return KeywordFilterResult(kept: kept, blocked: blocked)
     }
 
     func is365Project(keyword: String) -> Bool {

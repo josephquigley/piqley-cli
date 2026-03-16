@@ -33,6 +33,15 @@ struct ProcessCommand: AsyncParsableCommand {
         }
         let config = try AppConfig.load(from: AppConfig.configPath.path)
 
+        // Build tag matchers from blocklist
+        let tagMatchers: [TagMatcher]
+        do {
+            tagMatchers = try TagMatcherFactory.buildMatchers(from: config.tagBlocklist)
+        } catch {
+            logger.error("Invalid blocklist pattern: \(error)")
+            throw ExitCode(1)
+        }
+
         // Acquire lock
         let lockPath = NSTemporaryDirectory() + "\(AppConstants.tempDirectoryName)/\(AppConstants.binaryName).lock"
         let lock: ProcessLock
@@ -80,10 +89,25 @@ struct ProcessCommand: AsyncParsableCommand {
         // Process each image
         for image in images {
             do {
-                let processedKeywords = ImageMetadata.processKeywords(
-                    image.metadata.keywords,
-                    blocklist: config.tagBlocklist
-                )
+                let processedKeywords: [String]
+                if dryRun {
+                    let filterResult = ImageMetadata.filterKeywords(
+                        image.metadata.keywords,
+                        blocklist: tagMatchers
+                    )
+                    processedKeywords = filterResult.kept
+                    let allLeaves = image.metadata.keywords.map { ImageMetadata.leafKeyword($0) }
+                    logger.info("[\(image.filename)] Keywords: \(allLeaves.joined(separator: ", "))")
+                    if !filterResult.blocked.isEmpty {
+                        let blockedDesc = filterResult.blocked.map { "\($0.keyword) (\($0.matcher))" }
+                        logger.info("[\(image.filename)] Blocked: \(blockedDesc.joined(separator: ", "))")
+                    }
+                } else {
+                    processedKeywords = ImageMetadata.processKeywords(
+                        image.metadata.keywords,
+                        blocklist: tagMatchers
+                    )
+                }
                 let is365 = image.metadata.is365Project(keyword: config.project365.keyword)
 
                 // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)

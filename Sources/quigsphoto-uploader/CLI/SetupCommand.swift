@@ -36,7 +36,7 @@ struct SetupCommand: ParsableCommand {
         let smtpFrom = prompt("SMTP from address (default: same as username):", default: smtpUsername)
 
         // Tag blocklist
-        let blocklistStr = prompt("Tag blocklist (comma-separated, or empty):", default: "")
+        let blocklistStr = prompt("Tag blocklist (comma-separated, or empty; use glob: or regex: prefixes for patterns):", default: "")
         let blocklist = blocklistStr.isEmpty ? [] : blocklistStr.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
 
         let config = AppConfig(

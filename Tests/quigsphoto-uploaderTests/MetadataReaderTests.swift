@@ -42,7 +42,8 @@ final class MetadataReaderTests: XCTestCase {
 
     func testProcessKeywordsWithBlocklist() {
         let raw = ["Location > USA > Nashville", "365 Project", "WIP", "Nature"]
-        let result = ImageMetadata.processKeywords(raw, blocklist: ["WIP"])
+        let blocklist: [TagMatcher] = [ExactMatcher(pattern: "WIP")]
+        let result = ImageMetadata.processKeywords(raw, blocklist: blocklist)
         XCTAssertEqual(result, ["Nashville", "365 Project", "Nature"])
     }
 

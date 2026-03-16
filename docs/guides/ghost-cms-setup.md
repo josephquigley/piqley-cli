@@ -55,7 +55,13 @@ Run `quigsphoto-uploader setup` to walk through configuration interactively. It 
 
 | Value | Description | Example |
 |-------|-------------|---------|
-| `tagBlocklist` | List of EXIF keywords to exclude from Ghost tags. Matched against leaf node of hierarchical keywords. | `["PersonalOnly", "Draft", "WIP"]` |
+| `tagBlocklist` | List of patterns to exclude EXIF keywords from Ghost tags. Matched against leaf node of hierarchical keywords. All matching is case-insensitive. | `["PersonalOnly", "glob:_*", "regex:^DSC\\d+$"]` |
+
+Blocklist entries support three pattern types:
+
+- **Plain string** -- exact match (e.g., `"WIP"` matches `WIP`, `wip`, `Wip`)
+- **`glob:` prefix** -- glob pattern with `*` (any characters) and `?` (single character) (e.g., `"glob:_*"` matches any keyword starting with `_`)
+- **`regex:` prefix** -- regular expression (e.g., `"regex:^DSC\\d+$"` matches `DSC1234` but not `MyDSC1234`)
 
 ### Secrets
 
@@ -108,7 +114,7 @@ quigsphoto-uploader reads IPTC Keywords from each image's metadata. These become
 
 **Hierarchical keywords:** If Lightroom writes hierarchical keywords like `Location > USA > Nashville`, quigsphoto-uploader extracts only the leaf node (`Nashville`). The blocklist is matched against the leaf node.
 
-**Tag blocklist:** Any keyword whose leaf node appears in `tagBlocklist` is excluded. Use this for Lightroom-only organizational tags you do not want published.
+**Tag blocklist:** Any keyword whose leaf node matches a pattern in `tagBlocklist` is excluded. Patterns can be exact strings, globs (`glob:` prefix), or regular expressions (`regex:` prefix). All matching is case-insensitive. Use this for Lightroom-only organizational tags you do not want published.
 
 **Internal tags:** Two internal Ghost tags are always appended to every post:
 - `#image-post` -- marks the post as created by quigsphoto-uploader
