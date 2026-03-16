@@ -1,0 +1,45 @@
+import Foundation
+import Logging
+
+struct ScannedImage {
+    let path: String
+    let filename: String
+    let metadata: ImageMetadata
+}
+
+struct ImageScanner {
+    private static let supportedExtensions: Set<String> = ["jpg", "jpeg", "jxl"]
+    private let metadataReader: MetadataReader
+    private let logger = Logger(label: "\(AppConstants.loggerPrefix).scanner")
+
+    init(metadataReader: MetadataReader) {
+        self.metadataReader = metadataReader
+    }
+
+    func scan(folder: String) throws -> [ScannedImage] {
+        let url = URL(fileURLWithPath: folder)
+        let contents = try FileManager.default.contentsOfDirectory(
+            at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        )
+        let imageFiles = contents.filter {
+            Self.supportedExtensions.contains($0.pathExtension.lowercased())
+        }
+        var scanned: [ScannedImage] = []
+        for file in imageFiles {
+            do {
+                let metadata = try metadataReader.read(from: file.path)
+                scanned.append(ScannedImage(path: file.path, filename: file.lastPathComponent, metadata: metadata))
+            } catch {
+                logger.warning("Skipping \(file.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+        return scanned.sorted { a, b in
+            switch (a.metadata.dateTimeOriginal, b.metadata.dateTimeOriginal) {
+            case let (dateA?, dateB?): return dateA < dateB
+            case (nil, _?): return false
+            case (_?, nil): return true
+            case (nil, nil): return a.filename < b.filename
+            }
+        }
+    }
+}

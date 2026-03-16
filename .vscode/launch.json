@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:quigsphoto-uploader}",
+            "name": "Debug quigsphoto-uploader",
+            "target": "quigsphoto-uploader",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug quigsphoto-uploader"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:quigsphoto-uploader}",
+            "name": "Release quigsphoto-uploader",
+            "target": "quigsphoto-uploader",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release quigsphoto-uploader"
+        }
+    ]
+}
