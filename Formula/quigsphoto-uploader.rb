@@ -7,7 +7,9 @@ class QuigsphotoUploader < Formula
   # url "https://github.com/quigleyb/quigsphoto-uploader/archive/refs/tags/v1.0.0.tar.gz"
   # sha256 "..."
 
-  head "https://github.com/quigleyb/quigsphoto-uploader.git", branch: "main"
+  # Update to GitHub URL once published:
+  # head "https://github.com/quigleyb/quigsphoto-uploader.git", branch: "main"
+  head "file:///Users/wash/Developer/tools/quigsphoto-uploader", using: :git, branch: "main"
 
   depends_on xcode: ["15.0", :build]
   depends_on :macos
