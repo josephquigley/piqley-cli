@@ -324,11 +324,10 @@ struct ProcessCommand: AsyncParsableCommand {
         do {
             var page = 1
             let cutoff = Date().addingTimeInterval(-365 * 24 * 60 * 60)
-            let filterKeyword = config.project365.keyword.replacingOccurrences(of: " ", with: "+")
             seedLoop: while true {
                 let response = try await client.getPosts(
                     status: "published",
-                    filter: "tag:\(filterKeyword)",
+                    filter: "tag:'\(config.project365.keyword)'",
                     page: page
                 )
                 for post in response.posts {

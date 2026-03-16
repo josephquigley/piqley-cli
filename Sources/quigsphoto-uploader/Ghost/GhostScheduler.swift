@@ -14,9 +14,9 @@ struct GhostScheduler {
     func nextScheduleDate(is365Project: Bool) async throws -> Date {
         let filter: String
         if is365Project {
-            filter = "tag:365+Project"
+            filter = "tag:'365 Project'"
         } else {
-            filter = "tag:#image-post+tag:-365+Project"
+            filter = "tag:#image-post+tag:-'365 Project'"
         }
         let scheduled = try await client.getPosts(status: "scheduled", filter: filter, limit: 50)
         if !scheduled.posts.isEmpty {
