@@ -78,7 +78,7 @@ final class GhostClient {
         request.httpBody = body
 
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, body: data)
         let decoded = try JSONDecoder().decode(GhostImageUploadResponse.self, from: data)
         guard let imageURL = decoded.images.first?.url else { throw GhostClientError.noImageURL }
         return imageURL
@@ -93,7 +93,7 @@ final class GhostClient {
         request.setValue("Ghost \(jwt)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(GhostPostCreateRequest(posts: [post]))
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, body: data)
         let decoded = try JSONDecoder().decode(GhostPostCreateResponse.self, from: data)
         guard let createdPost = decoded.posts.first else { throw GhostClientError.noPostReturned }
         return createdPost
@@ -108,13 +108,34 @@ final class GhostClient {
         let jwt = try Self.generateJWT(from: apiKey)
         request.setValue("Ghost \(jwt)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, body: data)
         return data
     }
 
-    private func validateResponse(_ response: URLResponse) throws {
+    private func validateResponse(_ response: URLResponse, body: Data? = nil) throws {
         guard let httpResponse = response as? HTTPURLResponse else { throw GhostClientError.invalidResponse }
-        guard (200...299).contains(httpResponse.statusCode) else { throw GhostClientError.httpError(statusCode: httpResponse.statusCode) }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let detail = Self.extractErrorDetail(from: body)
+            throw GhostClientError.httpError(statusCode: httpResponse.statusCode, detail: detail)
+        }
+    }
+
+    private static func extractErrorDetail(from body: Data?) -> String? {
+        guard let body else { return nil }
+        struct GhostErrorResponse: Decodable {
+            let errors: [GhostErrorDetail]?
+            struct GhostErrorDetail: Decodable {
+                let message: String?
+                let context: String?
+                let type: String?
+            }
+        }
+        guard let decoded = try? JSONDecoder().decode(GhostErrorResponse.self, from: body),
+              let firstError = decoded.errors?.first else { return nil }
+        var parts: [String] = []
+        if let message = firstError.message { parts.append(message) }
+        if let context = firstError.context { parts.append(context) }
+        return parts.isEmpty ? nil : parts.joined(separator: " — ")
     }
 }
 
@@ -123,7 +144,7 @@ final class GhostClient {
 enum GhostClientError: Error, LocalizedError {
     case invalidAPIKey
     case invalidResponse
-    case httpError(statusCode: Int)
+    case httpError(statusCode: Int, detail: String?)
     case noImageURL
     case noPostReturned
 
@@ -131,7 +152,9 @@ enum GhostClientError: Error, LocalizedError {
         switch self {
         case .invalidAPIKey: return "Invalid Ghost Admin API key format (expected id:secret)"
         case .invalidResponse: return "Invalid HTTP response"
-        case .httpError(let code): return "Ghost API error: HTTP \(code)"
+        case .httpError(let code, let detail):
+            if let detail { return "Ghost API error: HTTP \(code) — \(detail)" }
+            return "Ghost API error: HTTP \(code)"
         case .noImageURL: return "No image URL in upload response"
         case .noPostReturned: return "No post returned from create"
         }
