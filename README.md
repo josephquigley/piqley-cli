@@ -63,6 +63,27 @@ cd /opt/homebrew/Library/Taps/quigs/homebrew-tools && git pull origin main
 brew reinstall --HEAD quigs/tools/quigsphoto-uploader
 ```
 
+### Creating a release with bottles
+
+Bottles are prebuilt binaries so users don't need Xcode to install.
+
+**Automated (GitHub Actions):** Push a tag and create a GitHub release — the `bottle.yml` workflow builds and uploads a bottle automatically.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+gh release create v1.0.0 --generate-notes
+# Workflow uploads bottle, then update formula with the bottle block from the workflow output
+```
+
+**Manual (local):**
+
+```bash
+./scripts/create-bottle.sh 1.0.0
+# Upload the .tar.gz to the GitHub release
+# Paste the bottle block into Formula/quigsphoto-uploader.rb
+```
+
 ### Switching to GitHub
 
 When publishing to GitHub, update `Formula/quigsphoto-uploader.rb`:
@@ -71,7 +92,7 @@ When publishing to GitHub, update `Formula/quigsphoto-uploader.rb`:
    ```ruby
    head "https://github.com/josephquigley/quigsphoto-uploader.git", branch: "main"
    ```
-2. For tagged releases, add `url` and `sha256` fields pointing to the release tarball.
+2. Add `url`, `sha256`, and `bottle` block for the tagged release.
 3. Update the tap to point at the GitHub repo:
    ```bash
    brew untap quigs/tools

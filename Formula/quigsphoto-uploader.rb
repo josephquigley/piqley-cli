@@ -3,11 +3,16 @@ class QuigsphotoUploader < Formula
   homepage "https://github.com/josephquigley/quigsphoto-uploader"
   license "MIT"
 
-  # Tagged releases will use url/sha256 here once published:
+  # Uncomment and update for tagged releases:
   # url "https://github.com/josephquigley/quigsphoto-uploader/archive/refs/tags/v1.0.0.tar.gz"
   # sha256 "..."
+  #
+  # bottle do
+  #   root_url "https://github.com/josephquigley/quigsphoto-uploader/releases/download/v1.0.0"
+  #   sha256 cellar: :any_skip_relocation, arm64_sequoia: "..."
+  # end
 
-  # Update to GitHub URL once published:
+  # Local development — switch to GitHub URL when published:
   # head "https://github.com/josephquigley/quigsphoto-uploader.git", branch: "main"
   head "file:///Users/wash/Developer/tools/quigsphoto-uploader", using: :git, branch: "main"
 
