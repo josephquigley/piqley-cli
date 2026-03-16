@@ -73,7 +73,7 @@ struct ProcessCommand: AsyncParsableCommand {
         let scheduler = GhostScheduler(client: ghostClient, config: config.ghost)
 
         // Seed email log from Ghost if it doesn't exist
-        if !emailLog.fileExists {
+        if !emailLog.fileExists && !dryRun {
             logger.info("Email log not found — seeding from Ghost...")
             await seedEmailLog(emailLog: emailLog, client: ghostClient, config: config)
         }
@@ -110,37 +110,39 @@ struct ProcessCommand: AsyncParsableCommand {
                 }
                 let is365 = image.metadata.is365Project(keyword: config.project365.keyword)
 
-                // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)
-                let isDup: Bool
-                do {
-                    isDup = try await deduplicator.isDuplicate(filename: image.filename)
-                } catch is GhostDeduplicatorError {
-                    logger.error("Fatal: Ghost API dedup query failed — aborting to avoid duplicates")
-                    throw ExitCode(1)
-                }
-                if isDup {
-                    logger.info("[\(image.filename)] Duplicate — skipping Ghost upload")
-                    results.duplicates.append(image.filename)
-                    // Still check email for 365 Project
-                    if is365 {
-                        let resizedPath = tempDir + image.filename
-                        if !FileManager.default.fileExists(atPath: resizedPath) {
-                            try imageProcessor.process(
-                                inputPath: image.path,
-                                outputPath: resizedPath,
-                                maxLongEdge: config.processing.maxLongEdge,
-                                jpegQuality: config.processing.jpegQuality
-                            )
-                        }
-                        emailCandidates.append((image, resizedPath))
+                if !dryRun {
+                    // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)
+                    let isDup: Bool
+                    do {
+                        isDup = try await deduplicator.isDuplicate(filename: image.filename)
+                    } catch is GhostDeduplicatorError {
+                        logger.error("Fatal: Ghost API dedup query failed — aborting to avoid duplicates")
+                        throw ExitCode(1)
                     }
-                    continue
+                    if isDup {
+                        logger.info("[\(image.filename)] Duplicate — skipping Ghost upload")
+                        results.duplicates.append(image.filename)
+                        // Still check email for 365 Project
+                        if is365 {
+                            let resizedPath = tempDir + image.filename
+                            if !FileManager.default.fileExists(atPath: resizedPath) {
+                                try imageProcessor.process(
+                                    inputPath: image.path,
+                                    outputPath: resizedPath,
+                                    maxLongEdge: config.processing.maxLongEdge,
+                                    jpegQuality: config.processing.jpegQuality
+                                )
+                            }
+                            emailCandidates.append((image, resizedPath))
+                        }
+                        continue
+                    }
                 }
 
                 // Resize image
                 let resizedPath = tempDir + image.filename
-                logger.info("[\(image.filename)] Resizing...")
                 if !dryRun {
+                    logger.info("[\(image.filename)] Resizing...")
                     try imageProcessor.process(
                         inputPath: image.path,
                         outputPath: resizedPath,
@@ -186,7 +188,7 @@ struct ProcessCommand: AsyncParsableCommand {
                 let status = hasTitle ? "scheduled" : "draft"
 
                 if dryRun {
-                    logger.info("[\(image.filename)] Would \(status): \"\(postTitle)\"")
+                    logger.info("[\(image.filename)] Would \(status == "scheduled" ? "schedule" : "save as draft"): \"\(postTitle)\"")
                     if status == "scheduled" {
                         results.scheduled.append(image.filename)
                     } else {
