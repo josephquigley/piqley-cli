@@ -80,6 +80,7 @@ struct GhostPostCreateRequest: Codable {
 
 struct GhostPostCreate: Codable {
     let title: String
+    let slug: String?
     let lexical: String?
     let status: String
     let publishedAt: String?
@@ -87,7 +88,7 @@ struct GhostPostCreate: Codable {
     let tags: [GhostTagInput]
 
     enum CodingKeys: String, CodingKey {
-        case title, lexical, status, tags
+        case title, slug, lexical, status, tags
         case publishedAt = "published_at"
         case featureImage = "feature_image"
     }

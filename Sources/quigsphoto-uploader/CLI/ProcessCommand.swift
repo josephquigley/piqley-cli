@@ -218,10 +218,26 @@ struct ProcessCommand: AsyncParsableCommand {
 
                 // Build Lexical content
                 let lexical = LexicalBuilder.build(
-                    imageURL: imageURL,
                     title: bodyTitle,
                     description: bodyDescription
                 )
+
+                // Build slug with year prefix
+                let photoYear: String
+                if let date = image.metadata.dateTimeOriginal {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy"
+                    photoYear = formatter.string(from: date)
+                } else {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy"
+                    photoYear = formatter.string(from: Date())
+                }
+                let slugBase = postTitle.lowercased()
+                    .replacingOccurrences(of: " ", with: "-")
+                    .replacingOccurrences(of: "#", with: "")
+                    .trimmingCharacters(in: CharacterSet.alphanumerics.inverted.subtracting(.init(charactersIn: "-")))
+                let slug = "\(photoYear)-\(slugBase)"
 
                 // Determine schedule date
                 var publishedAt: String?
@@ -234,6 +250,7 @@ struct ProcessCommand: AsyncParsableCommand {
                 // Create post
                 let post = GhostPostCreate(
                     title: postTitle,
+                    slug: slug,
                     lexical: lexical,
                     status: status,
                     publishedAt: publishedAt,

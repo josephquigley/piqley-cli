@@ -1,15 +1,8 @@
 import Foundation
 
 enum LexicalBuilder {
-    static func build(imageURL: String, title: String?, description: String?) -> String {
+    static func build(title: String?, description: String?) -> String {
         var children: [[String: Any]] = []
-
-        let imageCard: [String: Any] = [
-            "type": "image", "version": 1, "src": imageURL,
-            "width": 0, "height": 0, "title": "", "alt": "",
-            "caption": "", "cardWidth": "wide",
-        ]
-        children.append(imageCard)
 
         if let title, !title.isEmpty {
             children.append(makeParagraph(text: title))
