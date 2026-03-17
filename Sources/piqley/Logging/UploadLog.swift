@@ -31,10 +31,10 @@ struct UploadLog {
         encoder.dateEncodingStrategy = .iso8601
         var data = try encoder.encode(entry)
         data.append(contentsOf: "\n".utf8)
-        let fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0o644)
-        guard fd >= 0 else { throw UploadLogError.cannotOpenFile(path: path) }
-        defer { close(fd) }
-        data.withUnsafeBytes { buffer in _ = write(fd, buffer.baseAddress!, buffer.count) }
+        let fileDesc = open(path, O_WRONLY | O_CREAT | O_APPEND, 0o644)
+        guard fileDesc >= 0 else { throw UploadLogError.cannotOpenFile(path: path) }
+        defer { close(fileDesc) }
+        data.withUnsafeBytes { buffer in _ = write(fileDesc, buffer.baseAddress!, buffer.count) }
     }
 }
 

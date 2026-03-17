@@ -14,7 +14,7 @@ struct EmailSender {
     }
 
     func send(
-        to: String,
+        recipient: String,
         subject: String,
         body: String,
         attachmentPath: String,
@@ -36,7 +36,7 @@ struct EmailSender {
 
         let email = Email(
             sender: .init(emailAddress: config.from),
-            recipients: [.init(emailAddress: to)],
+            recipients: [.init(emailAddress: recipient)],
             subject: subject,
             body: .plain(body),
             attachments: [
@@ -58,7 +58,7 @@ struct EmailSender {
         let future = mailer.send(email)
         try future.wait()
 
-        logger.info("Email sent to \(to): \(subject)")
+        logger.info("Email sent to \(recipient): \(subject)")
     }
 }
 

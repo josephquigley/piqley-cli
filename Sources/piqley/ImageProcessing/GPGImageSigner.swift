@@ -23,7 +23,9 @@ struct GPGImageSigner: ImageSigner {
             throw SigningError.gpgNotFound
         }
         guard let namespace = config.xmpNamespace else {
-            throw SigningError.xmpWriteFailed("XMP namespace not configured. Ensure signing config has a resolved namespace.")
+            throw SigningError.xmpWriteFailed(
+                "XMP namespace not configured. Ensure signing config has a resolved namespace."
+            )
         }
 
         // 1. Hash the file before any XMP modification
@@ -76,6 +78,7 @@ struct GPGImageSigner: ImageSigner {
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func writeXMPSignature(
         to path: String,
         contentHash: String,
@@ -144,7 +147,8 @@ struct GPGImageSigner: ImageSigner {
         }
     }
 
-    /// Check if GPG can sign without interactive passphrase entry (e.g., agent has cached passphrase or key has no passphrase)
+    /// Check if GPG can sign without interactive passphrase entry
+    /// (e.g., agent has cached passphrase or key has no passphrase)
     static func canSignNonInteractively(keyFingerprint: String) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -175,12 +179,10 @@ struct GPGImageSigner: ImageSigner {
         process.waitUntilExit()
 
         let output = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        for line in output.components(separatedBy: "\n") {
-            if line.hasPrefix("fpr:") {
-                let fields = line.components(separatedBy: ":")
-                if fields.count > 9 {
-                    return fields[9]
-                }
+        for line in output.components(separatedBy: "\n") where line.hasPrefix("fpr:") {
+            let fields = line.components(separatedBy: ":")
+            if fields.count > 9 {
+                return fields[9]
             }
         }
         return nil

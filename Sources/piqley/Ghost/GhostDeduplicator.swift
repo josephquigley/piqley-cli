@@ -44,7 +44,10 @@ struct GhostDeduplicator {
                            postFilename == filename
                         {
                             logger.info("Dedup Ghost API hit: \(filename) (post \(post.id))")
-                            let entry = UploadLogEntry(filename: filename, ghostUrl: featureImage, postId: post.id, timestamp: Date())
+                            let entry = UploadLogEntry(
+                                filename: filename, ghostUrl: featureImage,
+                                postId: post.id, timestamp: Date()
+                            )
                             try? uploadLog.append(entry)
                             return true
                         }

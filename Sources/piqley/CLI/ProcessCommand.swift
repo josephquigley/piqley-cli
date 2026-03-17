@@ -23,9 +23,13 @@ struct ProcessCommand: AsyncParsableCommand {
     @Option(help: "Directory to write result files to (default: input folder)")
     var resultsDir: String?
 
+    @Flag(help: "Do not write any results files")
+    var noResultsFile = false
+
     @Flag(help: "Skip image signing for this run")
     var noSign = false
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func run() async throws {
         let logger = Logger(label: "\(AppConstants.name).process")
 
@@ -360,7 +364,7 @@ struct ProcessCommand: AsyncParsableCommand {
                     let body = image.metadata.description ?? ""
 
                     try emailSender.send(
-                        to: config.project365.emailTo,
+                        recipient: config.project365.emailTo,
                         subject: subject,
                         body: body,
                         attachmentPath: resizedPath,
@@ -384,15 +388,19 @@ struct ProcessCommand: AsyncParsableCommand {
         }
 
         // Write results
-        let outputDir = resultsDir ?? folderPath
-        if jsonResults {
-            try ResultsWriter.writeJSON(results: results, to: outputDir, verbose: verboseResults)
-        } else {
-            try ResultsWriter.writeText(results: results, to: outputDir, verbose: verboseResults)
+        if !noResultsFile {
+            let outputDir = resultsDir ?? folderPath
+            if jsonResults {
+                try ResultsWriter.writeJSON(results: results, to: outputDir, verbose: verboseResults)
+            } else {
+                try ResultsWriter.writeText(results: results, to: outputDir, verbose: verboseResults)
+            }
         }
 
         // Summary
-        let summary = "Processed \(images.count) images: \(results.scheduled.count) scheduled, \(results.drafts.count) drafts, \(results.duplicates.count) duplicates, \(results.failures.count) errors"
+        let summary = "Processed \(images.count) images: "
+            + "\(results.scheduled.count) scheduled, \(results.drafts.count) drafts, "
+            + "\(results.duplicates.count) duplicates, \(results.failures.count) errors"
         log(summary)
 
         // Exit code

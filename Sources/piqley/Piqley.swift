@@ -49,7 +49,11 @@ struct CleanLogHandler: LogHandler {
         set { underlying[metadataKey: key] = newValue }
     }
 
-    func log(level _: Logger.Level, message: Logger.Message, metadata _: Logger.Metadata?, source _: String, file _: String, function _: String, line _: UInt) {
+    // swiftlint:disable:next function_parameter_count
+    func log(
+        level _: Logger.Level, message: Logger.Message, metadata _: Logger.Metadata?,
+        source _: String, file _: String, function _: String, line _: UInt
+    ) {
         FileHandle.standardError.write(Data("\(message)\n".utf8))
     }
 }

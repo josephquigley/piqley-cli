@@ -43,9 +43,9 @@ enum XMPSignatureReader {
             }
         }
 
-        guard let hash = contentHash, let sig = signature, let fp = keyFingerprint, let alg = algorithm else {
+        guard let hash = contentHash, let sig = signature, let fingerprint = keyFingerprint, let alg = algorithm else {
             return nil
         }
-        return XMPSignatureFields(contentHash: hash, signature: sig, keyFingerprint: fp, algorithm: alg)
+        return XMPSignatureFields(contentHash: hash, signature: sig, keyFingerprint: fingerprint, algorithm: alg)
     }
 }

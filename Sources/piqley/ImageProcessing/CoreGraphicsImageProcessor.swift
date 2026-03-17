@@ -9,7 +9,10 @@ struct CoreGraphicsImageProcessor: ImageProcessor {
         "IPTC": kCGImagePropertyIPTCDictionary as String,
     ]
 
-    func process(inputPath: String, outputPath: String, maxLongEdge: Int, jpegQuality: Int, metadataAllowlist: [String]) throws {
+    func process(
+        inputPath: String, outputPath: String,
+        maxLongEdge: Int, jpegQuality: Int, metadataAllowlist: [String]
+    ) throws {
         let inputURL = URL(fileURLWithPath: inputPath) as CFURL
         guard let source = CGImageSourceCreateWithURL(inputURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil)

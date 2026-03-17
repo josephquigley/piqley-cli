@@ -31,7 +31,9 @@ struct AppConfig: Codable, Equatable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             url = try container.decode(String.self, forKey: .url)
             schedulingWindow = try container.decode(SchedulingWindow.self, forKey: .schedulingWindow)
-            non365ProjectFilterTags = try container.decodeIfPresent([String].self, forKey: .non365ProjectFilterTags) ?? []
+            non365ProjectFilterTags = try container.decodeIfPresent(
+                [String].self, forKey: .non365ProjectFilterTags
+            ) ?? []
         }
     }
 
@@ -60,7 +62,10 @@ struct AppConfig: Codable, Equatable {
             "IPTC.TimeCreated",
         ]
 
-        init(maxLongEdge: Int, jpegQuality: Int, metadataAllowlist: [String] = ProcessingConfig.defaultMetadataAllowlist) {
+        init(
+            maxLongEdge: Int, jpegQuality: Int,
+            metadataAllowlist: [String] = ProcessingConfig.defaultMetadataAllowlist
+        ) {
             self.maxLongEdge = maxLongEdge
             self.jpegQuality = jpegQuality
             self.metadataAllowlist = metadataAllowlist
@@ -70,7 +75,9 @@ struct AppConfig: Codable, Equatable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             maxLongEdge = try container.decode(Int.self, forKey: .maxLongEdge)
             jpegQuality = try container.decode(Int.self, forKey: .jpegQuality)
-            metadataAllowlist = try container.decodeIfPresent([String].self, forKey: .metadataAllowlist) ?? ProcessingConfig.defaultMetadataAllowlist
+            metadataAllowlist = try container.decodeIfPresent(
+                [String].self, forKey: .metadataAllowlist
+            ) ?? ProcessingConfig.defaultMetadataAllowlist
         }
     }
 

@@ -36,11 +36,16 @@ struct SetupCommand: ParsableCommand {
         let smtpFrom = prompt("SMTP from address (default: same as username):", default: smtpUsername)
 
         // Tag blocklist
-        let blocklistStr = prompt("Tag blocklist (comma-separated, or empty; use glob: or regex: prefixes for patterns):", default: "")
-        let blocklist = blocklistStr.isEmpty ? [] : blocklistStr.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let blocklistStr = prompt(
+            "Tag blocklist (comma-separated, or empty; use glob: or regex: prefixes for patterns):",
+            default: ""
+        )
+        let blocklist = blocklistStr.isEmpty
+            ? []
+            : blocklistStr.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
 
         // Signing (optional)
-        var signingConfig: AppConfig.SigningConfig? = nil
+        var signingConfig: AppConfig.SigningConfig?
         let enableSigning = prompt("Enable image signing? (y/n):", default: "n")
         if enableSigning.lowercased() == "y" {
             print("\nAvailable GPG secret keys:")
@@ -59,7 +64,10 @@ struct SetupCommand: ParsableCommand {
             if !fingerprint.isEmpty {
                 let derivedNs = AppConfig.SigningConfig.deriveXmpNamespace(from: ghostURL)
                 let customNs = prompt("XMP namespace (default: \(derivedNs)):", default: derivedNs)
-                let customPrefix = prompt("XMP prefix (default: \(AppConfig.SigningConfig.defaultXmpPrefix)):", default: AppConfig.SigningConfig.defaultXmpPrefix)
+                let customPrefix = prompt(
+                    "XMP prefix (default: \(AppConfig.SigningConfig.defaultXmpPrefix)):",
+                    default: AppConfig.SigningConfig.defaultXmpPrefix
+                )
                 signingConfig = AppConfig.SigningConfig(
                     keyFingerprint: fingerprint,
                     xmpNamespace: customNs,

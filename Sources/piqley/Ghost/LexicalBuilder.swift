@@ -22,6 +22,7 @@ enum LexicalBuilder {
                 "direction": "ltr", "format": "", "indent": 0,
             ] as [String: Any],
         ]
+        // swiftlint:disable:next force_try
         let data = try! JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
         return String(data: data, encoding: .utf8)!
     }
@@ -38,7 +39,10 @@ enum LexicalBuilder {
         [
             "type": "paragraph", "version": 1,
             "children": [
-                ["type": "text", "version": 1, "text": text, "format": 0, "detail": 0, "mode": "normal", "style": ""] as [String: Any],
+                [
+                    "type": "text", "version": 1, "text": text, "format": 0,
+                    "detail": 0, "mode": "normal", "style": "",
+                ] as [String: Any],
             ],
             "direction": "ltr", "format": "", "indent": 0, "textFormat": 0, "textStyle": "",
         ]

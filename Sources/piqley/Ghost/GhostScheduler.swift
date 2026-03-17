@@ -45,9 +45,9 @@ struct GhostScheduler {
 
     func buildScheduleDateTime(baseDate: Date) -> Date {
         let (hour, minute) = Self.randomTimeInWindow(config.schedulingWindow)
-        guard let tz = TimeZone(identifier: config.schedulingWindow.timezone) else { return baseDate }
+        guard let timeZone = TimeZone(identifier: config.schedulingWindow.timezone) else { return baseDate }
         var calendar = Calendar.current
-        calendar.timeZone = tz
+        calendar.timeZone = timeZone
         var components = calendar.dateComponents([.year, .month, .day], from: baseDate)
         components.hour = hour
         components.minute = minute
@@ -81,7 +81,10 @@ struct GhostScheduler {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         guard let refDate = formatter.date(from: referenceDate) else { return 1 }
         let calendar = Calendar.current
-        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: refDate), to: calendar.startOfDay(for: photoDate)).day ?? 0
+        let components = calendar.dateComponents(
+            [.day], from: calendar.startOfDay(for: refDate), to: calendar.startOfDay(for: photoDate)
+        )
+        let days = components.day ?? 0
         return abs(days) + 1
     }
 }

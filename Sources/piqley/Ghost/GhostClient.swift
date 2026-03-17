@@ -38,13 +38,19 @@ final class GhostClient {
         var hmac = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
         data.withUnsafeBytes { dataBytes in
             key.withUnsafeBytes { keyBytes in
-                CCHmac(CCHmacAlgorithm(kCCHmacAlgSHA256), keyBytes.baseAddress, key.count, dataBytes.baseAddress, data.count, &hmac)
+                CCHmac(
+                    CCHmacAlgorithm(kCCHmacAlgSHA256),
+                    keyBytes.baseAddress, key.count,
+                    dataBytes.baseAddress, data.count, &hmac
+                )
             }
         }
         return Data(hmac)
     }
 
-    func getPosts(status: String, filter: String? = nil, page: Int = 1, limit: Int = 50) async throws -> GhostPostsResponse {
+    func getPosts(
+        status: String, filter: String? = nil, page: Int = 1, limit: Int = 50
+    ) async throws -> GhostPostsResponse {
         var urlComponents = URLComponents(string: "\(baseURL)/ghost/api/admin/posts/")!
         var queryItems = [
             URLQueryItem(name: "status", value: status),
@@ -71,11 +77,11 @@ final class GhostClient {
 
         let fileData = try Data(contentsOf: URL(fileURLWithPath: filePath))
         var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(Data("--\(boundary)\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".utf8))
+        body.append(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
         body.append(fileData)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
         request.httpBody = body
 
         let (data, response) = try await session.data(for: request)

@@ -4,10 +4,10 @@ import ImageIO
 
 struct CGImageMetadataReader: MetadataReader {
     private static let exifDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy:MM:dd HH:mm:ss"
-        f.locale = Locale(identifier: "en_US_POSIX")
-        return f
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
     }()
 
     func read(from path: String) throws -> ImageMetadata {

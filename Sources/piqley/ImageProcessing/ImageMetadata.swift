@@ -36,10 +36,8 @@ struct ImageMetadata {
     func matchingCameraTags(from _: [String: [String]], matchers: [(TagMatcher, [String])]) -> [String] {
         guard let model = cameraModel else { return [] }
         var result: [String] = []
-        for (matcher, tags) in matchers {
-            if matcher.matches(model) {
-                result.append(contentsOf: tags)
-            }
+        for (matcher, tags) in matchers where matcher.matches(model) {
+            result.append(contentsOf: tags)
         }
         return result
     }

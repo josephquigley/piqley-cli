@@ -33,12 +33,12 @@ struct ImageScanner {
                 logger.warning("Skipping \(file.lastPathComponent): \(error.localizedDescription)")
             }
         }
-        return scanned.sorted { a, b in
-            switch (a.metadata.dateTimeOriginal, b.metadata.dateTimeOriginal) {
+        return scanned.sorted { lhs, rhs in
+            switch (lhs.metadata.dateTimeOriginal, rhs.metadata.dateTimeOriginal) {
             case let (dateA?, dateB?): dateA < dateB
             case (nil, _?): false
             case (_?, nil): true
-            case (nil, nil): a.filename < b.filename
+            case (nil, nil): lhs.filename < rhs.filename
             }
         }
     }

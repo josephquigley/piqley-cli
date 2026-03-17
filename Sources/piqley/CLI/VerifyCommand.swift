@@ -28,14 +28,14 @@ struct VerifyCommand: ParsableCommand {
         let namespace: String
         let prefix: String
 
-        if let ns = xmpNamespace {
-            namespace = ns
+        if let explicitNamespace = xmpNamespace {
+            namespace = explicitNamespace
         } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
                   let config = try? AppConfig.load(from: AppConfig.configPath.path),
                   let resolved = config.resolvedSigningConfig,
-                  let ns = resolved.xmpNamespace
+                  let resolvedNamespace = resolved.xmpNamespace
         {
-            namespace = ns
+            namespace = resolvedNamespace
         } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
                   let config = try? AppConfig.load(from: AppConfig.configPath.path)
         {

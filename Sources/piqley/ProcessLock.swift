@@ -8,14 +8,14 @@ final class ProcessLock {
     init(path: String) throws {
         let dir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        let fd = open(path, O_CREAT | O_RDWR, 0o644)
-        guard fd >= 0 else { throw ProcessLockError.cannotOpenLockFile(path: path) }
-        let result = flock(fd, LOCK_EX | LOCK_NB)
+        let fileDesc = open(path, O_CREAT | O_RDWR, 0o644)
+        guard fileDesc >= 0 else { throw ProcessLockError.cannotOpenLockFile(path: path) }
+        let result = flock(fileDesc, LOCK_EX | LOCK_NB)
         if result != 0 {
-            close(fd)
+            close(fileDesc)
             throw ProcessLockError.alreadyRunning
         }
-        fileDescriptor = fd
+        fileDescriptor = fileDesc
         self.path = path
     }
 
