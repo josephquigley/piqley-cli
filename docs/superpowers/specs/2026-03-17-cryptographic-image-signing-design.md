@@ -18,15 +18,15 @@ The core challenge is that embedding a signature in XMP modifies the file, inval
 
 Both signing and verification use identical extraction logic (shared `SignableContentExtractor`):
 
-1. Open the JPEG with `CGImageSource`
-2. Extract the JPEG compressed bitstream (image data between SOI/EOI markers, excluding metadata segments like APP1/APP13)
+1. Open the JPEG with `CGImageSource`, create `CGImage`
+2. Render into a canonical RGBA bitmap via `CGContext` (deterministic raw pixel data, independent of JPEG segment ordering)
 3. Extract metadata dictionaries: EXIF, TIFF, IPTC
-4. Exclude the `quigsphoto` XMP namespace (signature fields)
+4. Exclude the signing XMP namespace (configurable, default `quigsphoto`)
 5. Serialize metadata to canonical form: JSON with `sortedKeys` option
-6. Concatenate: `image_data_bytes + canonical_metadata_json_bytes`
+6. Concatenate: `pixel_data_bytes + canonical_metadata_json_bytes`
 7. SHA-256 the result → hex string
 
-This is deterministic: the same image always produces the same hash, regardless of whether XMP signature fields are present.
+This is deterministic: the same image always produces the same hash, regardless of whether XMP signature fields are present. Using raw pixel data rather than the JPEG bitstream avoids dependence on JPEG segment ordering and makes the hash portable across re-encoding scenarios where pixel content is preserved.
 
 ## Signing Pipeline
 
@@ -161,14 +161,14 @@ Sources/quigsphoto-uploader/
 ### Protocols
 
 ```swift
-protocol ImageSigner {
-    func sign(imageAt path: URL, keyFingerprint: String) async throws -> SigningResult
-}
-
 struct SigningResult {
     let contentHash: String
     let signature: String
     let keyFingerprint: String
+}
+
+protocol ImageSigner {
+    func sign(imageAt path: String) async throws -> SigningResult
 }
 ```
 
@@ -177,9 +177,9 @@ struct SigningResult {
 In `ProcessCommand.swift`, after `CoreGraphicsImageProcessor.processImage()` returns the resized temp file path, and before Ghost upload:
 
 ```swift
-if config.signing != nil && !noSign {
-    let signer = GPGImageSigner()
-    try await signer.sign(imageAt: resizedImagePath, keyFingerprint: config.signing!.keyFingerprint)
+if let signingConfig = config.signing, !noSign {
+    let signer = GPGImageSigner(config: signingConfig)
+    try await signer.sign(imageAt: resizedPath)
 }
 ```
 
