@@ -12,7 +12,7 @@ struct AppConfig: Codable, Equatable {
     struct GhostConfig: Codable, Equatable {
         var url: String
         var schedulingWindow: SchedulingWindow
-        var schedulingFilterTags: [String]
+        var non365ProjectFilterTags: [String]
 
         struct SchedulingWindow: Codable, Equatable {
             var start: String
@@ -20,17 +20,17 @@ struct AppConfig: Codable, Equatable {
             var timezone: String
         }
 
-        init(url: String, schedulingWindow: SchedulingWindow, schedulingFilterTags: [String] = []) {
+        init(url: String, schedulingWindow: SchedulingWindow, non365ProjectFilterTags: [String] = []) {
             self.url = url
             self.schedulingWindow = schedulingWindow
-            self.schedulingFilterTags = schedulingFilterTags
+            self.non365ProjectFilterTags = non365ProjectFilterTags
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             url = try container.decode(String.self, forKey: .url)
             schedulingWindow = try container.decode(SchedulingWindow.self, forKey: .schedulingWindow)
-            schedulingFilterTags = try container.decodeIfPresent([String].self, forKey: .schedulingFilterTags) ?? []
+            non365ProjectFilterTags = try container.decodeIfPresent([String].self, forKey: .non365ProjectFilterTags) ?? []
         }
     }
 

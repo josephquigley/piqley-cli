@@ -16,7 +16,7 @@ struct GhostScheduler {
         if is365Project {
             filter = "tag:'\(project365Keyword)'"
         } else {
-            var parts = config.schedulingFilterTags.map { "tag:'\($0)'" }
+            var parts = config.non365ProjectFilterTags.map { "tag:'\($0)'" }
             parts.append("tag:-'\(project365Keyword)'")
             filter = parts.joined(separator: "+")
         }
