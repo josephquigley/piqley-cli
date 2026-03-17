@@ -139,8 +139,10 @@ Steps 3-4 use PNG (lossless) as the interchange format between Swift and the wat
 Follows the existing JSONL pattern used by `UploadLog` and `EmailLog`. Each line records one watermarked image:
 
 ```json
-{"imageId": "a1b2c3d4e5f6", "originalFilename": "IMG_1234.jpg", "contentHash": "sha256hex...", "ghostPostId": "abc123", "ghostPostUrl": "https://quigs.photo/p/...", "timestamp": "2026-03-17T14:30:00Z"}
+{"imageId": "a1b2c3d4e5f6", "originalFilename": "IMG_1234.jpg", "contentHash": "sha256hex...", "ghostPostId": "abc123", "ghostPostUrl": "https://quigs.photo/p/...", "modelVersion": "pixelseal-1.0", "timestamp": "2026-03-17T14:30:00Z"}
 ```
+
+The `modelVersion` field tracks which watermarking model was used to embed this image. When verifying, the Swift tool passes this as a hint to the watermark binary via `--model-version`, so it knows which model to load. This allows the binary to ship multiple model versions and try them in sequence (newest first, fall back to older) when the hint is unavailable.
 
 File location: alongside existing logs in the config directory.
 
@@ -257,13 +259,16 @@ quigsphoto-watermark embed \
   --output watermarked.png
 
 # Detect: reads image, outputs raw bit confidences as JSON
-quigsphoto-watermark detect --image input.jpg
-# stdout: {"bits": [3.14, -2.71, 8.12, ...], "confidence": 0.95}
+quigsphoto-watermark detect --image input.jpg [--model-version pixelseal-1.0]
+# stdout: {"bits": [3.14, -2.71, 8.12, ...], "confidence": 0.95, "modelVersion": "pixelseal-1.0"}
 ```
 
-**Detect output format:** JSON with two fields:
+**Detect output format:** JSON with three fields:
 - `bits`: array of 256 floats — raw model output before thresholding. Positive = bit is 1, negative = bit is 0. Magnitude indicates confidence.
 - `confidence`: float — first output from the model (watermark presence score). Not currently used but available for future "is this watermarked?" detection.
+- `modelVersion`: string — which model produced this result (e.g., `"pixelseal-1.0"`).
+
+**Model versioning:** The binary can ship multiple `.jit` model files. The `--model-version` flag on `detect` specifies which model to use. If omitted, the binary tries all models newest-first and returns the result with the highest confidence. This allows graceful upgrades: new images use the latest model, old images can still be verified.
 
 The Swift tool handles all payload logic (BCH decode, HMAC validation, reference lookup) — the binary is a thin wrapper around the model.
 
