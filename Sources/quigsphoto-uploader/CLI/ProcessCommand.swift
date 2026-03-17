@@ -250,30 +250,38 @@ struct ProcessCommand: AsyncParsableCommand {
                     description: bodyDescription
                 )
 
+                // Determine schedule date
+                var publishedAt: String?
+                var scheduleDateTime: Date?
+                if hasTitle {
+                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword)
+                    let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
+                    publishedAt = GhostScheduler.formatForGhost(date: dateTime)
+                    scheduleDateTime = dateTime
+                }
+
                 // Build slug with year prefix
                 let photoYear: String
-                if let date = image.metadata.dateTimeOriginal {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy"
-                    photoYear = formatter.string(from: date)
+                let yearFormatter = DateFormatter()
+                yearFormatter.dateFormat = "yyyy"
+                if is365 {
+                    if let date = image.metadata.dateTimeOriginal {
+                        photoYear = yearFormatter.string(from: date)
+                    } else {
+                        photoYear = yearFormatter.string(from: Date())
+                    }
                 } else {
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "yyyy"
-                    photoYear = formatter.string(from: Date())
+                    if let date = scheduleDateTime {
+                        photoYear = yearFormatter.string(from: date)
+                    } else {
+                        photoYear = yearFormatter.string(from: Date())
+                    }
                 }
                 let slugBase = postTitle.lowercased()
                     .replacingOccurrences(of: " ", with: "-")
                     .replacingOccurrences(of: "#", with: "")
                     .trimmingCharacters(in: CharacterSet.alphanumerics.inverted.subtracting(.init(charactersIn: "-")))
                 let slug = "\(photoYear)-\(slugBase)"
-
-                // Determine schedule date
-                var publishedAt: String?
-                if hasTitle {
-                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword)
-                    let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
-                    publishedAt = GhostScheduler.formatForGhost(date: dateTime)
-                }
 
                 // Create post
                 let post = GhostPostCreate(
@@ -286,7 +294,8 @@ struct ProcessCommand: AsyncParsableCommand {
                     tags: tags
                 )
                 let created = try await ghostClient.createPost(post)
-                logger.info("[\(image.filename)] \(status == "scheduled" ? "Scheduled" : "Draft"): \(postTitle) (post \(created.id))")
+                let editorURL = "\(config.ghost.url)/ghost/#/editor/post/\(created.id)"
+                logger.info("[\(image.filename)] \(status == "scheduled" ? "Scheduled" : "Draft"): \(postTitle) (\(editorURL))")
 
                 if status == "scheduled" {
                     results.scheduled.append(image.filename)

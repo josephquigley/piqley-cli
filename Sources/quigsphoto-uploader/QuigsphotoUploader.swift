@@ -50,17 +50,6 @@ struct CleanLogHandler: LogHandler {
     }
 
     func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, source: String, file: String, function: String, line: UInt) {
-        // StreamLogHandler includes [label] in the output — we bypass it and format ourselves
-        let timestamp = CleanLogHandler.timestamp()
-        let levelStr = "\(level)".uppercased().padding(toLength: 7, withPad: " ", startingAt: 0)
-        FileHandle.standardError.write(Data("\(timestamp) \(levelStr) \(message)\n".utf8))
-    }
-
-    private static func timestamp() -> String {
-        let now = Date()
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        formatter.timeZone = .current
-        return formatter.string(from: now)
+        FileHandle.standardError.write(Data("\(message)\n".utf8))
     }
 }
