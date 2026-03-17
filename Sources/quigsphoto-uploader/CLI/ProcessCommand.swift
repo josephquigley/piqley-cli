@@ -73,7 +73,7 @@ struct ProcessCommand: AsyncParsableCommand {
         let scheduler = GhostScheduler(client: ghostClient, config: config.ghost)
 
         // Seed email log from Ghost if it doesn't exist
-        if !emailLog.fileExists && !dryRun {
+        if !emailLog.fileExists {
             logger.info("Email log not found — seeding from Ghost...")
             await seedEmailLog(emailLog: emailLog, client: ghostClient, config: config)
         }
@@ -355,6 +355,10 @@ struct ProcessCommand: AsyncParsableCommand {
                 }
                 guard let meta = response.meta, meta.pagination?.next != nil else { break }
                 page += 1
+            }
+            // Touch the file even if no entries were found, so we don't re-seed every run
+            if !emailLog.fileExists {
+                FileManager.default.createFile(atPath: emailLog.path, contents: nil)
             }
             logger.info("Email log seeded from Ghost")
         } catch {
