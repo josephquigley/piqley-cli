@@ -73,15 +73,16 @@ struct ProcessCommand: AsyncParsableCommand {
         let scheduler = GhostScheduler(client: ghostClient, config: config.ghost)
 
         // Seed email log from Ghost if it doesn't exist
-        if !emailLog.fileExists {
+        if !emailLog.fileExists && !dryRun {
             logger.info("Email log not found — seeding from Ghost...")
             await seedEmailLog(emailLog: emailLog, client: ghostClient, config: config)
         }
 
         // Scan and sort images
-        logger.info("Scanning folder: \(folderPath)")
+        let log: (String) -> Void = dryRun ? { print($0) } : { logger.info("\($0)") }
+        log("Scanning folder: \(folderPath)")
         let images = try scanner.scan(folder: folderPath)
-        logger.info("Found \(images.count) images")
+        log("Found \(images.count) images")
 
         var results = ProcessingResults()
         var emailCandidates: [(ScannedImage, String)] = [] // (image, resizedPath)
@@ -97,10 +98,10 @@ struct ProcessCommand: AsyncParsableCommand {
                     )
                     processedKeywords = filterResult.kept
                     let allLeaves = image.metadata.keywords.map { ImageMetadata.leafKeyword($0) }
-                    logger.info("[\(image.filename)] Keywords: \(allLeaves.joined(separator: ", "))")
+                    print("[\(image.filename)] Keywords: \(allLeaves.joined(separator: ", "))")
                     if !filterResult.blocked.isEmpty {
                         let blockedDesc = filterResult.blocked.map { "\($0.keyword) (\($0.matcher))" }
-                        logger.info("[\(image.filename)] Blocked: \(blockedDesc.joined(separator: ", "))")
+                        print("[\(image.filename)] Blocked: \(blockedDesc.joined(separator: ", "))")
                     }
                 } else {
                     processedKeywords = ImageMetadata.processKeywords(
@@ -119,7 +120,11 @@ struct ProcessCommand: AsyncParsableCommand {
                     throw ExitCode(1)
                 }
                 if isDup {
-                    logger.info("[\(image.filename)] Duplicate — skipping")
+                    if dryRun {
+                        print("[\(image.filename)] Duplicate — skipping")
+                    } else {
+                        logger.info("[\(image.filename)] Duplicate — skipping")
+                    }
                     results.duplicates.append(image.filename)
                     if !dryRun {
                         // Still check email for 365 Project
@@ -195,10 +200,10 @@ struct ProcessCommand: AsyncParsableCommand {
                         formatter.dateFormat = "yyyy-MM-dd HH:mm"
                         formatter.timeZone = TimeZone(identifier: config.ghost.schedulingWindow.timezone) ?? .current
                         let formatted = formatter.string(from: dateTime)
-                        logger.info("[\(image.filename)] Would schedule: \"\(postTitle)\" on \(formatted) \(config.ghost.schedulingWindow.timezone)")
+                        print("[\(image.filename)] Would schedule: \"\(postTitle)\" on \(formatted) \(config.ghost.schedulingWindow.timezone)")
                         results.scheduled.append(image.filename)
                     } else {
-                        logger.info("[\(image.filename)] Would save as draft: \"\(postTitle)\"")
+                        print("[\(image.filename)] Would save as draft: \"\(postTitle)\"")
                         results.drafts.append(image.filename)
                     }
                     results.successes.append(image.filename)
@@ -314,7 +319,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
         // Summary
         let summary = "Processed \(images.count) images: \(results.scheduled.count) scheduled, \(results.drafts.count) drafts, \(results.duplicates.count) duplicates, \(results.failures.count) errors"
-        logger.info("\(summary)")
+        log(summary)
 
         // Exit code
         if !results.failures.isEmpty {
