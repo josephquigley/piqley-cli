@@ -108,6 +108,10 @@ struct ProcessCommand: AsyncParsableCommand {
         var results = ProcessingResults()
         var emailCandidates: [(image: ScannedImage, resizedPath: String, emailSubject: String)] = []
 
+        // Track next schedule dates per project type to correctly offset batch images
+        var nextDateFor365: Date?
+        var nextDateForOther: Date?
+
         // Process each image
         for image in images {
             do {
@@ -244,8 +248,23 @@ struct ProcessCommand: AsyncParsableCommand {
 
                 if dryRun {
                     if status == "scheduled" {
-                        let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword)
-                        let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
+                        let baseDate: Date
+                        if is365 {
+                            if let tracked = nextDateFor365 {
+                                baseDate = Calendar.current.date(byAdding: .day, value: 1, to: tracked)!
+                            } else {
+                                baseDate = try await scheduler.nextScheduleDate(is365Project: true, project365Keyword: config.project365.keyword)
+                            }
+                            nextDateFor365 = baseDate
+                        } else {
+                            if let tracked = nextDateForOther {
+                                baseDate = Calendar.current.date(byAdding: .day, value: 1, to: tracked)!
+                            } else {
+                                baseDate = try await scheduler.nextScheduleDate(is365Project: false, project365Keyword: config.project365.keyword)
+                            }
+                            nextDateForOther = baseDate
+                        }
+                        let dateTime = scheduler.buildScheduleDateTime(baseDate: baseDate)
                         let formatter = DateFormatter()
                         formatter.dateFormat = "yyyy-MM-dd HH:mm"
                         formatter.timeZone = TimeZone(identifier: config.ghost.schedulingWindow.timezone) ?? .current
@@ -274,8 +293,23 @@ struct ProcessCommand: AsyncParsableCommand {
                 var publishedAt: String?
                 var scheduleDateTime: Date?
                 if hasTitle {
-                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword)
-                    let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
+                    let baseDate: Date
+                    if is365 {
+                        if let tracked = nextDateFor365 {
+                            baseDate = Calendar.current.date(byAdding: .day, value: 1, to: tracked)!
+                        } else {
+                            baseDate = try await scheduler.nextScheduleDate(is365Project: true, project365Keyword: config.project365.keyword)
+                        }
+                        nextDateFor365 = baseDate
+                    } else {
+                        if let tracked = nextDateForOther {
+                            baseDate = Calendar.current.date(byAdding: .day, value: 1, to: tracked)!
+                        } else {
+                            baseDate = try await scheduler.nextScheduleDate(is365Project: false, project365Keyword: config.project365.keyword)
+                        }
+                        nextDateForOther = baseDate
+                    }
+                    let dateTime = scheduler.buildScheduleDateTime(baseDate: baseDate)
                     publishedAt = GhostScheduler.formatForGhost(date: dateTime)
                     scheduleDateTime = dateTime
                 }
