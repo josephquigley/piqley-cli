@@ -27,6 +27,7 @@ The following tags are included by default, chosen to preserve editorial informa
 - `TIFF.Model`
 
 ### Lens
+- `EXIF.LensMake`
 - `EXIF.LensModel`
 
 ### Exposure settings
@@ -37,6 +38,7 @@ The following tags are included by default, chosen to preserve editorial informa
 
 ### Date taken
 - `EXIF.DateTimeOriginal`
+- `EXIF.SubSecTimeOriginal`
 - `IPTC.DateCreated`
 - `IPTC.TimeCreated`
 
@@ -125,12 +127,14 @@ With opt-in logic:
       "TIFF.Model",
       "TIFF.Artist",
       "TIFF.Copyright",
+      "EXIF.LensMake",
       "EXIF.LensModel",
       "EXIF.FNumber",
       "EXIF.ExposureTime",
       "EXIF.ISOSpeedRatings",
       "EXIF.FocalLength",
       "EXIF.DateTimeOriginal",
+      "EXIF.SubSecTimeOriginal",
       "IPTC.DigitalSourceType",
       "IPTC.CopyrightNotice",
       "IPTC.Byline",
