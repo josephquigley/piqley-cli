@@ -4,7 +4,7 @@
 
 **Goal:** Add GPG-based cryptographic signing to processed images with XMP metadata embedding and a verify subcommand.
 
-**Architecture:** After resize, compute a SHA-256 hash of the JPEG bitstream + canonical metadata (excluding the signing XMP namespace), sign it with GPG, and embed the signature in a custom XMP namespace. A `verify` subcommand reverses the process. Signing is always-on when configured, opt-out with `--no-sign`.
+**Architecture:** After resize, compute a SHA-256 hash of the complete JPEG file bytes (before XMP injection), sign it with GPG, and embed the signature in a custom XMP namespace. A `verify` subcommand strips the signing XMP fields, re-writes the file, and compares the hash. XMP namespace is derived from the Ghost URL at runtime (e.g., `https://quigs.photo` → `https://quigs.photo/xmp/1.0/`). Signing is always-on when configured, opt-out with `--no-sign`.
 
 **Tech Stack:** Swift 6.2, CoreGraphics/ImageIO (XMP via CGImageMetadata APIs), CryptoKit (SHA-256), Foundation.Process (GPG shelling)
 
@@ -80,8 +80,29 @@ func testSigningConfigDefaultXmpNames() throws {
 
     let config = try JSONDecoder().decode(AppConfig.self, from: json)
     XCTAssertEqual(config.signing?.keyFingerprint, "ABCD1234")
-    XCTAssertEqual(config.signing?.xmpNamespace, "http://quigs.photo/xmp/1.0/")
+    XCTAssertNil(config.signing?.xmpNamespace, "Namespace should be nil when not specified (derived at runtime)")
     XCTAssertEqual(config.signing?.xmpPrefix, "quigsphoto")
+}
+
+func testResolvedSigningConfigDerivesNamespace() throws {
+    let json = """
+    {
+        "ghost": {
+            "url": "https://quigs.photo",
+            "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+        },
+        "processing": { "maxLongEdge": 2000, "jpegQuality": 80 },
+        "project365": { "keyword": "365 Project", "referenceDate": "2025-12-25", "emailTo": "t@t.com" },
+        "smtp": { "host": "smtp.t.com", "port": 587, "username": "u", "from": "u@t.com" },
+        "signing": {
+            "keyFingerprint": "ABCD1234"
+        }
+    }
+    """.data(using: .utf8)!
+
+    let config = try JSONDecoder().decode(AppConfig.self, from: json)
+    let resolved = config.resolvedSigningConfig
+    XCTAssertEqual(resolved?.xmpNamespace, "https://quigs.photo/xmp/1.0/")
 }
 ```
 
@@ -99,13 +120,18 @@ Add `SigningConfig` struct after `SMTPConfig` (after line 87):
 ```swift
 struct SigningConfig: Codable, Equatable {
     var keyFingerprint: String
-    var xmpNamespace: String
+    var xmpNamespace: String?
     var xmpPrefix: String
 
-    static let defaultXmpNamespace = "http://quigs.photo/xmp/1.0/"
     static let defaultXmpPrefix = "quigsphoto"
 
-    init(keyFingerprint: String, xmpNamespace: String = SigningConfig.defaultXmpNamespace, xmpPrefix: String = SigningConfig.defaultXmpPrefix) {
+    /// Derive XMP namespace from Ghost URL: "https://quigs.photo" → "https://quigs.photo/xmp/1.0/"
+    static func deriveXmpNamespace(from ghostURL: String) -> String {
+        let base = ghostURL.hasSuffix("/") ? ghostURL : ghostURL + "/"
+        return base + "xmp/1.0/"
+    }
+
+    init(keyFingerprint: String, xmpNamespace: String? = nil, xmpPrefix: String = SigningConfig.defaultXmpPrefix) {
         self.keyFingerprint = keyFingerprint
         self.xmpNamespace = xmpNamespace
         self.xmpPrefix = xmpPrefix
@@ -114,9 +140,22 @@ struct SigningConfig: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         keyFingerprint = try container.decode(String.self, forKey: .keyFingerprint)
-        xmpNamespace = try container.decodeIfPresent(String.self, forKey: .xmpNamespace) ?? SigningConfig.defaultXmpNamespace
+        xmpNamespace = try container.decodeIfPresent(String.self, forKey: .xmpNamespace)
         xmpPrefix = try container.decodeIfPresent(String.self, forKey: .xmpPrefix) ?? SigningConfig.defaultXmpPrefix
     }
+}
+```
+
+Also add `resolvedSigningConfig` computed property on `AppConfig`:
+
+```swift
+/// Resolved signing config with XMP namespace derived from Ghost URL if not explicitly set
+var resolvedSigningConfig: SigningConfig? {
+    guard var config = signing else { return nil }
+    if config.xmpNamespace == nil {
+        config.xmpNamespace = SigningConfig.deriveXmpNamespace(from: ghost.url)
+    }
+    return config
 }
 ```
 
@@ -173,8 +212,8 @@ final class SignableContentExtractorTests: XCTestCase {
         try TestFixtures.createTestJPEG(at: path, cameraMake: "FUJIFILM", cameraModel: "X-T5")
 
         let extractor = SignableContentExtractor()
-        let hash1 = try extractor.extractHash(from: path)
-        let hash2 = try extractor.extractHash(from: path)
+        let hash1 = try extractor.hashFile(at: path)
+        let hash2 = try extractor.hashFile(at: path)
 
         XCTAssertEqual(hash1, hash2, "Same file should produce same hash")
         XCTAssertEqual(hash1.count, 64, "SHA-256 hex should be 64 characters")
@@ -187,31 +226,45 @@ final class SignableContentExtractorTests: XCTestCase {
         try TestFixtures.createTestJPEG(at: path2, width: 200, height: 200)
 
         let extractor = SignableContentExtractor()
-        let hash1 = try extractor.extractHash(from: path1)
-        let hash2 = try extractor.extractHash(from: path2)
+        let hash1 = try extractor.hashFile(at: path1)
+        let hash2 = try extractor.hashFile(at: path2)
 
         XCTAssertNotEqual(hash1, hash2)
     }
 
-    func testExcludesSigningXmpNamespace() throws {
-        // Create an image, get its hash, then verify adding XMP signing fields
-        // to the quigsphoto namespace doesn't change the hash
+    func testHashFileStrippingSignature() throws {
+        // Create an image, get its hash, add XMP signing fields,
+        // then verify stripping produces a deterministic hash
         let path = tmpDir.appendingPathComponent("test.jpg").path
         try TestFixtures.createTestJPEG(at: path, cameraMake: "Canon")
 
         let extractor = SignableContentExtractor()
-        let hashBefore = try extractor.extractHash(from: path)
+        let hashBefore = try extractor.hashFile(at: path)
 
         // Write some XMP in the quigsphoto namespace to the image
-        try TestFixtures.addXmpSigningFields(
+        try addXmpSigningFields(
             to: path,
-            namespace: "http://quigs.photo/xmp/1.0/",
+            namespace: "https://quigs.photo/xmp/1.0/",
             prefix: "quigsphoto"
         )
 
-        let hashAfter = try extractor.extractHash(from: path, excludingXmpNamespace: "http://quigs.photo/xmp/1.0/")
+        // Hash after adding XMP should differ (file changed)
+        let hashWithXmp = try extractor.hashFile(at: path)
+        XCTAssertNotEqual(hashBefore, hashWithXmp)
 
-        XCTAssertEqual(hashBefore, hashAfter, "Hash should not change when signing XMP is excluded")
+        // But stripping the signing namespace should produce a deterministic hash
+        let hashStripped = try extractor.hashFileStrippingSignature(
+            at: path,
+            namespace: "https://quigs.photo/xmp/1.0/",
+            prefix: "quigsphoto"
+        )
+
+        let hashStripped2 = try extractor.hashFileStrippingSignature(
+            at: path,
+            namespace: "https://quigs.photo/xmp/1.0/",
+            prefix: "quigsphoto"
+        )
+        XCTAssertEqual(hashStripped, hashStripped2, "Stripping should be deterministic")
     }
 }
 ```
@@ -277,79 +330,68 @@ import ImageIO
 
 struct SignableContentExtractor {
     enum ExtractionError: Error, CustomStringConvertible {
-        case cannotReadImage(String)
-        case cannotExtractData(String)
+        case cannotReadFile(String)
+        case cannotProcessImage(String)
 
         var description: String {
             switch self {
-            case .cannotReadImage(let path): return "Cannot read image at \(path)"
-            case .cannotExtractData(let path): return "Cannot extract image data from \(path)"
+            case .cannotReadFile(let path): return "Cannot read file at \(path)"
+            case .cannotProcessImage(let path): return "Cannot process image at \(path)"
             }
         }
     }
 
-    /// Extract a SHA-256 hash of the signable content from a JPEG file.
-    /// Signable content = raw image data bytes + canonical metadata JSON (excluding the signing XMP namespace).
-    func extractHash(from path: String, excludingXmpNamespace namespace: String = "http://quigs.photo/xmp/1.0/") throws -> String {
+    /// SHA-256 hash of the raw file bytes. Used during signing (before XMP injection).
+    func hashFile(at path: String) throws -> String {
         let url = URL(fileURLWithPath: path)
-        let fileData = try Data(contentsOf: url)
-
-        guard let source = CGImageSourceCreateWithData(fileData as CFData, nil) else {
-            throw ExtractionError.cannotReadImage(path)
-        }
-
-        // Extract image data: we get the CGImage and re-encode its raw bitmap to get deterministic bytes
-        guard let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-            throw ExtractionError.cannotExtractData(path)
-        }
-
-        // Get raw pixel data deterministically
-        let width = cgImage.width
-        let height = cgImage.height
-        let bitsPerComponent = 8
-        let bytesPerRow = width * 4
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let context = CGContext(
-            data: nil, width: width, height: height,
-            bitsPerComponent: bitsPerComponent, bytesPerRow: bytesPerRow,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-        ) else {
-            throw ExtractionError.cannotExtractData(path)
-        }
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        guard let pixelData = context.data else {
-            throw ExtractionError.cannotExtractData(path)
-        }
-        let imageBytes = Data(bytes: pixelData, count: bytesPerRow * height)
-
-        // Extract metadata dictionaries (EXIF, TIFF, IPTC) — excluding XMP signing namespace
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] ?? [:]
-        let stableKeys: Set<String> = [
-            kCGImagePropertyExifDictionary as String,
-            kCGImagePropertyTIFFDictionary as String,
-            kCGImagePropertyIPTCDictionary as String,
-        ]
-        let stableMetadata = properties.filter { stableKeys.contains($0.key) }
-
-        // Canonical JSON serialization (sorted keys for determinism)
-        let metadataBytes: Data
-        if stableMetadata.isEmpty {
-            metadataBytes = Data()
-        } else {
-            metadataBytes = try JSONSerialization.data(
-                withJSONObject: stableMetadata,
-                options: [.sortedKeys]
-            )
-        }
-
-        // Concatenate and hash
-        var hasher = SHA256()
-        hasher.update(data: imageBytes)
-        hasher.update(data: metadataBytes)
-        let digest = hasher.finalize()
-
+        let data = try Data(contentsOf: url)
+        let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Strip XMP signing fields from the image, write to a temp file, and hash that.
+    /// Used during verification to reconstruct the pre-signing file hash.
+    func hashFileStrippingSignature(at path: String, namespace: String, prefix: String) throws -> String {
+        let url = URL(fileURLWithPath: path)
+        let data = try Data(contentsOf: url)
+
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let imageType = CGImageSourceGetType(source),
+              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            throw ExtractionError.cannotReadFile(path)
+        }
+
+        let existingProperties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] ?? [:]
+
+        // Read existing metadata and filter out signing namespace tags
+        let existingMetadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil)
+        let filteredMetadata = CGImageMetadataCreateMutable()
+
+        if let existingMetadata {
+            let allTags = CGImageMetadataCopyTags(existingMetadata) as? [CGImageMetadataTag] ?? []
+            for tag in allTags {
+                guard let tagPrefix = CGImageMetadataTagCopyPrefix(tag) as String? else { continue }
+                if tagPrefix == prefix { continue }
+                guard let tagName = CGImageMetadataTagCopyName(tag) as String? else { continue }
+                CGImageMetadataSetTagWithPath(filteredMetadata, nil, "\(tagPrefix):\(tagName)" as CFString, tag)
+            }
+        }
+
+        // Write to temp file without signing XMP
+        let tmpPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quigsphoto-verify-\(UUID().uuidString).jpg")
+        defer { try? FileManager.default.removeItem(at: tmpPath) }
+
+        guard let dest = CGImageDestinationCreateWithURL(tmpPath as CFURL, imageType, 1, nil) else {
+            throw ExtractionError.cannotProcessImage(path)
+        }
+
+        CGImageDestinationAddImageAndMetadata(dest, cgImage, filteredMetadata, existingProperties as CFDictionary)
+        guard CGImageDestinationFinalize(dest) else {
+            throw ExtractionError.cannotProcessImage(path)
+        }
+
+        return try hashFile(at: tmpPath.path)
     }
 }
 ```
@@ -407,7 +449,7 @@ final class ImageSignerTests: XCTestCase {
         let path = tmpDir.appendingPathComponent("sign-test.jpg").path
         try TestFixtures.createTestJPEG(at: path, cameraMake: "FUJIFILM")
 
-        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint)
+        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint, xmpNamespace: "https://test.example/xmp/1.0/")
         let signer = GPGImageSigner(config: signingConfig)
         let result = try await signer.sign(imageAt: path)
 
@@ -419,7 +461,7 @@ final class ImageSignerTests: XCTestCase {
         // Verify XMP was written to the file
         let xmp = try XMPSignatureReader.read(
             from: path,
-            namespace: signingConfig.xmpNamespace,
+            namespace: signingConfig.xmpNamespace!,
             prefix: signingConfig.xmpPrefix
         )
         XCTAssertEqual(xmp?.contentHash, result.contentHash)
@@ -444,7 +486,7 @@ final class ImageSignerTests: XCTestCase {
         let propsBefore = CGImageSourceCopyPropertiesAtIndex(sourceBefore, 0, nil) as! [String: Any]
         let widthBefore = propsBefore[kCGImagePropertyPixelWidth as String] as! Int
 
-        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint)
+        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint, xmpNamespace: "https://test.example/xmp/1.0/")
         let signer = GPGImageSigner(config: signingConfig)
         _ = try await signer.sign(imageAt: path)
 
@@ -567,10 +609,13 @@ struct GPGImageSigner: ImageSigner {
         guard GPGImageSigner.isGPGAvailable() else {
             throw SigningError.gpgNotFound
         }
+        guard let namespace = config.xmpNamespace else {
+            throw SigningError.xmpWriteFailed("XMP namespace not configured. Ensure signing config has a resolved namespace.")
+        }
 
-        // 1. Extract content hash
+        // 1. Hash the file before any XMP modification
         let extractor = SignableContentExtractor()
-        let contentHash = try extractor.extractHash(from: path, excludingXmpNamespace: config.xmpNamespace)
+        let contentHash = try extractor.hashFile(at: path)
 
         // 2. Sign with GPG
         let signature = try await gpgSign(data: contentHash, keyFingerprint: config.keyFingerprint)
@@ -581,7 +626,7 @@ struct GPGImageSigner: ImageSigner {
             contentHash: contentHash,
             signature: signature,
             keyFingerprint: config.keyFingerprint,
-            namespace: config.xmpNamespace,
+            namespace: namespace,
             prefix: config.xmpPrefix
         )
 
@@ -744,7 +789,7 @@ After the resize block (after line 196, the closing `}` of the resize `if !dryRu
 
 ```swift
 // Sign image
-if let signingConfig = config.signing, !noSign {
+if let signingConfig = config.resolvedSigningConfig, !noSign {
     if !dryRun {
         logger.info("[\(image.filename)] Signing...")
         let signer = GPGImageSigner(config: signingConfig)
@@ -796,26 +841,50 @@ struct VerifyCommand: ParsableCommand {
     @Option(help: "Assert the signature was made by this specific GPG key fingerprint")
     var keyFingerprint: String?
 
+    @Option(help: "XMP namespace to look for signature in (default: derived from Ghost URL in config)")
+    var xmpNamespace: String?
+
+    @Option(help: "XMP prefix to look for signature in (default: quigsphoto)")
+    var xmpPrefix: String?
+
     func run() throws {
         guard FileManager.default.fileExists(atPath: imagePath) else {
             throw ValidationError("File not found: \(imagePath)")
         }
 
-        // Load config for XMP namespace settings (use defaults if no config)
-        let signingConfig: AppConfig.SigningConfig
-        if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
-           let config = try? AppConfig.load(from: AppConfig.configPath.path),
-           let signing = config.signing {
-            signingConfig = signing
+        // Resolve XMP namespace/prefix: CLI flags > config > error
+        let namespace: String
+        let prefix: String
+
+        if let ns = xmpNamespace {
+            namespace = ns
+        } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
+                  let config = try? AppConfig.load(from: AppConfig.configPath.path),
+                  let resolved = config.resolvedSigningConfig,
+                  let ns = resolved.xmpNamespace {
+            namespace = ns
+        } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
+                  let config = try? AppConfig.load(from: AppConfig.configPath.path) {
+            namespace = AppConfig.SigningConfig.deriveXmpNamespace(from: config.ghost.url)
         } else {
-            signingConfig = AppConfig.SigningConfig(keyFingerprint: "")
+            print("No config found and --xmp-namespace not specified.")
+            throw ExitCode(1)
         }
+
+        prefix = xmpPrefix ?? {
+            if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
+               let config = try? AppConfig.load(from: AppConfig.configPath.path),
+               let signing = config.signing {
+                return signing.xmpPrefix
+            }
+            return AppConfig.SigningConfig.defaultXmpPrefix
+        }()
 
         // Read XMP signature
         guard let xmp = try XMPSignatureReader.read(
             from: imagePath,
-            namespace: signingConfig.xmpNamespace,
-            prefix: signingConfig.xmpPrefix
+            namespace: namespace,
+            prefix: prefix
         ) else {
             print("No signature found in image.")
             throw ExitCode(1)
@@ -823,7 +892,11 @@ struct VerifyCommand: ParsableCommand {
 
         // Recompute content hash
         let extractor = SignableContentExtractor()
-        let computedHash = try extractor.extractHash(from: imagePath, excludingXmpNamespace: signingConfig.xmpNamespace)
+        let computedHash = try extractor.hashFileStrippingSignature(
+            at: imagePath,
+            namespace: namespace,
+            prefix: prefix
+        )
 
         // Check integrity
         let integrityPass = computedHash == xmp.contentHash
@@ -956,8 +1029,9 @@ if enableSigning.lowercased() == "y" {
 
     let fingerprint = prompt("GPG key fingerprint:")
     if !fingerprint.isEmpty {
-        let customNs = prompt("XMP namespace (default: http://quigs.photo/xmp/1.0/):", default: AppConfig.SigningConfig.defaultXmpNamespace)
-        let customPrefix = prompt("XMP prefix (default: quigsphoto):", default: AppConfig.SigningConfig.defaultXmpPrefix)
+        let derivedNs = AppConfig.SigningConfig.deriveXmpNamespace(from: ghostURL)
+        let customNs = prompt("XMP namespace (default: \(derivedNs)):", default: derivedNs)
+        let customPrefix = prompt("XMP prefix (default: \(AppConfig.SigningConfig.defaultXmpPrefix)):", default: AppConfig.SigningConfig.defaultXmpPrefix)
         signingConfig = AppConfig.SigningConfig(
             keyFingerprint: fingerprint,
             xmpNamespace: customNs,

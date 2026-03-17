@@ -234,13 +234,13 @@ The existing `SigningConfig` (added by the XMP signing spec) gains one new field
 ```swift
 struct SigningConfig: Codable, Equatable {
     var keyFingerprint: String
-    var xmpNamespace: String    // existing, defaults to "http://quigs.photo/xmp/1.0/"
+    var xmpNamespace: String?   // existing, derived from ghost.url if nil
     var xmpPrefix: String       // existing, defaults to "quigsphoto"
     var watermark: Bool         // NEW — defaults to true
 }
 ```
 
-The `watermark` field follows the existing `decodeIfPresent` pattern used by `xmpNamespace` and `xmpPrefix` in `SigningConfig.init(from:)`.
+The `watermark` field follows the existing `decodeIfPresent` pattern used by `xmpNamespace` and `xmpPrefix` in `SigningConfig.init(from:)`. The `xmpNamespace` is `nil` by default and derived at runtime from `ghost.url` via `resolvedSigningConfig`.
 
 When `signing` is present in config and `watermark` is `true` (default), watermarking is enabled.
 
