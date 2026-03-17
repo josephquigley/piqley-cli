@@ -214,7 +214,7 @@ quigsphoto verify <image-path> [--key-fingerprint <fp>]
    a. Decode image (any format: JPEG, PNG, WebP, AVIF — all supported by `CGImageSource`)
    b. Tile and run StegaStamp decoder
    c. Majority vote + BCH error correction
-   d. Validate HMAC with GPG-derived key
+   d. Validate HMAC with Keychain-stored watermark secret
    e. If HMAC valid, look up image ID in reference database
 3. **Report results:**
    - **Watermark found, HMAC valid:** "Watermark verified. Image ID: a1b2c3d4e5f6. Originally: IMG_1234.jpg, uploaded 2026-03-17."
@@ -316,6 +316,12 @@ struct WatermarkPayload {
         self.version = Self.currentVersion
         self.imageId = imageId
         self.hmac = hmac
+    }
+
+    /// Convenience: compute HMAC internally from the key
+    init(imageId: UInt64, hmacKey: Data) {
+        let hmac = Self.computeHMAC(imageId: imageId, key: hmacKey)
+        self.init(imageId: imageId, hmac: hmac)
     }
 }
 ```
