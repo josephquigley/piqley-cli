@@ -11,6 +11,11 @@ enum LexicalBuilder {
             children.append(makeParagraph(text: description))
         }
 
+        // Lexical requires at least one child node in the root
+        if children.isEmpty {
+            children.append(makeEmptyParagraph())
+        }
+
         let root: [String: Any] = [
             "root": [
                 "type": "root", "version": 1, "children": children,
@@ -19,6 +24,14 @@ enum LexicalBuilder {
         ]
         let data = try! JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
         return String(data: data, encoding: .utf8)!
+    }
+
+    private static func makeEmptyParagraph() -> [String: Any] {
+        [
+            "type": "paragraph", "version": 1,
+            "children": [] as [[String: Any]],
+            "direction": NSNull(), "format": "", "indent": 0, "textFormat": 0, "textStyle": "",
+        ]
     }
 
     private static func makeParagraph(text: String) -> [String: Any] {
