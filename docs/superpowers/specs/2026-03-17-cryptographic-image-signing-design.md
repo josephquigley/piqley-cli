@@ -80,13 +80,15 @@ The `--key-fingerprint` flag is optional. If omitted, GPG checks against the loc
 {
   "signing": {
     "keyFingerprint": "ABCD1234...",
-    "xmpNamespace": "http://quigs.photo/xmp/1.0/",
+    "xmpNamespace": "https://quigs.photo/xmp/1.0/",
     "xmpPrefix": "quigsphoto"
   }
 }
 ```
 
-- `xmpNamespace` and `xmpPrefix` default to `"http://quigs.photo/xmp/1.0/"` and `"quigsphoto"` if omitted. Configurable for forks that want their own branding. Field names (`contentHash`, `signature`, `keyFingerprint`, `algorithm`) are fixed.
+- `xmpNamespace` is derived from the Ghost URL in config if omitted (e.g., `https://quigs.photo` → `https://quigs.photo/xmp/1.0/`). Can be explicitly overridden for custom namespaces.
+- `xmpPrefix` defaults to `"quigsphoto"` if omitted.
+- Field names (`contentHash`, `signature`, `keyFingerprint`, `algorithm`) are fixed.
 
 **Behavior:**
 - If `signing` section is present → signing is enabled (always-on)
@@ -128,7 +130,7 @@ Exit codes:
 ## XMP Namespace
 
 Namespace and prefix are configurable (see Configuration). Defaults:
-- Namespace: `http://quigs.photo/xmp/1.0/`
+- Namespace: `https://quigs.photo/xmp/1.0/`
 - Prefix: `quigsphoto`
 
 Field names are fixed (not configurable):
@@ -188,7 +190,7 @@ if let signingConfig = config.signing, !noSign {
 ```swift
 struct SigningConfig: Codable {
     let keyFingerprint: String
-    var xmpNamespace: String = "http://quigs.photo/xmp/1.0/"
+    var xmpNamespace: String?  // Derived from ghost.url if nil
     var xmpPrefix: String = "quigsphoto"
 }
 ```

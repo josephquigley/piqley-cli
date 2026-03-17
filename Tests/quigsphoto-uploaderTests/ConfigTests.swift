@@ -193,7 +193,50 @@ final class ConfigTests: XCTestCase {
 
         let config = try JSONDecoder().decode(AppConfig.self, from: json)
         XCTAssertEqual(config.signing?.keyFingerprint, "ABCD1234")
-        XCTAssertEqual(config.signing?.xmpNamespace, "http://quigs.photo/xmp/1.0/")
+        XCTAssertNil(config.signing?.xmpNamespace, "Namespace should be nil when not specified (derived at runtime)")
         XCTAssertEqual(config.signing?.xmpPrefix, "quigsphoto")
+    }
+
+    func testResolvedSigningConfigDerivesNamespace() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": { "maxLongEdge": 2000, "jpegQuality": 80 },
+            "project365": { "keyword": "365 Project", "referenceDate": "2025-12-25", "emailTo": "t@t.com" },
+            "smtp": { "host": "smtp.t.com", "port": 587, "username": "u", "from": "u@t.com" },
+            "signing": {
+                "keyFingerprint": "ABCD1234"
+            }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        let resolved = config.resolvedSigningConfig
+        XCTAssertEqual(resolved?.xmpNamespace, "https://quigs.photo/xmp/1.0/")
+    }
+
+    func testResolvedSigningConfigPreservesExplicitNamespace() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": { "maxLongEdge": 2000, "jpegQuality": 80 },
+            "project365": { "keyword": "365 Project", "referenceDate": "2025-12-25", "emailTo": "t@t.com" },
+            "smtp": { "host": "smtp.t.com", "port": 587, "username": "u", "from": "u@t.com" },
+            "signing": {
+                "keyFingerprint": "ABCD1234",
+                "xmpNamespace": "https://custom.example/xmp/1.0/"
+            }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        let resolved = config.resolvedSigningConfig
+        XCTAssertEqual(resolved?.xmpNamespace, "https://custom.example/xmp/1.0/")
     }
 }

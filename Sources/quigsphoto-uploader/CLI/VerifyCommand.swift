@@ -13,26 +13,52 @@ struct VerifyCommand: ParsableCommand {
     @Option(help: "Assert the signature was made by this specific GPG key fingerprint")
     var keyFingerprint: String?
 
+    @Option(help: "XMP namespace to look for signature in (default: derived from Ghost URL in config)")
+    var xmpNamespace: String?
+
+    @Option(help: "XMP prefix to look for signature in (default: quigsphoto)")
+    var xmpPrefix: String?
+
     func run() throws {
         guard FileManager.default.fileExists(atPath: imagePath) else {
             throw ValidationError("File not found: \(imagePath)")
         }
 
-        // Load config for XMP namespace settings (use defaults if no config)
-        let signingConfig: AppConfig.SigningConfig
-        if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
-           let config = try? AppConfig.load(from: AppConfig.configPath.path),
-           let signing = config.signing {
-            signingConfig = signing
+        // Resolve XMP namespace/prefix: CLI flags > config > error
+        let namespace: String
+        let prefix: String
+
+        if let ns = xmpNamespace {
+            namespace = ns
+        } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
+                  let config = try? AppConfig.load(from: AppConfig.configPath.path),
+                  let resolved = config.resolvedSigningConfig,
+                  let ns = resolved.xmpNamespace {
+            namespace = ns
+        } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
+                  let config = try? AppConfig.load(from: AppConfig.configPath.path) {
+            // No signing config, but we have a Ghost URL — derive from it
+            namespace = AppConfig.SigningConfig.deriveXmpNamespace(from: config.ghost.url)
         } else {
-            signingConfig = AppConfig.SigningConfig(keyFingerprint: "")
+            print("No config found and --xmp-namespace not specified. Cannot determine XMP namespace.")
+            print("Use --xmp-namespace to specify the namespace, or run 'quigsphoto-uploader setup'.")
+            throw ExitCode(1)
         }
+
+        prefix = xmpPrefix ?? {
+            if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
+               let config = try? AppConfig.load(from: AppConfig.configPath.path),
+               let signing = config.signing {
+                return signing.xmpPrefix
+            }
+            return AppConfig.SigningConfig.defaultXmpPrefix
+        }()
 
         // Read XMP signature
         guard let xmp = try XMPSignatureReader.read(
             from: imagePath,
-            namespace: signingConfig.xmpNamespace,
-            prefix: signingConfig.xmpPrefix
+            namespace: namespace,
+            prefix: prefix
         ) else {
             print("No signature found in image.")
             throw ExitCode(1)
@@ -42,8 +68,8 @@ struct VerifyCommand: ParsableCommand {
         let extractor = SignableContentExtractor()
         let computedHash = try extractor.hashFileStrippingSignature(
             at: imagePath,
-            namespace: signingConfig.xmpNamespace,
-            prefix: signingConfig.xmpPrefix
+            namespace: namespace,
+            prefix: prefix
         )
 
         // Check integrity

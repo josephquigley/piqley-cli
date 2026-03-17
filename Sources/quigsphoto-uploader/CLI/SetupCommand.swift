@@ -57,7 +57,8 @@ struct SetupCommand: ParsableCommand {
 
             let fingerprint = prompt("GPG key fingerprint:")
             if !fingerprint.isEmpty {
-                let customNs = prompt("XMP namespace (default: \(AppConfig.SigningConfig.defaultXmpNamespace)):", default: AppConfig.SigningConfig.defaultXmpNamespace)
+                let derivedNs = AppConfig.SigningConfig.deriveXmpNamespace(from: ghostURL)
+                let customNs = prompt("XMP namespace (default: \(derivedNs)):", default: derivedNs)
                 let customPrefix = prompt("XMP prefix (default: \(AppConfig.SigningConfig.defaultXmpPrefix)):", default: AppConfig.SigningConfig.defaultXmpPrefix)
                 signingConfig = AppConfig.SigningConfig(
                     keyFingerprint: fingerprint,

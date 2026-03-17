@@ -89,13 +89,18 @@ struct AppConfig: Codable, Equatable {
 
     struct SigningConfig: Codable, Equatable {
         var keyFingerprint: String
-        var xmpNamespace: String
+        var xmpNamespace: String?
         var xmpPrefix: String
 
-        static let defaultXmpNamespace = "http://quigs.photo/xmp/1.0/"
         static let defaultXmpPrefix = "quigsphoto"
 
-        init(keyFingerprint: String, xmpNamespace: String = SigningConfig.defaultXmpNamespace, xmpPrefix: String = SigningConfig.defaultXmpPrefix) {
+        /// Derive XMP namespace from Ghost URL: "https://quigs.photo" → "https://quigs.photo/xmp/1.0/"
+        static func deriveXmpNamespace(from ghostURL: String) -> String {
+            let base = ghostURL.hasSuffix("/") ? ghostURL : ghostURL + "/"
+            return base + "xmp/1.0/"
+        }
+
+        init(keyFingerprint: String, xmpNamespace: String? = nil, xmpPrefix: String = SigningConfig.defaultXmpPrefix) {
             self.keyFingerprint = keyFingerprint
             self.xmpNamespace = xmpNamespace
             self.xmpPrefix = xmpPrefix
@@ -104,9 +109,18 @@ struct AppConfig: Codable, Equatable {
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             keyFingerprint = try container.decode(String.self, forKey: .keyFingerprint)
-            xmpNamespace = try container.decodeIfPresent(String.self, forKey: .xmpNamespace) ?? SigningConfig.defaultXmpNamespace
+            xmpNamespace = try container.decodeIfPresent(String.self, forKey: .xmpNamespace)
             xmpPrefix = try container.decodeIfPresent(String.self, forKey: .xmpPrefix) ?? SigningConfig.defaultXmpPrefix
         }
+    }
+
+    /// Resolved signing config with XMP namespace derived from Ghost URL if not explicitly set
+    var resolvedSigningConfig: SigningConfig? {
+        guard var config = signing else { return nil }
+        if config.xmpNamespace == nil {
+            config.xmpNamespace = SigningConfig.deriveXmpNamespace(from: ghost.url)
+        }
+        return config
     }
 
     init(

@@ -22,6 +22,9 @@ struct GPGImageSigner: ImageSigner {
         guard GPGImageSigner.isGPGAvailable() else {
             throw SigningError.gpgNotFound
         }
+        guard let namespace = config.xmpNamespace else {
+            throw SigningError.xmpWriteFailed("XMP namespace not configured. Ensure signing config has a resolved namespace.")
+        }
 
         // 1. Hash the file before any XMP modification
         let extractor = SignableContentExtractor()
@@ -36,7 +39,7 @@ struct GPGImageSigner: ImageSigner {
             contentHash: contentHash,
             signature: signature,
             keyFingerprint: config.keyFingerprint,
-            namespace: config.xmpNamespace,
+            namespace: namespace,
             prefix: config.xmpPrefix
         )
 

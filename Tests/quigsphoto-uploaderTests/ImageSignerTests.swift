@@ -26,7 +26,7 @@ final class ImageSignerTests: XCTestCase {
         let path = tmpDir.appendingPathComponent("sign-test.jpg").path
         try TestFixtures.createTestJPEG(at: path, cameraMake: "FUJIFILM")
 
-        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint)
+        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint, xmpNamespace: "https://test.example/xmp/1.0/")
         let signer = GPGImageSigner(config: signingConfig)
         let result = try await signer.sign(imageAt: path)
 
@@ -38,7 +38,7 @@ final class ImageSignerTests: XCTestCase {
         // Verify XMP was written to the file
         let xmp = try XMPSignatureReader.read(
             from: path,
-            namespace: signingConfig.xmpNamespace,
+            namespace: signingConfig.xmpNamespace!,
             prefix: signingConfig.xmpPrefix
         )
         XCTAssertNotNil(xmp)
@@ -66,7 +66,7 @@ final class ImageSignerTests: XCTestCase {
         let propsBefore = CGImageSourceCopyPropertiesAtIndex(sourceBefore, 0, nil) as! [String: Any]
         let widthBefore = propsBefore[kCGImagePropertyPixelWidth as String] as! Int
 
-        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint)
+        let signingConfig = AppConfig.SigningConfig(keyFingerprint: fingerprint, xmpNamespace: "https://test.example/xmp/1.0/")
         let signer = GPGImageSigner(config: signingConfig)
         _ = try await signer.sign(imageAt: path)
 
@@ -85,7 +85,7 @@ final class ImageSignerTests: XCTestCase {
         let path = tmpDir.appendingPathComponent("fail-test.jpg").path
         try TestFixtures.createTestJPEG(at: path)
 
-        let signingConfig = AppConfig.SigningConfig(keyFingerprint: "NONEXISTENT_KEY_000000")
+        let signingConfig = AppConfig.SigningConfig(keyFingerprint: "NONEXISTENT_KEY_000000", xmpNamespace: "https://test.example/xmp/1.0/")
         let signer = GPGImageSigner(config: signingConfig)
 
         do {
@@ -102,7 +102,7 @@ final class ImageSignerTests: XCTestCase {
 
         let xmp = try XMPSignatureReader.read(
             from: path,
-            namespace: AppConfig.SigningConfig.defaultXmpNamespace,
+            namespace: "https://test.example/xmp/1.0/",
             prefix: AppConfig.SigningConfig.defaultXmpPrefix
         )
         XCTAssertNil(xmp)

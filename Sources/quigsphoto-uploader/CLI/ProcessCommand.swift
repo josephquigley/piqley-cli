@@ -199,7 +199,7 @@ struct ProcessCommand: AsyncParsableCommand {
                 }
 
                 // Sign image
-                if let signingConfig = config.signing, !noSign {
+                if let signingConfig = config.resolvedSigningConfig, !noSign {
                     if !dryRun {
                         logger.info("[\(image.filename)] Signing...")
                         let signer = GPGImageSigner(config: signingConfig)

@@ -45,7 +45,7 @@ final class SignableContentExtractorTests: XCTestCase {
         let hashBefore = try extractor.hashFile(at: path)
 
         // Add XMP signing fields
-        try addXmpSigningFields(to: path, namespace: "http://quigs.photo/xmp/1.0/", prefix: "quigsphoto")
+        try addXmpSigningFields(to: path, namespace: "https://quigs.photo/xmp/1.0/", prefix: "quigsphoto")
 
         // Hash after adding XMP should differ (file changed)
         let hashWithXmp = try extractor.hashFile(at: path)
@@ -54,7 +54,7 @@ final class SignableContentExtractorTests: XCTestCase {
         // But stripping the signing namespace should recover a consistent hash
         let hashStripped = try extractor.hashFileStrippingSignature(
             at: path,
-            namespace: "http://quigs.photo/xmp/1.0/",
+            namespace: "https://quigs.photo/xmp/1.0/",
             prefix: "quigsphoto"
         )
 
@@ -62,7 +62,7 @@ final class SignableContentExtractorTests: XCTestCase {
         // re-encodes the image. But it should be deterministic — calling it twice should match.
         let hashStripped2 = try extractor.hashFileStrippingSignature(
             at: path,
-            namespace: "http://quigs.photo/xmp/1.0/",
+            namespace: "https://quigs.photo/xmp/1.0/",
             prefix: "quigsphoto"
         )
         XCTAssertEqual(hashStripped, hashStripped2, "Stripping should be deterministic")
