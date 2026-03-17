@@ -46,10 +46,20 @@ struct EmailSender {
             attachments: [attachment]
         )
 
+        // Suppress SwiftSMTP's hardcoded print() debug output by redirecting stdout
+        let savedStdout = dup(STDOUT_FILENO)
+        let devNull = open("/dev/null", O_WRONLY)
+        dup2(devNull, STDOUT_FILENO)
+        close(devNull)
+
         var sendError: Error?
         smtp.send(mail) { error in
             sendError = error
         }
+
+        // Restore stdout
+        dup2(savedStdout, STDOUT_FILENO)
+        close(savedStdout)
 
         if let error = sendError {
             throw EmailSenderError.sendFailed(error.localizedDescription)

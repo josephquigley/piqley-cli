@@ -87,7 +87,7 @@ struct ProcessCommand: AsyncParsableCommand {
         log("Found \(images.count) images")
 
         var results = ProcessingResults()
-        var emailCandidates: [(ScannedImage, String)] = [] // (image, resizedPath)
+        var emailCandidates: [(image: ScannedImage, resizedPath: String, postTitle: String)] = []
 
         // Process each image
         for image in images {
@@ -112,6 +112,26 @@ struct ProcessCommand: AsyncParsableCommand {
                     )
                 }
                 let is365 = image.metadata.is365Project(keyword: config.project365.keyword)
+
+                // Compute post title early (needed for email subject on dedup path)
+                let hasTitle: Bool
+                let postTitle: String
+                if is365 {
+                    let dayNumber = GhostScheduler.calculate365DayNumber(
+                        photoDate: image.metadata.dateTimeOriginal ?? Date(),
+                        referenceDate: config.project365.referenceDate
+                    )
+                    postTitle = "365 Project #\(dayNumber)"
+                    hasTitle = true
+                } else {
+                    if let title = image.metadata.title {
+                        postTitle = title
+                        hasTitle = true
+                    } else {
+                        postTitle = image.filename
+                        hasTitle = false
+                    }
+                }
 
                 // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)
                 let isDup: Bool
@@ -140,7 +160,7 @@ struct ProcessCommand: AsyncParsableCommand {
                                     jpegQuality: config.processing.jpegQuality
                                 )
                             }
-                            emailCandidates.append((image, resizedPath))
+                            emailCandidates.append((image: image, resizedPath: resizedPath, postTitle: postTitle))
                         }
                     }
                     continue
@@ -158,25 +178,6 @@ struct ProcessCommand: AsyncParsableCommand {
                     )
                 }
 
-                // Check if we have enough metadata for a scheduled post
-                let hasTitle: Bool
-                let postTitle: String
-                if is365 {
-                    let dayNumber = GhostScheduler.calculate365DayNumber(
-                        photoDate: image.metadata.dateTimeOriginal ?? Date(),
-                        referenceDate: config.project365.referenceDate
-                    )
-                    postTitle = "365 Project #\(dayNumber)"
-                    hasTitle = true // 365 Project always has a title
-                } else {
-                    if let title = image.metadata.title {
-                        postTitle = title
-                        hasTitle = true
-                    } else {
-                        postTitle = image.filename
-                        hasTitle = false
-                    }
-                }
 
                 // Build tags
                 var tags: [GhostTagInput] = []
@@ -279,7 +280,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
                 // Add to email candidates if 365 Project and scheduled (not draft)
                 if is365 && hasTitle {
-                    emailCandidates.append((image, resizedPath))
+                    emailCandidates.append((image: image, resizedPath: resizedPath, postTitle: postTitle))
                 }
 
             } catch {
@@ -293,7 +294,9 @@ struct ProcessCommand: AsyncParsableCommand {
             logger.info("Sending 365 Project emails...")
             let emailSender = EmailSender(config: config.smtp, secretStore: secretStore)
 
-            for (image, resizedPath) in emailCandidates {
+            for candidate in emailCandidates {
+                let image = candidate.image
+                let resizedPath = candidate.resizedPath
                 do {
                     // Email dedup
                     if try emailLog.contains(filename: image.filename) {
@@ -301,7 +304,7 @@ struct ProcessCommand: AsyncParsableCommand {
                         continue
                     }
 
-                    let subject = image.metadata.title ?? image.filename
+                    let subject = candidate.postTitle
                     let body = image.metadata.description ?? ""
 
                     try emailSender.send(
