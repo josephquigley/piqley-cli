@@ -191,8 +191,11 @@ struct ProcessCommand: AsyncParsableCommand {
                     if status == "scheduled" {
                         let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365)
                         let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
-                        let formatted = GhostScheduler.formatForGhost(date: dateTime)
-                        logger.info("[\(image.filename)] Would schedule: \"\(postTitle)\" on \(formatted)")
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+                        formatter.timeZone = TimeZone(identifier: config.ghost.schedulingWindow.timezone) ?? .current
+                        let formatted = formatter.string(from: dateTime)
+                        logger.info("[\(image.filename)] Would schedule: \"\(postTitle)\" on \(formatted) \(config.ghost.schedulingWindow.timezone)")
                         results.scheduled.append(image.filename)
                     } else {
                         logger.info("[\(image.filename)] Would save as draft: \"\(postTitle)\"")
