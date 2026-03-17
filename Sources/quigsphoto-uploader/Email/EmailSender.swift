@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import NIO
 import SwiftSMTP
 
 struct EmailSender {
@@ -21,49 +22,41 @@ struct EmailSender {
     ) throws {
         let password = try secretStore.get(key: "\(AppConstants.keychainServicePrefix)-smtp")
 
-        let smtp = SMTP(
-            hostname: config.host,
-            email: config.username,
-            password: password,
-            port: Int32(config.port),
-            tlsMode: .requireSTARTTLS
+        let smtpConfig = Configuration(
+            server: .init(
+                hostname: config.host,
+                port: config.port,
+                encryption: .startTLS(.always)
+            ),
+            credentials: .init(username: config.username, password: password),
+            featureFlags: [.useESMTP]
         )
 
-        let from = Mail.User(email: config.from)
-        let toUser = Mail.User(email: to)
+        let imageData = try Data(contentsOf: URL(fileURLWithPath: attachmentPath))
 
-        let attachment = Attachment(
-            filePath: attachmentPath,
-            mime: "image/jpeg",
-            name: attachmentFilename
-        )
-
-        let mail = Mail(
-            from: from,
-            to: [toUser],
+        let email = Email(
+            sender: .init(emailAddress: config.from),
+            recipients: [.init(emailAddress: to)],
             subject: subject,
-            text: body,
-            attachments: [attachment]
+            body: .plain(body),
+            attachments: [
+                .init(
+                    name: attachmentFilename,
+                    contentType: "image/jpeg",
+                    data: imageData
+                )
+            ]
         )
 
-        // Suppress SwiftSMTP's hardcoded print() debug output by redirecting stdout
-        let savedStdout = dup(STDOUT_FILENO)
-        let devNull = open("/dev/null", O_WRONLY)
-        dup2(devNull, STDOUT_FILENO)
-        close(devNull)
-
-        var sendError: Error?
-        smtp.send(mail) { error in
-            sendError = error
+        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        defer {
+            try? eventLoopGroup.syncShutdownGracefully()
         }
 
-        // Restore stdout
-        dup2(savedStdout, STDOUT_FILENO)
-        close(savedStdout)
+        let mailer = Mailer(group: eventLoopGroup, configuration: smtpConfig)
 
-        if let error = sendError {
-            throw EmailSenderError.sendFailed(error.localizedDescription)
-        }
+        let future = mailer.send(email)
+        try future.wait()
 
         logger.info("Email sent to \(to): \(subject)")
     }
