@@ -133,4 +133,67 @@ final class ConfigTests: XCTestCase {
         let config = try JSONDecoder().decode(AppConfig.self, from: json)
         XCTAssertEqual(config.processing.metadataAllowlist, ["TIFF.Make"])
     }
+
+    func testSigningConfigDefaultsWhenMissing() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": { "maxLongEdge": 2000, "jpegQuality": 80 },
+            "project365": { "keyword": "365 Project", "referenceDate": "2025-12-25", "emailTo": "t@t.com" },
+            "smtp": { "host": "smtp.t.com", "port": 587, "username": "u", "from": "u@t.com" }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        XCTAssertNil(config.signing)
+    }
+
+    func testSigningConfigCustomXmpNames() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": { "maxLongEdge": 2000, "jpegQuality": 80 },
+            "project365": { "keyword": "365 Project", "referenceDate": "2025-12-25", "emailTo": "t@t.com" },
+            "smtp": { "host": "smtp.t.com", "port": 587, "username": "u", "from": "u@t.com" },
+            "signing": {
+                "keyFingerprint": "ABCD1234",
+                "xmpNamespace": "http://custom.example/xmp/1.0/",
+                "xmpPrefix": "custom"
+            }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        XCTAssertEqual(config.signing?.keyFingerprint, "ABCD1234")
+        XCTAssertEqual(config.signing?.xmpNamespace, "http://custom.example/xmp/1.0/")
+        XCTAssertEqual(config.signing?.xmpPrefix, "custom")
+    }
+
+    func testSigningConfigDefaultXmpNames() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": { "maxLongEdge": 2000, "jpegQuality": 80 },
+            "project365": { "keyword": "365 Project", "referenceDate": "2025-12-25", "emailTo": "t@t.com" },
+            "smtp": { "host": "smtp.t.com", "port": 587, "username": "u", "from": "u@t.com" },
+            "signing": {
+                "keyFingerprint": "ABCD1234"
+            }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        XCTAssertEqual(config.signing?.keyFingerprint, "ABCD1234")
+        XCTAssertEqual(config.signing?.xmpNamespace, "http://quigs.photo/xmp/1.0/")
+        XCTAssertEqual(config.signing?.xmpPrefix, "quigsphoto")
+    }
 }

@@ -8,6 +8,7 @@ struct AppConfig: Codable, Equatable {
     var tagBlocklist: [String]
     var requiredTags: [String]
     var cameraModelTags: [String: [String]]
+    var signing: SigningConfig?
 
     struct GhostConfig: Codable, Equatable {
         var url: String
@@ -86,6 +87,28 @@ struct AppConfig: Codable, Equatable {
         var from: String
     }
 
+    struct SigningConfig: Codable, Equatable {
+        var keyFingerprint: String
+        var xmpNamespace: String
+        var xmpPrefix: String
+
+        static let defaultXmpNamespace = "http://quigs.photo/xmp/1.0/"
+        static let defaultXmpPrefix = "quigsphoto"
+
+        init(keyFingerprint: String, xmpNamespace: String = SigningConfig.defaultXmpNamespace, xmpPrefix: String = SigningConfig.defaultXmpPrefix) {
+            self.keyFingerprint = keyFingerprint
+            self.xmpNamespace = xmpNamespace
+            self.xmpPrefix = xmpPrefix
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            keyFingerprint = try container.decode(String.self, forKey: .keyFingerprint)
+            xmpNamespace = try container.decodeIfPresent(String.self, forKey: .xmpNamespace) ?? SigningConfig.defaultXmpNamespace
+            xmpPrefix = try container.decodeIfPresent(String.self, forKey: .xmpPrefix) ?? SigningConfig.defaultXmpPrefix
+        }
+    }
+
     init(
         ghost: GhostConfig,
         processing: ProcessingConfig,
@@ -93,7 +116,8 @@ struct AppConfig: Codable, Equatable {
         smtp: SMTPConfig,
         tagBlocklist: [String] = [],
         requiredTags: [String] = [],
-        cameraModelTags: [String: [String]] = [:]
+        cameraModelTags: [String: [String]] = [:],
+        signing: SigningConfig? = nil
     ) {
         self.ghost = ghost
         self.processing = processing
@@ -102,6 +126,7 @@ struct AppConfig: Codable, Equatable {
         self.tagBlocklist = tagBlocklist
         self.requiredTags = requiredTags
         self.cameraModelTags = cameraModelTags
+        self.signing = signing
     }
 
     init(from decoder: Decoder) throws {
@@ -113,6 +138,7 @@ struct AppConfig: Codable, Equatable {
         tagBlocklist = try container.decodeIfPresent([String].self, forKey: .tagBlocklist) ?? []
         requiredTags = try container.decodeIfPresent([String].self, forKey: .requiredTags) ?? []
         cameraModelTags = try container.decodeIfPresent([String: [String]].self, forKey: .cameraModelTags) ?? [:]
+        signing = try container.decodeIfPresent(SigningConfig.self, forKey: .signing)
     }
 
     static let configDirectory = FileManager.default.homeDirectoryForCurrentUser
