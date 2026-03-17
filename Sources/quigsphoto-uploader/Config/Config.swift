@@ -37,6 +37,38 @@ struct AppConfig: Codable, Equatable {
     struct ProcessingConfig: Codable, Equatable {
         var maxLongEdge: Int
         var jpegQuality: Int
+        var metadataAllowlist: [String]
+
+        static let defaultMetadataAllowlist: [String] = [
+            "TIFF.Make",
+            "TIFF.Model",
+            "TIFF.Artist",
+            "TIFF.Copyright",
+            "EXIF.LensModel",
+            "EXIF.FNumber",
+            "EXIF.ExposureTime",
+            "EXIF.ISOSpeedRatings",
+            "EXIF.FocalLength",
+            "EXIF.DateTimeOriginal",
+            "IPTC.DigitalSourceType",
+            "IPTC.CopyrightNotice",
+            "IPTC.Byline",
+            "IPTC.DateCreated",
+            "IPTC.TimeCreated",
+        ]
+
+        init(maxLongEdge: Int, jpegQuality: Int, metadataAllowlist: [String] = ProcessingConfig.defaultMetadataAllowlist) {
+            self.maxLongEdge = maxLongEdge
+            self.jpegQuality = jpegQuality
+            self.metadataAllowlist = metadataAllowlist
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            maxLongEdge = try container.decode(Int.self, forKey: .maxLongEdge)
+            jpegQuality = try container.decode(Int.self, forKey: .jpegQuality)
+            metadataAllowlist = try container.decodeIfPresent([String].self, forKey: .metadataAllowlist) ?? ProcessingConfig.defaultMetadataAllowlist
+        }
     }
 
     struct Project365Config: Codable, Equatable {

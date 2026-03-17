@@ -10,7 +10,11 @@ enum TestFixtures {
         title: String? = nil,
         description: String? = nil,
         keywords: [String]? = nil,
-        dateTimeOriginal: String? = "2026:01:15 10:30:00"
+        dateTimeOriginal: String? = "2026:01:15 10:30:00",
+        cameraMake: String? = nil,
+        cameraModel: String? = nil,
+        lensModel: String? = nil,
+        gps: Bool = false
     ) throws {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(
@@ -32,14 +36,25 @@ enum TestFixtures {
         var properties: [String: Any] = [:]
         var exifDict: [String: Any] = [:]
         var iptcDict: [String: Any] = [:]
+        var tiffDict: [String: Any] = [:]
 
         if let dateTimeOriginal { exifDict[kCGImagePropertyExifDateTimeOriginal as String] = dateTimeOriginal }
+        if let lensModel { exifDict[kCGImagePropertyExifLensModel as String] = lensModel }
         if let title { iptcDict[kCGImagePropertyIPTCObjectName as String] = title }
         if let description { iptcDict[kCGImagePropertyIPTCCaptionAbstract as String] = description }
         if let keywords { iptcDict[kCGImagePropertyIPTCKeywords as String] = keywords }
+        if let cameraMake { tiffDict["Make"] = cameraMake }
+        if let cameraModel { tiffDict["Model"] = cameraModel }
 
         if !exifDict.isEmpty { properties[kCGImagePropertyExifDictionary as String] = exifDict }
         if !iptcDict.isEmpty { properties[kCGImagePropertyIPTCDictionary as String] = iptcDict }
+        if !tiffDict.isEmpty { properties[kCGImagePropertyTIFFDictionary as String] = tiffDict }
+        if gps {
+            properties[kCGImagePropertyGPSDictionary as String] = [
+                kCGImagePropertyGPSLatitude as String: 40.7128,
+                kCGImagePropertyGPSLongitude as String: -74.0060,
+            ]
+        }
 
         CGImageDestinationAddImage(dest, cgImage, properties as CFDictionary)
         guard CGImageDestinationFinalize(dest) else { throw TestFixtureError.cannotFinalize }

@@ -81,4 +81,56 @@ final class ConfigTests: XCTestCase {
     func testLoadConfigMissingFileThrows() {
         XCTAssertThrowsError(try AppConfig.load(from: "/nonexistent/config.json"))
     }
+
+    func testMetadataAllowlistDefaultsWhenMissing() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": {
+                "maxLongEdge": 2000,
+                "jpegQuality": 80
+            },
+            "project365": {
+                "keyword": "365 Project",
+                "referenceDate": "2025-12-25",
+                "emailTo": "test@test.com"
+            },
+            "smtp": { "host": "smtp.test.com", "port": 587, "username": "u", "from": "u@t.com" }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        XCTAssertEqual(config.processing.metadataAllowlist, AppConfig.ProcessingConfig.defaultMetadataAllowlist)
+        XCTAssertTrue(config.processing.metadataAllowlist.contains("TIFF.Make"))
+        XCTAssertTrue(config.processing.metadataAllowlist.contains("EXIF.DateTimeOriginal"))
+        XCTAssertTrue(config.processing.metadataAllowlist.contains("IPTC.DigitalSourceType"))
+    }
+
+    func testMetadataAllowlistCustomValues() throws {
+        let json = """
+        {
+            "ghost": {
+                "url": "https://quigs.photo",
+                "schedulingWindow": { "start": "08:00", "end": "10:00", "timezone": "UTC" }
+            },
+            "processing": {
+                "maxLongEdge": 2000,
+                "jpegQuality": 80,
+                "metadataAllowlist": ["TIFF.Make"]
+            },
+            "project365": {
+                "keyword": "365 Project",
+                "referenceDate": "2025-12-25",
+                "emailTo": "test@test.com"
+            },
+            "smtp": { "host": "smtp.test.com", "port": 587, "username": "u", "from": "u@t.com" }
+        }
+        """.data(using: .utf8)!
+
+        let config = try JSONDecoder().decode(AppConfig.self, from: json)
+        XCTAssertEqual(config.processing.metadataAllowlist, ["TIFF.Make"])
+    }
 }

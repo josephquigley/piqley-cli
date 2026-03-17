@@ -172,7 +172,8 @@ struct ProcessCommand: AsyncParsableCommand {
                                     inputPath: image.path,
                                     outputPath: resizedPath,
                                     maxLongEdge: config.processing.maxLongEdge,
-                                    jpegQuality: config.processing.jpegQuality
+                                    jpegQuality: config.processing.jpegQuality,
+                                    metadataAllowlist: config.processing.metadataAllowlist
                                 )
                             }
                             emailCandidates.append((image: image, resizedPath: resizedPath, emailSubject: emailSubject))
@@ -189,7 +190,8 @@ struct ProcessCommand: AsyncParsableCommand {
                         inputPath: image.path,
                         outputPath: resizedPath,
                         maxLongEdge: config.processing.maxLongEdge,
-                        jpegQuality: config.processing.jpegQuality
+                        jpegQuality: config.processing.jpegQuality,
+                        metadataAllowlist: config.processing.metadataAllowlist
                     )
                 }
 

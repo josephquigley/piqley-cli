@@ -3,7 +3,13 @@ import CoreGraphics
 import ImageIO
 
 struct CoreGraphicsImageProcessor: ImageProcessor {
-    func process(inputPath: String, outputPath: String, maxLongEdge: Int, jpegQuality: Int) throws {
+    private static let dictionaryKeys: [String: String] = [
+        "EXIF": kCGImagePropertyExifDictionary as String,
+        "TIFF": kCGImagePropertyTIFFDictionary as String,
+        "IPTC": kCGImagePropertyIPTCDictionary as String,
+    ]
+
+    func process(inputPath: String, outputPath: String, maxLongEdge: Int, jpegQuality: Int, metadataAllowlist: [String]) throws {
         let inputURL = URL(fileURLWithPath: inputPath) as CFURL
         guard let source = CGImageSourceCreateWithURL(inputURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
@@ -29,18 +35,30 @@ struct CoreGraphicsImageProcessor: ImageProcessor {
             throw ImageProcessorError.cannotCreateResizedImage
         }
 
+        // Opt-in metadata: only copy explicitly allowed tags
+        var outputExif: [String: Any] = [:]
+        var outputTiff: [String: Any] = [:]
+        var outputIptc: [String: Any] = [:]
+
+        for entry in metadataAllowlist {
+            let parts = entry.split(separator: ".", maxSplits: 1)
+            guard parts.count == 2,
+                  let dictKey = Self.dictionaryKeys[String(parts[0])],
+                  let sourceDict = originalProps[dictKey] as? [String: Any],
+                  let value = sourceDict[String(parts[1])] else { continue }
+
+            switch String(parts[0]) {
+            case "EXIF": outputExif[String(parts[1])] = value
+            case "TIFF": outputTiff[String(parts[1])] = value
+            case "IPTC": outputIptc[String(parts[1])] = value
+            default: break
+            }
+        }
+
         var outputProps: [String: Any] = [:]
-        if var exif = originalProps[kCGImagePropertyExifDictionary as String] as? [String: Any] {
-            exif.removeValue(forKey: kCGImagePropertyExifMakerNote as String)
-            outputProps[kCGImagePropertyExifDictionary as String] = exif
-        }
-        if let tiff = originalProps[kCGImagePropertyTIFFDictionary as String] {
-            outputProps[kCGImagePropertyTIFFDictionary as String] = tiff
-        }
-        if let iptc = originalProps[kCGImagePropertyIPTCDictionary as String] {
-            outputProps[kCGImagePropertyIPTCDictionary as String] = iptc
-        }
-        // Explicitly exclude GPS
+        if !outputExif.isEmpty { outputProps[kCGImagePropertyExifDictionary as String] = outputExif }
+        if !outputTiff.isEmpty { outputProps[kCGImagePropertyTIFFDictionary as String] = outputTiff }
+        if !outputIptc.isEmpty { outputProps[kCGImagePropertyIPTCDictionary as String] = outputIptc }
         outputProps[kCGImageDestinationLossyCompressionQuality as String] = CGFloat(jpegQuality) / 100.0
 
         let outputURL = URL(fileURLWithPath: outputPath) as CFURL
