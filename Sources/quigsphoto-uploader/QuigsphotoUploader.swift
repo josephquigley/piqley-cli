@@ -8,7 +8,7 @@ struct QuigsphotoUploader: AsyncParsableCommand {
         commandName: "quigsphoto-uploader",
         abstract: "Process and publish photos to Ghost CMS",
         version: "1.0.0",
-        subcommands: [ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self]
+        subcommands: [ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self, VerifyCommand.self]
     )
 
     static func main() async {
