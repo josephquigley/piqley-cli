@@ -23,6 +23,9 @@ struct ProcessCommand: AsyncParsableCommand {
     @Option(help: "Directory to write result files to (default: input folder)")
     var resultsDir: String?
 
+    @Flag(help: "Skip image signing for this run")
+    var noSign = false
+
     func run() async throws {
         let logger = Logger(label: "\(AppConstants.loggerPrefix).process")
 
@@ -195,6 +198,17 @@ struct ProcessCommand: AsyncParsableCommand {
                     )
                 }
 
+                // Sign image
+                if let signingConfig = config.signing, !noSign {
+                    if !dryRun {
+                        logger.info("[\(image.filename)] Signing...")
+                        let signer = GPGImageSigner(config: signingConfig)
+                        let signingResult = try await signer.sign(imageAt: resizedPath)
+                        logger.debug("[\(image.filename)] Content hash: \(signingResult.contentHash)")
+                    } else {
+                        print("[\(image.filename)] Would sign with key \(signingConfig.keyFingerprint.prefix(16))...")
+                    }
+                }
 
                 // Build tags
                 var tags: [GhostTagInput] = []
