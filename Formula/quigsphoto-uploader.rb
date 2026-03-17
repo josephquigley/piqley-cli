@@ -18,6 +18,7 @@ class QuigsphotoUploader < Formula
 
   depends_on xcode: ["26.0", :build]
   depends_on :macos
+  depends_on "gnupg"
 
   def install
     system "swift", "build",
