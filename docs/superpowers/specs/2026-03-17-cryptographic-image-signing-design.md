@@ -16,17 +16,17 @@ The core challenge is that embedding a signature in XMP modifies the file, inval
 
 ### Signable Content Extraction
 
-Both signing and verification use identical extraction logic (shared `SignableContentExtractor`):
+The signing pipeline uses a two-phase approach:
 
-1. Open the JPEG with `CGImageSource`, create `CGImage`
-2. Render into a canonical RGBA bitmap via `CGContext` (deterministic raw pixel data, independent of JPEG segment ordering)
-3. Extract metadata dictionaries: EXIF, TIFF, IPTC
-4. Exclude the signing XMP namespace (configurable, default `quigsphoto`)
-5. Serialize metadata to canonical form: JSON with `sortedKeys` option
-6. Concatenate: `pixel_data_bytes + canonical_metadata_json_bytes`
-7. SHA-256 the result → hex string
+**Phase 1 (Signing):** Hash the complete file bytes of the resized JPEG *before* any XMP signing fields are added. This is the simplest and most robust approach — the file hasn't been modified, so the hash covers exactly what was produced by the image processor.
 
-This is deterministic: the same image always produces the same hash, regardless of whether XMP signature fields are present. Using raw pixel data rather than the JPEG bitstream avoids dependence on JPEG segment ordering and makes the hash portable across re-encoding scenarios where pixel content is preserved.
+**Phase 2 (Embedding):** Write XMP signing fields (hash, signature, fingerprint, algorithm) into the image. The file now differs from what was hashed, but that's expected.
+
+**Verification:** Read the XMP signing fields, then reconstruct the pre-signing file by stripping those fields and re-writing the image without them. Hash the result and compare.
+
+The shared `SignableContentExtractor` handles both directions:
+- `hashFile(at:)` — SHA-256 of the raw file bytes (used during signing, before XMP injection)
+- `hashFileStrippingSignature(at:namespace:prefix:)` — strip XMP signing fields, re-write to temp file, hash the result (used during verification)
 
 ## Signing Pipeline
 
