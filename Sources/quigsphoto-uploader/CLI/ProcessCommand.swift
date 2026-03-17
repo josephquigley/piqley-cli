@@ -42,6 +42,18 @@ struct ProcessCommand: AsyncParsableCommand {
             throw ExitCode(1)
         }
 
+        // Build camera tag matchers
+        let cameraTagMatchers: [(TagMatcher, [String])]
+        do {
+            cameraTagMatchers = try config.cameraModelTags.map { (key, tags) in
+                let matcher = try TagMatcherFactory.buildMatchers(from: [key]).first!
+                return (matcher, tags)
+            }
+        } catch {
+            logger.error("Invalid cameraTags pattern: \(error)")
+            throw ExitCode(1)
+        }
+
         // Acquire lock
         let lockPath = NSTemporaryDirectory() + "\(AppConstants.tempDirectoryName)/\(AppConstants.binaryName).lock"
         let lock: ProcessLock
@@ -187,8 +199,19 @@ struct ProcessCommand: AsyncParsableCommand {
                 for keyword in processedKeywords where keyword != config.project365.keyword {
                     tags.append(GhostTagInput(name: keyword))
                 }
+                let cameraTags = image.metadata.matchingCameraTags(from: config.cameraModelTags, matchers: cameraTagMatchers)
+                for tag in cameraTags {
+                    tags.append(GhostTagInput(name: tag))
+                }
+                if dryRun && !cameraTags.isEmpty {
+                    print("[\(image.filename)] Camera tags (\(image.metadata.cameraModel ?? "unknown")): \(cameraTags.joined(separator: ", "))")
+                }
                 tags.append(GhostTagInput(name: "#image-post"))
                 tags.append(GhostTagInput(name: "#photo-stream"))
+
+                // De-duplicate tags (case-insensitive, preserving first occurrence)
+                var seen = Set<String>()
+                tags = tags.filter { seen.insert($0.name.lowercased()).inserted }
 
                 // Build body
                 let bodyTitle = is365 ? image.metadata.title : nil

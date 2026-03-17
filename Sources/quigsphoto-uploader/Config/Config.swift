@@ -6,6 +6,7 @@ struct AppConfig: Codable, Equatable {
     var project365: Project365Config
     var smtp: SMTPConfig
     var tagBlocklist: [String]
+    var cameraModelTags: [String: [String]]
 
     struct GhostConfig: Codable, Equatable {
         var url: String
@@ -34,6 +35,32 @@ struct AppConfig: Codable, Equatable {
         var port: Int
         var username: String
         var from: String
+    }
+
+    init(
+        ghost: GhostConfig,
+        processing: ProcessingConfig,
+        project365: Project365Config,
+        smtp: SMTPConfig,
+        tagBlocklist: [String],
+        cameraModelTags: [String: [String]] = [:]
+    ) {
+        self.ghost = ghost
+        self.processing = processing
+        self.project365 = project365
+        self.smtp = smtp
+        self.tagBlocklist = tagBlocklist
+        self.cameraModelTags = cameraModelTags
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ghost = try container.decode(GhostConfig.self, forKey: .ghost)
+        processing = try container.decode(ProcessingConfig.self, forKey: .processing)
+        project365 = try container.decode(Project365Config.self, forKey: .project365)
+        smtp = try container.decode(SMTPConfig.self, forKey: .smtp)
+        tagBlocklist = try container.decode([String].self, forKey: .tagBlocklist)
+        cameraModelTags = try container.decodeIfPresent([String: [String]].self, forKey: .cameraModelTags) ?? [:]
     }
 
     static let configDirectory = FileManager.default.homeDirectoryForCurrentUser

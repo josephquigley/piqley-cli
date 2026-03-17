@@ -33,6 +33,17 @@ struct ImageMetadata {
         return KeywordFilterResult(kept: kept, blocked: blocked)
     }
 
+    func matchingCameraTags(from cameraTags: [String: [String]], matchers: [(TagMatcher, [String])]) -> [String] {
+        guard let model = cameraModel else { return [] }
+        var result: [String] = []
+        for (matcher, tags) in matchers {
+            if matcher.matches(model) {
+                result.append(contentsOf: tags)
+            }
+        }
+        return result
+    }
+
     func is365Project(keyword: String) -> Bool {
         let leaves = keywords.map { ImageMetadata.leafKeyword($0) }
         return leaves.contains(keyword)
