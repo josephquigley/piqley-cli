@@ -8,7 +8,7 @@ Add GPG-based cryptographic signing to `quigsphoto-uploader`. After resizing, th
 - **Tamper detection (integrity):** Verify an image hasn't been modified since signing
 - **Authorship attribution:** Prove a specific GPG key owner signed the image
 
-**Scope:** Sign the uploaded original only. Ghost's responsive image variants (generated server-side by Sharp) are unsigned. Verification targets the original upload URL.
+**Scope:** Sign the uploaded original only. Ghost's responsive image variants (generated server-side by Sharp) are unsigned. To verify an image from Ghost, download the original (strip `/size/wXXX/` from the variant URL) and run `quigsphoto verify` on the local file.
 
 ## Approach: Content Hash Signing
 
@@ -19,7 +19,7 @@ The core challenge is that embedding a signature in XMP modifies the file, inval
 Both signing and verification use identical extraction logic (shared `SignableContentExtractor`):
 
 1. Open the JPEG with `CGImageSource`
-2. Extract the raw compressed image data
+2. Extract the JPEG compressed bitstream (image data between SOI/EOI markers, excluding metadata segments like APP1/APP13)
 3. Extract metadata dictionaries: EXIF, TIFF, IPTC
 4. Exclude the `quigsphoto` XMP namespace (signature fields)
 5. Serialize metadata to canonical form: JSON with `sortedKeys` option
@@ -206,7 +206,7 @@ Added as `signing: SigningConfig?` on `AppConfig`.
 
 No new Swift package dependencies. Uses:
 - `Foundation.Process` for shelling out to `gpg`
-- `CoreGraphics` / `ImageIO` for XMP writing (already in use)
+- `CoreGraphics` / `ImageIO` for XMP writing via `CGImageMetadata` APIs (`CGImageMetadataCreateMutable`, `CGImageMetadataSetValueMatchingImageProperty`, etc. — the lower-level metadata API, not the `kCGImageProperty*` dictionary path)
 - `CommonCrypto` / `CryptoKit` for SHA-256 (already available on macOS)
 
 ## Dry Run
