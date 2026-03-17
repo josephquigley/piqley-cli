@@ -72,14 +72,16 @@ struct ProcessCommand: AsyncParsableCommand {
         let deduplicator = GhostDeduplicator(uploadLog: uploadLog, client: ghostClient)
         let scheduler = GhostScheduler(client: ghostClient, config: config.ghost)
 
+        // Log helper: print for dry run, logger.info for normal
+        let log: (String) -> Void = dryRun ? { print($0) } : { logger.info("\($0)") }
+
         // Seed email log from Ghost if it doesn't exist
         if !emailLog.fileExists {
-            logger.info("Email log not found — seeding from Ghost...")
+            log("Email log not found — seeding from Ghost...")
             await seedEmailLog(emailLog: emailLog, client: ghostClient, config: config)
         }
 
         // Scan and sort images
-        let log: (String) -> Void = dryRun ? { print($0) } : { logger.info("\($0)") }
         log("Scanning folder: \(folderPath)")
         let images = try scanner.scan(folder: folderPath)
         log("Found \(images.count) images")

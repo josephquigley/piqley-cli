@@ -49,7 +49,12 @@ struct GhostScheduler {
         components.hour = hour
         components.minute = minute
         components.second = 0
-        return calendar.date(from: components) ?? baseDate
+        guard let scheduled = calendar.date(from: components) else { return baseDate }
+        // If the scheduled time is in the past, bump to tomorrow
+        if scheduled <= Date() {
+            return calendar.date(byAdding: .day, value: 1, to: scheduled) ?? scheduled
+        }
+        return scheduled
     }
 
     static func randomTimeInWindow(_ window: AppConfig.GhostConfig.SchedulingWindow) -> (hour: Int, minute: Int) {
