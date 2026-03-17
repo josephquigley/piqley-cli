@@ -12,6 +12,7 @@
 .Op Fl -verbose-results
 .Op Fl -json-results
 .Op Fl -results-dir Ar path
+.Op Fl -no-results-file
 .Nm
 .Cm setup
 .Nm
@@ -81,6 +82,10 @@ Directory to write result files to.
 Defaults to
 .Ar folder-path
 (the input folder).
+.It Fl -no-results-file
+Do not write any results files.
+When set, no text or JSON result files are created regardless of other
+result flags.
 .El
 .Ss setup
 Interactive configuration wizard.
@@ -165,9 +170,7 @@ Matching is case-sensitive.
 Start date for day numbering, in
 .Li YYYY-MM-DD
 format.
-Day 1 is the day
-.Em after
-this date.
+Day 1 is this date (the day the first photo was taken).
 .It project365.emailTo
 .Pq string, required
 Email address to which 365 Project photos are sent as attachments.
@@ -189,14 +192,35 @@ Login username for SMTP authentication.
 Sender address used in outgoing email headers.
 .El
 .Ss Tags
+.Pp
+Before any tag configuration is applied,
+.Nm
+flattens hierarchical EXIF keywords to their leaf nodes.
+Lightroom and other editors store keywords in a hierarchy separated by
+.Sq ">"
+characters.
+Only the rightmost (leaf) component is used; parent levels are discarded
+and surrounding whitespace is trimmed.
+.Pp
+For example, a photo with these EXIF keywords:
+.Bd -literal -offset indent
+Animals > Cats > Tabby
+Places > New York
+365 Project
+.Ed
+.Pp
+produces the leaf set
+.Bq Tabby, New York, 365 Project .
+These leaf keywords are then matched against the
+.Li tagBlocklist ,
+tested for the 365 Project keyword, and \(em if not blocked \(em sent to
+Ghost as tags.
 .Bl -tag -width Ds
 .It tagBlocklist
 .Pq array of strings, optional, default: []
-Patterns to prevent specific EXIF keywords from becoming Ghost tags.
-Each pattern is matched against the leaf node of hierarchical keywords
-(the portion after the last
-.Sq |
-separator).
+Patterns to prevent specific leaf keywords from becoming Ghost tags.
+Each pattern is matched against the leaf node after hierarchical
+flattening described above.
 See
 .Sx Pattern Matching
 below for supported pattern syntax.

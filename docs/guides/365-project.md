@@ -103,7 +103,7 @@ All 365 Project configuration lives under the `project365` key in `~/.config/piq
 | Key | Description | Default |
 |-----|-------------|---------|
 | `keyword` | EXIF keyword that identifies 365 Project photos. Case-sensitive, matched against leaf node. | `365 Project` |
-| `referenceDate` | The day before day 1. Photos taken on the day after this date are day 1. | (no default, must be set) |
+| `referenceDate` | The start date for day numbering. Photos taken on this date are day 1. | (no default, must be set) |
 | `emailTo` | Email address to send 365 Project photos to. | (no default, must be set) |
 
 SMTP settings (`smtp.host`, `smtp.port`, `smtp.username`, `smtp.from`) and the SMTP password (in Keychain as `piqley-smtp`) must also be configured for email to work. Run `piqley setup` to set all of these.

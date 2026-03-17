@@ -39,7 +39,7 @@ Run `piqley setup` to walk through configuration interactively. It writes non-se
 | Value | Description | Example |
 |-------|-------------|---------|
 | `project365.keyword` | The EXIF keyword that marks a photo as a 365 Project entry. Case-sensitive. | `365 Project` |
-| `project365.referenceDate` | The start date for day numbering. Day 1 is the day after this date. | `2025-12-25` |
+| `project365.referenceDate` | The start date for day numbering. Day 1 is this date. | `2025-12-25` |
 | `project365.emailTo` | Email address to send 365 Project photos to. | `user@365project.example` |
 
 **SMTP (required for 365 Project email):**
