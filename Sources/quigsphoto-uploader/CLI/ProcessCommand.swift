@@ -99,7 +99,7 @@ struct ProcessCommand: AsyncParsableCommand {
         log("Found \(images.count) images")
 
         var results = ProcessingResults()
-        var emailCandidates: [(image: ScannedImage, resizedPath: String, postTitle: String)] = []
+        var emailCandidates: [(image: ScannedImage, resizedPath: String, emailSubject: String)] = []
 
         // Process each image
         for image in images {
@@ -128,12 +128,14 @@ struct ProcessCommand: AsyncParsableCommand {
                 // Compute post title early (needed for email subject on dedup path)
                 let hasTitle: Bool
                 let postTitle: String
+                let emailSubject: String
                 if is365 {
                     let dayNumber = GhostScheduler.calculate365DayNumber(
                         photoDate: image.metadata.dateTimeOriginal ?? Date(),
                         referenceDate: config.project365.referenceDate
                     )
                     postTitle = "365 Project #\(dayNumber)"
+                    emailSubject = image.metadata.title ?? "Day \(dayNumber)"
                     hasTitle = true
                 } else {
                     if let title = image.metadata.title {
@@ -143,6 +145,7 @@ struct ProcessCommand: AsyncParsableCommand {
                         postTitle = image.filename
                         hasTitle = false
                     }
+                    emailSubject = postTitle
                 }
 
                 // Dedup check (Ghost API failure is fatal — let GhostDeduplicatorError propagate)
@@ -172,7 +175,7 @@ struct ProcessCommand: AsyncParsableCommand {
                                     jpegQuality: config.processing.jpegQuality
                                 )
                             }
-                            emailCandidates.append((image: image, resizedPath: resizedPath, postTitle: postTitle))
+                            emailCandidates.append((image: image, resizedPath: resizedPath, emailSubject: emailSubject))
                         }
                     }
                     continue
@@ -303,7 +306,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
                 // Add to email candidates if 365 Project and scheduled (not draft)
                 if is365 && hasTitle {
-                    emailCandidates.append((image: image, resizedPath: resizedPath, postTitle: postTitle))
+                    emailCandidates.append((image: image, resizedPath: resizedPath, emailSubject: emailSubject))
                 }
 
             } catch {
@@ -327,7 +330,7 @@ struct ProcessCommand: AsyncParsableCommand {
                         continue
                     }
 
-                    let subject = candidate.postTitle
+                    let subject = candidate.emailSubject
                     let body = image.metadata.description ?? ""
 
                     try emailSender.send(
