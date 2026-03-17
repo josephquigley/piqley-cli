@@ -39,7 +39,35 @@ struct SetupCommand: ParsableCommand {
         let blocklistStr = prompt("Tag blocklist (comma-separated, or empty; use glob: or regex: prefixes for patterns):", default: "")
         let blocklist = blocklistStr.isEmpty ? [] : blocklistStr.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
 
-        let config = AppConfig(
+        // Signing (optional)
+        var signingConfig: AppConfig.SigningConfig? = nil
+        let enableSigning = prompt("Enable image signing? (y/n):", default: "n")
+        if enableSigning.lowercased() == "y" {
+            print("\nAvailable GPG secret keys:")
+            let listProcess = Process()
+            listProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            listProcess.arguments = ["gpg", "--list-secret-keys", "--keyid-format", "long"]
+            listProcess.standardError = FileHandle.standardError
+            do {
+                try listProcess.run()
+                listProcess.waitUntilExit()
+            } catch {
+                print("Could not list GPG keys. Is gnupg installed?")
+            }
+
+            let fingerprint = prompt("GPG key fingerprint:")
+            if !fingerprint.isEmpty {
+                let customNs = prompt("XMP namespace (default: \(AppConfig.SigningConfig.defaultXmpNamespace)):", default: AppConfig.SigningConfig.defaultXmpNamespace)
+                let customPrefix = prompt("XMP prefix (default: \(AppConfig.SigningConfig.defaultXmpPrefix)):", default: AppConfig.SigningConfig.defaultXmpPrefix)
+                signingConfig = AppConfig.SigningConfig(
+                    keyFingerprint: fingerprint,
+                    xmpNamespace: customNs,
+                    xmpPrefix: customPrefix
+                )
+            }
+        }
+
+        var config = AppConfig(
             ghost: .init(
                 url: ghostURL,
                 schedulingWindow: .init(start: windowStart, end: windowEnd, timezone: timezone)
@@ -49,6 +77,7 @@ struct SetupCommand: ParsableCommand {
             smtp: .init(host: smtpHost, port: smtpPort, username: smtpUsername, from: smtpFrom),
             tagBlocklist: blocklist
         )
+        config.signing = signingConfig
 
         try config.save(to: AppConfig.configPath.path)
         print("\nConfig saved to \(AppConfig.configPath.path)")
