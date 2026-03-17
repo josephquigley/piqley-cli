@@ -6,6 +6,7 @@ struct AppConfig: Codable, Equatable {
     var project365: Project365Config
     var smtp: SMTPConfig
     var tagBlocklist: [String]
+    var requiredTags: [String]
     var cameraModelTags: [String: [String]]
 
     struct GhostConfig: Codable, Equatable {
@@ -42,7 +43,8 @@ struct AppConfig: Codable, Equatable {
         processing: ProcessingConfig,
         project365: Project365Config,
         smtp: SMTPConfig,
-        tagBlocklist: [String],
+        tagBlocklist: [String] = [],
+        requiredTags: [String] = [],
         cameraModelTags: [String: [String]] = [:]
     ) {
         self.ghost = ghost
@@ -50,6 +52,7 @@ struct AppConfig: Codable, Equatable {
         self.project365 = project365
         self.smtp = smtp
         self.tagBlocklist = tagBlocklist
+        self.requiredTags = requiredTags
         self.cameraModelTags = cameraModelTags
     }
 
@@ -59,7 +62,8 @@ struct AppConfig: Codable, Equatable {
         processing = try container.decode(ProcessingConfig.self, forKey: .processing)
         project365 = try container.decode(Project365Config.self, forKey: .project365)
         smtp = try container.decode(SMTPConfig.self, forKey: .smtp)
-        tagBlocklist = try container.decode([String].self, forKey: .tagBlocklist)
+        tagBlocklist = try container.decodeIfPresent([String].self, forKey: .tagBlocklist) ?? []
+        requiredTags = try container.decodeIfPresent([String].self, forKey: .requiredTags) ?? []
         cameraModelTags = try container.decodeIfPresent([String: [String]].self, forKey: .cameraModelTags) ?? [:]
     }
 

@@ -209,8 +209,9 @@ struct ProcessCommand: AsyncParsableCommand {
                 if dryRun && !cameraTags.isEmpty {
                     print("[\(image.filename)] Camera tags (\(image.metadata.cameraModel ?? "unknown")): \(cameraTags.joined(separator: ", "))")
                 }
-                tags.append(GhostTagInput(name: "#image-post"))
-                tags.append(GhostTagInput(name: "#photo-stream"))
+                for tag in config.requiredTags {
+                    tags.append(GhostTagInput(name: tag))
+                }
 
                 // De-duplicate tags (case-insensitive, preserving first occurrence)
                 var seen = Set<String>()
@@ -223,7 +224,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
                 if dryRun {
                     if status == "scheduled" {
-                        let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365)
+                        let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword, requiredTags: config.requiredTags)
                         let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
                         let formatter = DateFormatter()
                         formatter.dateFormat = "yyyy-MM-dd HH:mm"
@@ -269,7 +270,7 @@ struct ProcessCommand: AsyncParsableCommand {
                 // Determine schedule date
                 var publishedAt: String?
                 if hasTitle {
-                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365)
+                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword, requiredTags: config.requiredTags)
                     let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
                     publishedAt = GhostScheduler.formatForGhost(date: dateTime)
                 }
