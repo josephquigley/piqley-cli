@@ -12,11 +12,25 @@ struct AppConfig: Codable, Equatable {
     struct GhostConfig: Codable, Equatable {
         var url: String
         var schedulingWindow: SchedulingWindow
+        var schedulingFilterTags: [String]
 
         struct SchedulingWindow: Codable, Equatable {
             var start: String
             var end: String
             var timezone: String
+        }
+
+        init(url: String, schedulingWindow: SchedulingWindow, schedulingFilterTags: [String] = []) {
+            self.url = url
+            self.schedulingWindow = schedulingWindow
+            self.schedulingFilterTags = schedulingFilterTags
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            url = try container.decode(String.self, forKey: .url)
+            schedulingWindow = try container.decode(SchedulingWindow.self, forKey: .schedulingWindow)
+            schedulingFilterTags = try container.decodeIfPresent([String].self, forKey: .schedulingFilterTags) ?? []
         }
     }
 

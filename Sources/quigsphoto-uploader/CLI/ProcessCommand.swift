@@ -224,7 +224,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
                 if dryRun {
                     if status == "scheduled" {
-                        let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword, requiredTags: config.requiredTags)
+                        let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword)
                         let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
                         let formatter = DateFormatter()
                         formatter.dateFormat = "yyyy-MM-dd HH:mm"
@@ -270,7 +270,7 @@ struct ProcessCommand: AsyncParsableCommand {
                 // Determine schedule date
                 var publishedAt: String?
                 if hasTitle {
-                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword, requiredTags: config.requiredTags)
+                    let scheduleDate = try await scheduler.nextScheduleDate(is365Project: is365, project365Keyword: config.project365.keyword)
                     let dateTime = scheduler.buildScheduleDateTime(baseDate: scheduleDate)
                     publishedAt = GhostScheduler.formatForGhost(date: dateTime)
                 }

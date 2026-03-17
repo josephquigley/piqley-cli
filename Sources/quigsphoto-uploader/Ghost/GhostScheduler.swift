@@ -11,14 +11,14 @@ struct GhostScheduler {
         self.config = config
     }
 
-    func nextScheduleDate(is365Project: Bool, project365Keyword: String, requiredTags: [String]) async throws -> Date {
+    func nextScheduleDate(is365Project: Bool, project365Keyword: String) async throws -> Date {
         let filter: String
         if is365Project {
             filter = "tag:'\(project365Keyword)'"
-        } else if let firstTag = requiredTags.first {
-            filter = "tag:'\(firstTag)'+tag:-'\(project365Keyword)'"
         } else {
-            filter = "tag:-'\(project365Keyword)'"
+            var parts = config.schedulingFilterTags.map { "tag:'\($0)'" }
+            parts.append("tag:-'\(project365Keyword)'")
+            filter = parts.joined(separator: "+")
         }
         let scheduled = try await client.getPosts(status: "scheduled", filter: filter, limit: 50)
         if !scheduled.posts.isEmpty {
