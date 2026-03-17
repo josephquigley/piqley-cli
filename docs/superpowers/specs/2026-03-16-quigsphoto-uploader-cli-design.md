@@ -1,19 +1,19 @@
-# quigsphoto-uploader CLI — Design Spec
+# piqley CLI — Design Spec
 
 ## Overview
 
-`quigsphoto-uploader` is a Swift CLI tool that processes photos exported from Lightroom, creates web-friendly versions, uploads them to Ghost CMS with scheduled publishing, and optionally emails 365 Project photos to a bespoke address. It is invoked by Hazel when new photos land in a watched macOS folder.
+`piqley` is a Swift CLI tool that processes photos exported from Lightroom, creates web-friendly versions, uploads them to Ghost CMS with scheduled publishing, and optionally emails 365 Project photos to a bespoke address. It is invoked by Hazel when new photos land in a watched macOS folder.
 
 ## Architecture Context
 
 ```
-Lightroom → Export to folder → Hazel watches folder → quigsphoto-uploader CLI
+Lightroom → Export to folder → Hazel watches folder → piqley CLI
                                                           ↓
                                                     Ghost CMS (scheduling, source of truth)
                                                           ↓ (once published, external service)
                                                     Pixelfed, Instagram, BlueSky
 
-Also from quigsphoto-uploader:
+Also from piqley:
   → 365 Project email (after Ghost upload succeeds)
 
 Out of scope (no-ops, context only):
@@ -26,18 +26,18 @@ Out of scope (no-ops, context only):
 
 ### Commands
 
-**`quigsphoto-uploader process <folder-path>`**
+**`piqley process <folder-path>`**
 - Processes all JPEG images in the given folder
 - `--dry-run`: preview actions without uploading or emailing
 - `--verbose-results`: include successful images in result output (default: only errors and duplicates)
-- `--json-results`: write a single `.quigsphoto-uploader-results.json` instead of individual text files
+- `--json-results`: write a single `.piqley-results.json` instead of individual text files
 - `--results-dir <path>`: directory to write result files to (default: input folder)
 - `--help`: detailed usage information
 - Exits with error if config file does not exist (directs user to run `setup`)
 
-**`quigsphoto-uploader setup`**
+**`piqley setup`**
 - Interactive walkthrough that prompts for all config values
-- Writes config to `~/.config/quigsphoto-uploader/config.json`
+- Writes config to `~/.config/piqley/config.json`
 - Stores secrets (Ghost Admin API key, SMTP password) in macOS Keychain via `SecretStore`
 
 ### Exit Codes
@@ -49,13 +49,13 @@ Out of scope (no-ops, context only):
 ### Results Files
 After processing, writes plain-text result files to the results directory (one filename per line). Results directory defaults to the input folder, overridden by `--results-dir`:
 
-- `<input-folder>/.quigsphoto-uploader-failure.txt` — images that had errors
-- `<input-folder>/.quigsphoto-uploader-duplicate.txt` — images skipped by dedup
-- `<input-folder>/.quigsphoto-uploader-success.txt` — only written when `--verbose-results` is passed
+- `<input-folder>/.piqley-failure.txt` — images that had errors
+- `<input-folder>/.piqley-duplicate.txt` — images skipped by dedup
+- `<input-folder>/.piqley-success.txt` — only written when `--verbose-results` is passed
 
 Files are only created if they have entries. Hazel can match on file existence to trigger per-outcome cleanup rules.
 
-**JSON mode (`--json-results`):** Instead of individual text files, writes a single `.quigsphoto-uploader-results.json` to the results directory:
+**JSON mode (`--json-results`):** Instead of individual text files, writes a single `.piqley-results.json` to the results directory:
 ```json
 {
   "failures": ["bar.jpg"],
@@ -67,11 +67,11 @@ Files are only created if they have entries. Hazel can match on file existence t
 
 ## Configuration
 
-### Config File: `~/.config/quigsphoto-uploader/config.json`
+### Config File: `~/.config/piqley/config.json`
 
 Config is the source of truth at runtime for all non-secret values.
 
-> **Forkability note:** Name-related strings -- binary name, config directory name (`quigsphoto-uploader`), keychain service prefix (`quigsphoto-uploader-`), result file prefix (`.quigsphoto-uploader-`), temp directory name (`quigsphoto-uploader`), and logger labels -- should be defined as constants in code so that forks can rebrand by changing values in one place.
+> **Forkability note:** Name-related strings -- binary name, config directory name (`piqley`), keychain service prefix (`piqley-`), result file prefix (`.piqley-`), temp directory name (`piqley`), and logger labels -- should be defined as constants in code so that forks can rebrand by changing values in one place.
 
 ```json
 {
@@ -105,8 +105,8 @@ Config is the source of truth at runtime for all non-secret values.
 ### Secrets (Keychain)
 
 Accessed via `SecretStore` protocol:
-- Ghost Admin API key — service: `quigsphoto-uploader-ghost`
-- SMTP password — service: `quigsphoto-uploader-smtp`
+- Ghost Admin API key — service: `piqley-ghost`
+- SMTP password — service: `piqley-smtp`
 
 ## Image Processing Pipeline
 
@@ -133,7 +133,7 @@ For a given input folder, processing runs in this order:
 - Re-encode at `jpegQuality` (default 80%)
 - Strip EXIF: GPS, MakerNote, and other PII fields
 - Preserve: Copyright, Camera Make/Model, Lens, DateTimeOriginal
-- Write resized image to `<system-temp>/quigsphoto-uploader/` directory (cleaned up on exit, after both Ghost uploads and email sending complete; easy to find for manual cleanup if the process is killed)
+- Write resized image to `<system-temp>/piqley/` directory (cleaned up on exit, after both Ghost uploads and email sending complete; easy to find for manual cleanup if the process is killed)
 
 ### 4. Assess Metadata Completeness
 - Title present → post will be scheduled
@@ -152,7 +152,7 @@ For a given input folder, processing runs in this order:
 Two-tier dedup: local cache first, Ghost API fallback.
 
 **Local cache (first pass):**
-- `~/.config/quigsphoto-uploader/upload-log.jsonl` — append-only JSONL file recording each successful Ghost upload
+- `~/.config/piqley/upload-log.jsonl` — append-only JSONL file recording each successful Ghost upload
 - Each line: `{"filename": "IMG_1234.jpg", "ghostUrl": "https://quigs.photo/p/...", "postId": "...", "timestamp": "2026-03-16T09:30:00Z"}`
 - Check this file first for filename match. If found, skip the image (no API call needed).
 - Writes use atomic append (open with `O_APPEND`) so concurrent processes don't stomp each other.
@@ -210,7 +210,7 @@ For each image tagged "365 Project" that either was successfully posted to Ghost
 Images created as draft (missing title) do not trigger emails. Images skipped by Ghost dedup **do** still go through email dedup — if they're in the upload log but not the email log, the email is retried.
 
 **Email dedup:**
-- `~/.config/quigsphoto-uploader/email-log.jsonl` — append-only JSONL file recording each successful email send
+- `~/.config/piqley/email-log.jsonl` — append-only JSONL file recording each successful email send
 - Each line: `{"filename": "IMG_1234.jpg", "emailTo": "user@365project.example", "subject": "...", "timestamp": "2026-03-16T09:35:00Z"}`
 - Before sending an email, check this log for a filename match. If found, skip sending.
 - Atomic append (`O_APPEND`) for concurrency safety
@@ -234,10 +234,10 @@ Uses [swift-log](https://github.com/apple/swift-log) for structured logging. Per
 ## Project Structure
 
 ```
-quigsphoto-uploader/
+piqley/
 ├── Package.swift
 ├── Sources/
-│   └── quigsphoto-uploader/
+│   └── piqley/
 │       ├── main.swift
 │       ├── CLI/
 │       │   ├── ProcessCommand.swift
@@ -261,7 +261,7 @@ quigsphoto-uploader/
 │       └── Email/
 │           └── EmailSender.swift
 ├── Tests/
-│   └── quigsphoto-uploaderTests/
+│   └── piqleyTests/
 └── .agents/
     └── AGENTS.md
 ```
@@ -292,7 +292,7 @@ Three protocols abstract macOS-specific functionality for future Linux/Docker po
 
 ## Concurrency
 
-Only one instance of `quigsphoto-uploader process` should run at a time. The tool acquires an advisory file lock (`flock`-style) at `<system-temp>/quigsphoto-uploader/quigsphoto-uploader.lock` on startup. Advisory locks are automatically released on process exit or crash, so stale locks are not a concern. If the lock is held, exit with an error message. Hazel should be configured to serialize invocations, but the lock is a safety net.
+Only one instance of `piqley process` should run at a time. The tool acquires an advisory file lock (`flock`-style) at `<system-temp>/piqley/piqley.lock` on startup. Advisory locks are automatically released on process exit or crash, so stale locks are not a concern. If the lock is held, exit with an error message. Hazel should be configured to serialize invocations, but the lock is a safety net.
 
 ## Network
 
@@ -301,9 +301,9 @@ Only one instance of `quigsphoto-uploader process` should run at a time. The too
 
 ## File Handling
 - Input files are left in place after processing (Hazel handles cleanup)
-- Resized images written to `<system-temp>/quigsphoto-uploader/`, cleaned up on tool exit (after all uploads and emails complete)
+- Resized images written to `<system-temp>/piqley/`, cleaned up on tool exit (after all uploads and emails complete)
 
-### Local Data Files (`~/.config/quigsphoto-uploader/`)
+### Local Data Files (`~/.config/piqley/`)
 - `config.json` — runtime configuration (created by `setup`)
 - `upload-log.jsonl` — append-only log of successful Ghost uploads (used for dedup, self-heals from Ghost API on cache miss)
 - `email-log.jsonl` — append-only log of successful email sends (used for email dedup; seeded from Ghost on first run)

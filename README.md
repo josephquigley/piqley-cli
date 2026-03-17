@@ -1,4 +1,4 @@
-# quigsphoto-uploader
+# piqley
 
 A macOS CLI tool that processes Lightroom-exported photos, uploads them to Ghost CMS with scheduling, and emails 365 Project photos. Designed to be invoked by Hazel.
 
@@ -6,7 +6,7 @@ A macOS CLI tool that processes Lightroom-exported photos, uploads them to Ghost
 
 ```bash
 brew tap quigs/tools /Users/wash/Developer/tools/quigsphoto-uploader
-brew install --HEAD quigs/tools/quigsphoto-uploader
+brew install --HEAD quigs/tools/piqley
 ```
 
 ## Usage
@@ -14,7 +14,7 @@ brew install --HEAD quigs/tools/quigsphoto-uploader
 ### Initial setup
 
 ```bash
-quigsphoto-uploader setup
+piqley setup
 ```
 
 Walks you through configuring Ghost CMS, SMTP, processing settings, and stores secrets in the macOS Keychain.
@@ -22,7 +22,7 @@ Walks you through configuring Ghost CMS, SMTP, processing settings, and stores s
 ### Process a folder
 
 ```bash
-quigsphoto-uploader process /path/to/exported/photos
+piqley process /path/to/exported/photos
 ```
 
 Options:
@@ -50,7 +50,7 @@ swift test
 
 ```bash
 brew tap quigs/tools /Users/wash/Developer/tools/quigsphoto-uploader
-brew install --HEAD quigs/tools/quigsphoto-uploader
+brew install --HEAD quigs/tools/piqley
 ```
 
 After making changes, rebuild and reinstall:
@@ -60,7 +60,7 @@ After making changes, rebuild and reinstall:
 cd /opt/homebrew/Library/Taps/quigs/homebrew-tools && git pull origin main
 
 # Reinstall from HEAD
-brew reinstall --HEAD quigs/tools/quigsphoto-uploader
+brew reinstall --HEAD quigs/tools/piqley
 ```
 
 ### Creating a release with bottles
@@ -81,20 +81,20 @@ gh release create v1.0.0 --generate-notes
 ```bash
 ./scripts/create-bottle.sh 1.0.0
 # Upload the .tar.gz to the GitHub release
-# Paste the bottle block into Formula/quigsphoto-uploader.rb
+# Paste the bottle block into Formula/piqley.rb
 ```
 
 ### Switching to GitHub
 
-When publishing to GitHub, update `Formula/quigsphoto-uploader.rb`:
+When publishing to GitHub, update `Formula/piqley.rb`:
 
 1. Replace the local `head` URL with the GitHub URL:
    ```ruby
-   head "https://github.com/josephquigley/quigsphoto-uploader.git", branch: "main"
+   head "https://github.com/josephquigley/piqley.git", branch: "main"
    ```
 2. Add `url`, `sha256`, and `bottle` block for the tagged release.
 3. Update the tap to point at the GitHub repo:
    ```bash
    brew untap quigs/tools
-   brew tap quigs/tools https://github.com/josephquigley/quigsphoto-uploader.git
+   brew tap quigs/tools https://github.com/josephquigley/piqley.git
    ```

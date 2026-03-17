@@ -13,12 +13,12 @@
 ### Task 1: Add `SigningConfig` to `AppConfig`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/Config/Config.swift`
-- Modify: `Tests/quigsphoto-uploaderTests/ConfigTests.swift`
+- Modify: `Sources/piqley/Config/Config.swift`
+- Modify: `Tests/piqleyTests/ConfigTests.swift`
 
 - [ ] **Step 1: Write failing test for SigningConfig decoding with defaults**
 
-In `Tests/quigsphoto-uploaderTests/ConfigTests.swift`, add:
+In `Tests/piqleyTests/ConfigTests.swift`, add:
 
 ```swift
 func testSigningConfigDefaultsWhenMissing() throws {
@@ -81,7 +81,7 @@ func testSigningConfigDefaultXmpNames() throws {
     let config = try JSONDecoder().decode(AppConfig.self, from: json)
     XCTAssertEqual(config.signing?.keyFingerprint, "ABCD1234")
     XCTAssertNil(config.signing?.xmpNamespace, "Namespace should be nil when not specified (derived at runtime)")
-    XCTAssertEqual(config.signing?.xmpPrefix, "quigsphoto")
+    XCTAssertEqual(config.signing?.xmpPrefix, "piqley")
 }
 
 func testResolvedSigningConfigDerivesNamespace() throws {
@@ -113,7 +113,7 @@ Expected: Compilation error — `AppConfig` has no member `signing`
 
 - [ ] **Step 3: Implement SigningConfig**
 
-In `Sources/quigsphoto-uploader/Config/Config.swift`:
+In `Sources/piqley/Config/Config.swift`:
 
 Add `SigningConfig` struct after `SMTPConfig` (after line 87):
 
@@ -123,7 +123,7 @@ struct SigningConfig: Codable, Equatable {
     var xmpNamespace: String?
     var xmpPrefix: String
 
-    static let defaultXmpPrefix = "quigsphoto"
+    static let defaultXmpPrefix = "piqley"
 
     /// Derive XMP namespace from Ghost URL: "https://quigs.photo" → "https://quigs.photo/xmp/1.0/"
     static func deriveXmpNamespace(from ghostURL: String) -> String {
@@ -176,7 +176,7 @@ Expected: All tests pass
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Config/Config.swift Tests/quigsphoto-uploaderTests/ConfigTests.swift
+git add Sources/piqley/Config/Config.swift Tests/piqleyTests/ConfigTests.swift
 git commit -m "feat(signing): add SigningConfig to AppConfig with configurable XMP namespace"
 ```
 
@@ -185,24 +185,24 @@ git commit -m "feat(signing): add SigningConfig to AppConfig with configurable X
 ### Task 2: Create `SignableContentExtractor`
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/SignableContentExtractor.swift`
-- Create: `Tests/quigsphoto-uploaderTests/SignableContentExtractorTests.swift`
+- Create: `Sources/piqley/ImageProcessing/SignableContentExtractor.swift`
+- Create: `Tests/piqleyTests/SignableContentExtractorTests.swift`
 
 - [ ] **Step 1: Write failing tests**
 
-In `Tests/quigsphoto-uploaderTests/SignableContentExtractorTests.swift`:
+In `Tests/piqleyTests/SignableContentExtractorTests.swift`:
 
 ```swift
 import XCTest
 import ImageIO
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class SignableContentExtractorTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
     override func tearDown() { try? FileManager.default.removeItem(at: tmpDir) }
@@ -241,11 +241,11 @@ final class SignableContentExtractorTests: XCTestCase {
         let extractor = SignableContentExtractor()
         let hashBefore = try extractor.hashFile(at: path)
 
-        // Write some XMP in the quigsphoto namespace to the image
+        // Write some XMP in the piqley namespace to the image
         try addXmpSigningFields(
             to: path,
             namespace: "https://quigs.photo/xmp/1.0/",
-            prefix: "quigsphoto"
+            prefix: "piqley"
         )
 
         // Hash after adding XMP should differ (file changed)
@@ -256,13 +256,13 @@ final class SignableContentExtractorTests: XCTestCase {
         let hashStripped = try extractor.hashFileStrippingSignature(
             at: path,
             namespace: "https://quigs.photo/xmp/1.0/",
-            prefix: "quigsphoto"
+            prefix: "piqley"
         )
 
         let hashStripped2 = try extractor.hashFileStrippingSignature(
             at: path,
             namespace: "https://quigs.photo/xmp/1.0/",
-            prefix: "quigsphoto"
+            prefix: "piqley"
         )
         XCTAssertEqual(hashStripped, hashStripped2, "Stripping should be deterministic")
     }
@@ -271,7 +271,7 @@ final class SignableContentExtractorTests: XCTestCase {
 
 - [ ] **Step 2: Add `TestFixtures.addXmpSigningFields` helper**
 
-In `Tests/quigsphoto-uploaderTests/TestHelpers.swift`, add after the existing `createTestJPEG` method:
+In `Tests/piqleyTests/TestHelpers.swift`, add after the existing `createTestJPEG` method:
 
 ```swift
 static func addXmpSigningFields(
@@ -321,7 +321,7 @@ Expected: Compilation error — `SignableContentExtractor` not found
 
 - [ ] **Step 4: Implement SignableContentExtractor**
 
-Create `Sources/quigsphoto-uploader/ImageProcessing/SignableContentExtractor.swift`:
+Create `Sources/piqley/ImageProcessing/SignableContentExtractor.swift`:
 
 ```swift
 import CryptoKit
@@ -379,7 +379,7 @@ struct SignableContentExtractor {
 
         // Write to temp file without signing XMP
         let tmpPath = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-verify-\(UUID().uuidString).jpg")
+            .appendingPathComponent("piqley-verify-\(UUID().uuidString).jpg")
         defer { try? FileManager.default.removeItem(at: tmpPath) }
 
         guard let dest = CGImageDestinationCreateWithURL(tmpPath as CFURL, imageType, 1, nil) else {
@@ -404,7 +404,7 @@ Expected: All tests pass
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ImageProcessing/SignableContentExtractor.swift Tests/quigsphoto-uploaderTests/SignableContentExtractorTests.swift Tests/quigsphoto-uploaderTests/TestHelpers.swift
+git add Sources/piqley/ImageProcessing/SignableContentExtractor.swift Tests/piqleyTests/SignableContentExtractorTests.swift Tests/piqleyTests/TestHelpers.swift
 git commit -m "feat(signing): add SignableContentExtractor for deterministic image hashing"
 ```
 
@@ -413,25 +413,25 @@ git commit -m "feat(signing): add SignableContentExtractor for deterministic ima
 ### Task 3: Create `ImageSigner` protocol and `GPGImageSigner`
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/ImageSigner.swift`
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/GPGImageSigner.swift`
-- Create: `Tests/quigsphoto-uploaderTests/ImageSignerTests.swift`
+- Create: `Sources/piqley/ImageProcessing/ImageSigner.swift`
+- Create: `Sources/piqley/ImageProcessing/GPGImageSigner.swift`
+- Create: `Tests/piqleyTests/ImageSignerTests.swift`
 
 - [ ] **Step 1: Write failing tests**
 
-In `Tests/quigsphoto-uploaderTests/ImageSignerTests.swift`:
+In `Tests/piqleyTests/ImageSignerTests.swift`:
 
 ```swift
 import XCTest
 import ImageIO
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class ImageSignerTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
     override func tearDown() { try? FileManager.default.removeItem(at: tmpDir) }
@@ -507,7 +507,7 @@ Expected: Compilation error — `GPGImageSigner`, `XMPSignatureReader` not found
 
 - [ ] **Step 3: Create ImageSigner protocol**
 
-Create `Sources/quigsphoto-uploader/ImageProcessing/ImageSigner.swift`:
+Create `Sources/piqley/ImageProcessing/ImageSigner.swift`:
 
 ```swift
 import Foundation
@@ -525,7 +525,7 @@ protocol ImageSigner {
 
 - [ ] **Step 4: Create XMPSignatureReader (used by both signer and verifier)**
 
-Create `Sources/quigsphoto-uploader/ImageProcessing/XMPSignatureReader.swift`:
+Create `Sources/piqley/ImageProcessing/XMPSignatureReader.swift`:
 
 ```swift
 import Foundation
@@ -582,7 +582,7 @@ enum XMPSignatureReader {
 
 - [ ] **Step 5: Create GPGImageSigner**
 
-Create `Sources/quigsphoto-uploader/ImageProcessing/GPGImageSigner.swift`:
+Create `Sources/piqley/ImageProcessing/GPGImageSigner.swift`:
 
 ```swift
 import Foundation
@@ -763,7 +763,7 @@ Expected: All tests pass (or skip if no GPG key)
 - [ ] **Step 7: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ImageProcessing/ImageSigner.swift Sources/quigsphoto-uploader/ImageProcessing/GPGImageSigner.swift Sources/quigsphoto-uploader/ImageProcessing/XMPSignatureReader.swift Tests/quigsphoto-uploaderTests/ImageSignerTests.swift
+git add Sources/piqley/ImageProcessing/ImageSigner.swift Sources/piqley/ImageProcessing/GPGImageSigner.swift Sources/piqley/ImageProcessing/XMPSignatureReader.swift Tests/piqleyTests/ImageSignerTests.swift
 git commit -m "feat(signing): add GPGImageSigner with XMP embedding and reading"
 ```
 
@@ -772,11 +772,11 @@ git commit -m "feat(signing): add GPGImageSigner with XMP embedding and reading"
 ### Task 4: Integrate signing into `ProcessCommand`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/CLI/ProcessCommand.swift`
+- Modify: `Sources/piqley/CLI/ProcessCommand.swift`
 
 - [ ] **Step 1: Add `--no-sign` flag**
 
-In `Sources/quigsphoto-uploader/CLI/ProcessCommand.swift`, add after the `resultsDir` option (after line 24):
+In `Sources/piqley/CLI/ProcessCommand.swift`, add after the `resultsDir` option (after line 24):
 
 ```swift
 @Flag(help: "Skip image signing for this run")
@@ -809,7 +809,7 @@ Expected: Build succeeds
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/ProcessCommand.swift
+git add Sources/piqley/CLI/ProcessCommand.swift
 git commit -m "feat(signing): integrate signing into process command with --no-sign flag"
 ```
 
@@ -818,12 +818,12 @@ git commit -m "feat(signing): integrate signing into process command with --no-s
 ### Task 5: Create `VerifyCommand`
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/CLI/VerifyCommand.swift`
-- Modify: `Sources/quigsphoto-uploader/QuigsphotoUploader.swift`
+- Create: `Sources/piqley/CLI/VerifyCommand.swift`
+- Modify: `Sources/piqley/Piqley.swift`
 
 - [ ] **Step 1: Create VerifyCommand**
 
-Create `Sources/quigsphoto-uploader/CLI/VerifyCommand.swift`:
+Create `Sources/piqley/CLI/VerifyCommand.swift`:
 
 ```swift
 import ArgumentParser
@@ -844,7 +844,7 @@ struct VerifyCommand: ParsableCommand {
     @Option(help: "XMP namespace to look for signature in (default: derived from Ghost URL in config)")
     var xmpNamespace: String?
 
-    @Option(help: "XMP prefix to look for signature in (default: quigsphoto)")
+    @Option(help: "XMP prefix to look for signature in (default: piqley)")
     var xmpPrefix: String?
 
     func run() throws {
@@ -932,8 +932,8 @@ struct VerifyCommand: ParsableCommand {
     private func verifyGPGSignature(signature: String, data: String, expectedFingerprint: String?) throws -> Bool {
         // Write signature to temp file
         let tmpDir = FileManager.default.temporaryDirectory
-        let sigFile = tmpDir.appendingPathComponent("quigsphoto-verify-\(UUID().uuidString).sig")
-        let dataFile = tmpDir.appendingPathComponent("quigsphoto-verify-\(UUID().uuidString).dat")
+        let sigFile = tmpDir.appendingPathComponent("piqley-verify-\(UUID().uuidString).sig")
+        let dataFile = tmpDir.appendingPathComponent("piqley-verify-\(UUID().uuidString).dat")
         defer {
             try? FileManager.default.removeItem(at: sigFile)
             try? FileManager.default.removeItem(at: dataFile)
@@ -975,7 +975,7 @@ struct VerifyCommand: ParsableCommand {
 
 - [ ] **Step 2: Register VerifyCommand in main entry point**
 
-In `Sources/quigsphoto-uploader/QuigsphotoUploader.swift`, change line 11:
+In `Sources/piqley/Piqley.swift`, change line 11:
 
 From:
 ```swift
@@ -994,7 +994,7 @@ Expected: Build succeeds
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/VerifyCommand.swift Sources/quigsphoto-uploader/QuigsphotoUploader.swift
+git add Sources/piqley/CLI/VerifyCommand.swift Sources/piqley/Piqley.swift
 git commit -m "feat(signing): add verify subcommand for signature verification"
 ```
 
@@ -1003,11 +1003,11 @@ git commit -m "feat(signing): add verify subcommand for signature verification"
 ### Task 6: Add signing section to `SetupCommand`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/CLI/SetupCommand.swift`
+- Modify: `Sources/piqley/CLI/SetupCommand.swift`
 
 - [ ] **Step 1: Add signing setup section**
 
-In `Sources/quigsphoto-uploader/CLI/SetupCommand.swift`, after the tag blocklist section (after line 40) and before the config construction (line 42), add:
+In `Sources/piqley/CLI/SetupCommand.swift`, after the tag blocklist section (after line 40) and before the config construction (line 42), add:
 
 ```swift
 // Signing (optional)
@@ -1084,7 +1084,7 @@ Expected: Build succeeds
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/SetupCommand.swift
+git add Sources/piqley/CLI/SetupCommand.swift
 git commit -m "feat(signing): add signing section to interactive setup"
 ```
 
@@ -1093,11 +1093,11 @@ git commit -m "feat(signing): add signing section to interactive setup"
 ### Task 7: Add `gnupg` to Homebrew formula
 
 **Files:**
-- Modify: `Formula/quigsphoto-uploader.rb`
+- Modify: `Formula/piqley.rb`
 
 - [ ] **Step 1: Add gnupg dependency**
 
-In `Formula/quigsphoto-uploader.rb`, after line 20 (`depends_on :macos`), add:
+In `Formula/piqley.rb`, after line 20 (`depends_on :macos`), add:
 
 ```ruby
 depends_on "gnupg"
@@ -1106,7 +1106,7 @@ depends_on "gnupg"
 - [ ] **Step 2: Commit**
 
 ```bash
-git add Formula/quigsphoto-uploader.rb
+git add Formula/piqley.rb
 git commit -m "feat(signing): add gnupg as Homebrew dependency"
 ```
 

@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "quigsphoto-uploader",
+    name: "piqley",
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
@@ -11,7 +11,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "quigsphoto-uploader",
+            name: "piqley",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
@@ -19,8 +19,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "quigsphoto-uploaderTests",
-            dependencies: ["quigsphoto-uploader"],
+            name: "piqleyTests",
+            dependencies: ["piqley"],
             resources: [.copy("Fixtures")]
         ),
     ]

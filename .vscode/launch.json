@@ -4,21 +4,21 @@
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:quigsphoto-uploader}",
-            "name": "Debug quigsphoto-uploader",
-            "target": "quigsphoto-uploader",
+            "cwd": "${workspaceFolder}",
+            "name": "Debug piqley",
+            "target": "piqley",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug quigsphoto-uploader"
+            "preLaunchTask": "swift: Build Debug piqley"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:quigsphoto-uploader}",
-            "name": "Release quigsphoto-uploader",
-            "target": "quigsphoto-uploader",
+            "cwd": "${workspaceFolder}",
+            "name": "Release piqley",
+            "target": "piqley",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release quigsphoto-uploader"
+            "preLaunchTask": "swift: Build Release piqley"
         }
     ]
 }

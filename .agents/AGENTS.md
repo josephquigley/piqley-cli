@@ -1,8 +1,8 @@
-# quigsphoto-uploader — Agent Directives
+# piqley — Agent Directives
 
 ## Project
 
-Swift CLI tool (`quigsphoto-uploader`) for processing photos exported from Lightroom, uploading to Ghost CMS with scheduled publishing, and emailing 365 Project photos. Invoked by macOS Hazel automation.
+Swift CLI tool (`piqley`) for processing photos exported from Lightroom, uploading to Ghost CMS with scheduled publishing, and emailing 365 Project photos. Invoked by macOS Hazel automation.
 
 ## Design Spec
 
@@ -12,7 +12,7 @@ See [docs/superpowers/specs/2026-03-16-quigsphoto-uploader-cli-design.md](../doc
 
 - **Swift Package Manager** project with `swift-argument-parser`, `swift-log`, and a Swift SMTP package
 - **Protocol-first for platform abstractions:** `SecretStore`, `ImageProcessor`, `MetadataReader` — macOS implementations backed by system frameworks, swappable for Linux later
-- **Config at runtime:** `~/.config/quigsphoto-uploader/config.json` is source of truth. Secrets in macOS Keychain via `SecretStore`.
+- **Config at runtime:** `~/.config/piqley/config.json` is source of truth. Secrets in macOS Keychain via `SecretStore`.
 - **Two-tier dedup:** local JSONL cache first (`upload-log.jsonl`, `email-log.jsonl`), Ghost API fallback on cache miss. Caches self-heal from Ghost.
 - **Atomic appends** to JSONL log files (`O_APPEND`) for concurrency safety
 - **Ghost Admin API:** JWT auth, Lexical JSON for post bodies, filter syntax for queue queries

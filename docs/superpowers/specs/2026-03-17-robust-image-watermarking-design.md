@@ -2,7 +2,7 @@
 
 ## Overview
 
-Add a robust watermarking layer to `quigsphoto-uploader` that embeds an authenticated identifier into the pixel data of each image. This complements the existing XMP-based GPG signing spec by providing a fallback that survives metadata stripping, format conversion (JPEG → WebP/AVIF/PNG), re-encoding, resize, and light edits.
+Add a robust watermarking layer to `piqley` that embeds an authenticated identifier into the pixel data of each image. This complements the existing XMP-based GPG signing spec by providing a fallback that survives metadata stripping, format conversion (JPEG → WebP/AVIF/PNG), re-encoding, resize, and light edits.
 
 **Goals:**
 - **Survive metadata stripping:** Social media and CDNs strip XMP/EXIF — the watermark persists in pixel data
@@ -57,17 +57,17 @@ With 80-bit BCH error correction (corrects up to 15 errors), all scenarios above
 
 PixelSeal's TorchScript model cannot be converted to CoreML due to dynamic control flow in the model graph (runtime branching, dynamic tensor creation in the JND attenuation module). Instead, the model runs via a separate C++ binary built with LibTorch:
 
-**`quigsphoto-watermark`** — a standalone CLI tool that:
+**`piqley-watermark`** — a standalone CLI tool that:
 - Loads the PixelSeal TorchScript model (218MB `.jit` file)
 - Accepts `embed` and `detect` subcommands
 - Reads/writes images via LibTorch's image I/O
 - Communicates with the main Swift tool via subprocess invocation (same pattern as GPG)
 
-This mirrors how `quigsphoto-uploader` already shells out to `gpg` for cryptographic signing.
+This mirrors how `piqley` already shells out to `gpg` for cryptographic signing.
 
 ```
-quigsphoto-watermark embed --image <input.jpg> --message <256-bit-hex> --output <output.jpg>
-quigsphoto-watermark detect --image <input.jpg>
+piqley-watermark embed --image <input.jpg> --message <256-bit-hex> --output <output.jpg>
+piqley-watermark detect --image <input.jpg>
 ```
 
 **Embed** reads an image, embeds the 256-bit message, writes the watermarked image.
@@ -115,7 +115,7 @@ The pipeline consolidates image processing to a single lossy JPEG encode.
 1. **Decode** original JPEG to `CGImage` (pixel buffer in memory)
 2. **Resize** via `CGContext` — produces a resized `CGImage` (still in memory, no encode)
 3. **Write temp PNG** — write the resized `CGImage` to a temporary lossless PNG for the watermark binary
-4. **Watermark embed** — shell out to `quigsphoto-watermark embed`, which reads the temp PNG, embeds the payload, and writes a watermarked PNG
+4. **Watermark embed** — shell out to `piqley-watermark embed`, which reads the temp PNG, embeds the payload, and writes a watermarked PNG
 5. **Apply metadata allowlist** — filter EXIF/TIFF/IPTC per the allowlist config
 6. **Single JPEG encode** — read the watermarked PNG back as `CGImage`, write it + filtered metadata to disk as JPEG (the only lossy encode)
 7. **GPG sign** — `SignableContentExtractor` computes content hash from the JPEG on disk, GPG signs it
@@ -153,7 +153,7 @@ The image ID is stored in the Ghost post via a Lexical HTML card appended to the
 ```json
 {
   "type": "html",
-  "html": "<span data-quigsphoto-id=\"a1b2c3d4e5f6\" style=\"display:none\"></span>"
+  "html": "<span data-piqley-id=\"a1b2c3d4e5f6\" style=\"display:none\"></span>"
 }
 ```
 
@@ -163,7 +163,7 @@ This approach works within Ghost's Lexical editor format (the feature image is a
 
 1. Extract watermark → get image ID
 2. Check local `watermarks.jsonl` first (fast, offline)
-3. If not found locally, query Ghost API by searching for `data-quigsphoto-id` in post HTML content
+3. If not found locally, query Ghost API by searching for `data-piqley-id` in post HTML content
 4. Return full record: original filename, content hash, Ghost URL, timestamp
 
 ## Verification
@@ -171,14 +171,14 @@ This approach works within Ghost's Lexical editor format (the feature image is a
 The `verify` subcommand (from the XMP signing spec) gains a watermark extraction fallback:
 
 ```
-quigsphoto verify <image-path> [--key-fingerprint <fp>]
+piqley verify <image-path> [--key-fingerprint <fp>]
 ```
 
 ### Verification flow
 
-1. **Try XMP first:** Read `quigsphoto:signature` fields. If present, verify GPG signature and content hash (existing spec). Report results and exit.
+1. **Try XMP first:** Read `piqley:signature` fields. If present, verify GPG signature and content hash (existing spec). Report results and exit.
 2. **Fall back to watermark:** If no XMP signature found, attempt watermark extraction:
-   a. Shell out to `quigsphoto-watermark detect --image <path>` — decodes any format (JPEG, PNG, WebP, AVIF)
+   a. Shell out to `piqley-watermark detect --image <path>` — decodes any format (JPEG, PNG, WebP, AVIF)
    b. Parse the 256 raw bit confidences from JSON output
    c. Threshold to binary (>0 = 1, ≤0 = 0)
    d. Apply BCH error correction
@@ -203,7 +203,7 @@ The existing `SigningConfig` (added by the XMP signing spec) gains one new field
 struct SigningConfig: Codable, Equatable {
     var keyFingerprint: String
     var xmpNamespace: String?   // existing, derived from ghost.url if nil
-    var xmpPrefix: String       // existing, defaults to "quigsphoto"
+    var xmpPrefix: String       // existing, defaults to "piqley"
     var watermark: Bool         // NEW — defaults to true
 }
 ```
@@ -231,12 +231,12 @@ When `signing` is present in config and `watermark` is `true` (default), waterma
 
 ## Architecture
 
-### New project: `quigsphoto-watermark` (C++ / LibTorch)
+### New project: `piqley-watermark` (C++ / LibTorch)
 
 A separate C++ binary that owns all neural network inference. Keeps the main Swift project free of ML framework dependencies.
 
 ```
-quigsphoto-watermark/
+piqley-watermark/
 ├── CMakeLists.txt              (build config, links LibTorch)
 ├── src/
 │   ├── main.cpp                (CLI entry point: embed/detect subcommands)
@@ -246,20 +246,20 @@ quigsphoto-watermark/
 ├── model/
 │   └── pixelseal.jit           (218MB TorchScript model)
 └── Formula/
-    └── quigsphoto-watermark.rb (Homebrew formula)
+    └── piqley-watermark.rb (Homebrew formula)
 ```
 
 **CLI interface:**
 
 ```bash
 # Embed: reads image, embeds 256-bit message, writes watermarked image
-quigsphoto-watermark embed \
+piqley-watermark embed \
   --image input.jpg \
   --message "a1b2c3...64-hex-chars" \
   --output watermarked.png
 
 # Detect: reads image, outputs raw bit confidences as JSON
-quigsphoto-watermark detect --image input.jpg [--model-version pixelseal-1.0]
+piqley-watermark detect --image input.jpg [--model-version pixelseal-1.0]
 # stdout: {"bits": [3.14, -2.71, 8.12, ...], "confidence": 0.95, "modelVersion": "pixelseal-1.0"}
 ```
 
@@ -272,21 +272,21 @@ quigsphoto-watermark detect --image input.jpg [--model-version pixelseal-1.0]
 
 The Swift tool handles all payload logic (BCH decode, HMAC validation, reference lookup) — the binary is a thin wrapper around the model.
 
-### New files in `quigsphoto-uploader` (Swift)
+### New files in `piqley` (Swift)
 
 ```
-Sources/quigsphoto-uploader/
+Sources/piqley/
 ├── Watermarking/
 │   ├── ImageWatermarker.swift           (protocol)
-│   ├── PixelSealWatermarker.swift       (subprocess invocation of quigsphoto-watermark)
+│   ├── PixelSealWatermarker.swift       (subprocess invocation of piqley-watermark)
 │   ├── WatermarkPayload.swift           (encode/decode: ID, HMAC, BCH for 256 bits)
 │   └── WatermarkReference.swift         (JSONL read/write for watermarks.jsonl)
 ```
 
-### Modified files in `quigsphoto-uploader`
+### Modified files in `piqley`
 
 ```
-Sources/quigsphoto-uploader/
+Sources/piqley/
 ├── ImageProcessing/
 │   ├── ImageProcessor.swift             (protocol: add resize method returning CGImage)
 │   ├── CoreGraphicsImageProcessor.swift (add resize, refactor process to use it)
@@ -374,23 +374,23 @@ if let signingConfig = config.resolvedSigningConfig, !noSign {
 
 ## Dependencies
 
-### `quigsphoto-watermark` binary
+### `piqley-watermark` binary
 - **LibTorch** (~200MB) — C++ PyTorch runtime for TorchScript model execution
 - **stb_image / stb_image_write** — lightweight C image I/O (header-only, vendored)
 - **PixelSeal model** — `pixelseal.jit` (218MB TorchScript file)
 
-### `quigsphoto-uploader` (Swift)
+### `piqley` (Swift)
 - No new Swift package dependencies
 - No new system framework dependencies
-- Shells out to `quigsphoto-watermark` (same pattern as `gpg`)
+- Shells out to `piqley-watermark` (same pattern as `gpg`)
 
 ### Homebrew distribution
 
 Two formulas:
-- `quigsphoto-watermark` — the C++ binary. `depends_on "libtorch"`. The model file is downloaded as a `resource` block in the formula.
-- `quigsphoto-uploader` — gains `depends_on "quigsphoto-watermark"` (optional, only when watermarking is enabled)
+- `piqley-watermark` — the C++ binary. `depends_on "libtorch"`. The model file is downloaded as a `resource` block in the formula.
+- `piqley` — gains `depends_on "piqley-watermark"` (optional, only when watermarking is enabled)
 
-At runtime, if watermarking is enabled but `quigsphoto-watermark` is not found on `$PATH`, fail with: `"quigsphoto-watermark not found. Install with: brew install quigsphoto-watermark"`
+At runtime, if watermarking is enabled but `piqley-watermark` is not found on `$PATH`, fail with: `"piqley-watermark not found. Install with: brew install piqley-watermark"`
 
 ## Perceptual Quality
 

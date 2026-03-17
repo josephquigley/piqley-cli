@@ -1,4 +1,4 @@
-# Using quigsphoto-uploader with Ghost CMS
+# Using piqley with Ghost CMS
 
 This guide covers setting up Ghost CMS integration, including authentication, configuration, scheduling, deduplication, and tags.
 
@@ -7,14 +7,14 @@ This guide covers setting up Ghost CMS integration, including authentication, co
 1. Log in to your Ghost Admin panel (e.g., `https://quigs.photo/ghost/`).
 2. Go to **Settings > Integrations**.
 3. Click **Add custom integration**.
-4. Name it something like "quigsphoto-uploader".
+4. Name it something like "piqley".
 5. Ghost will generate an **Admin API Key**. Copy it -- you will need it during setup.
 
 The Admin API key is a string in the format `<id>:<secret>`. Keep it safe; it provides full write access to your Ghost instance.
 
-## Running quigsphoto-uploader setup
+## Running piqley setup
 
-Run `quigsphoto-uploader setup` to walk through configuration interactively. It writes non-secret values to `~/.config/quigsphoto-uploader/config.json` and stores secrets in the macOS Keychain.
+Run `piqley setup` to walk through configuration interactively. It writes non-secret values to `~/.config/piqley/config.json` and stores secrets in the macOS Keychain.
 
 ### Config Values
 
@@ -67,12 +67,12 @@ Blocklist entries support three pattern types:
 
 These are stored in the macOS Keychain, not in the config file:
 
-- **Ghost Admin API key** -- Keychain service: `quigsphoto-uploader-ghost`
-- **SMTP password** -- Keychain service: `quigsphoto-uploader-smtp`
+- **Ghost Admin API key** -- Keychain service: `piqley-ghost`
+- **SMTP password** -- Keychain service: `piqley-smtp`
 
 ## How Scheduling Works
 
-quigsphoto-uploader maintains two independent scheduling queues in Ghost:
+piqley maintains two independent scheduling queues in Ghost:
 
 1. **365 Project posts** -- posts tagged `365 Project`
 2. **Non-365 Project posts** -- posts tagged `#image-post` but not `365 Project`
@@ -89,35 +89,35 @@ Posts without a title are created as **drafts** instead of being scheduled. They
 
 ## How Deduplication Works
 
-quigsphoto-uploader uses a two-tier approach to avoid uploading the same image twice.
+piqley uses a two-tier approach to avoid uploading the same image twice.
 
 ### Tier 1: Local Cache
 
-The file `~/.config/quigsphoto-uploader/upload-log.jsonl` records every successful upload. Before uploading an image, quigsphoto-uploader checks this log for a filename match. If found, the upload is skipped with no API call.
+The file `~/.config/piqley/upload-log.jsonl` records every successful upload. Before uploading an image, piqley checks this log for a filename match. If found, the upload is skipped with no API call.
 
 ### Tier 2: Ghost API Fallback
 
-If the filename is not in the local cache (for example, on a new machine or after clearing the cache), quigsphoto-uploader queries the Ghost Admin API. It checks published, scheduled, and draft posts going back up to one year, looking for a matching filename in the `feature_image` URL.
+If the filename is not in the local cache (for example, on a new machine or after clearing the cache), piqley queries the Ghost Admin API. It checks published, scheduled, and draft posts going back up to one year, looking for a matching filename in the `feature_image` URL.
 
 If a match is found in Ghost but not in the local cache, the cache is updated (self-healing) and the image is skipped.
 
 ### Important Notes
 
-- If the Ghost API dedup query fails, quigsphoto-uploader treats this as a **fatal error** and exits. It will not risk creating duplicate posts.
+- If the Ghost API dedup query fails, piqley treats this as a **fatal error** and exits. It will not risk creating duplicate posts.
 - Dedup is filename-based. If Lightroom exports two different photos with the same filename in different runs, the second will be incorrectly skipped. This is a known limitation, but unlikely in practice.
 
 ## How Tags Work
 
 ### EXIF Keywords to Ghost Tags
 
-quigsphoto-uploader reads IPTC Keywords from each image's metadata. These become Ghost tags on the post.
+piqley reads IPTC Keywords from each image's metadata. These become Ghost tags on the post.
 
-**Hierarchical keywords:** If Lightroom writes hierarchical keywords like `Location > USA > Nashville`, quigsphoto-uploader extracts only the leaf node (`Nashville`). The blocklist is matched against the leaf node.
+**Hierarchical keywords:** If Lightroom writes hierarchical keywords like `Location > USA > Nashville`, piqley extracts only the leaf node (`Nashville`). The blocklist is matched against the leaf node.
 
 **Tag blocklist:** Any keyword whose leaf node matches a pattern in `tagBlocklist` is excluded. Patterns can be exact strings, globs (`glob:` prefix), or regular expressions (`regex:` prefix). All matching is case-insensitive. Use this for Lightroom-only organizational tags you do not want published.
 
 **Internal tags:** Two internal Ghost tags are always appended to every post:
-- `#image-post` -- marks the post as created by quigsphoto-uploader
+- `#image-post` -- marks the post as created by piqley
 - `#photo-stream` -- used for photo stream display on the site
 
 Internal tags (prefixed with `#`) are not visible to readers on your Ghost site.
@@ -126,7 +126,7 @@ Internal tags (prefixed with `#`) are not visible to readers on your Ghost site.
 
 ## Understanding upload-log.jsonl
 
-The file at `~/.config/quigsphoto-uploader/upload-log.jsonl` is an append-only log of every successful Ghost upload. Each line is a JSON object:
+The file at `~/.config/piqley/upload-log.jsonl` is an append-only log of every successful Ghost upload. Each line is a JSON object:
 
 ```json
 {"filename": "IMG_1234.jpg", "ghostUrl": "https://quigs.photo/p/...", "postId": "...", "timestamp": "2026-03-16T09:30:00Z"}

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Add a comprehensive hand-crafted man page for quigsphoto-uploader and version the codebase at 1.0.0.
+Add a comprehensive hand-crafted man page for piqley and version the codebase at 1.0.0.
 
 ## Man Page
 
 ### File
 
-`man/quigsphoto-uploader.1` — roff/mdoc format, installed by Homebrew via `man1.install`.
+`man/piqley.1` — roff/mdoc format, installed by Homebrew via `man1.install`.
 
 ### Sections
 
@@ -17,9 +17,9 @@ Add a comprehensive hand-crafted man page for quigsphoto-uploader and version th
 **SYNOPSIS** — usage lines for all three subcommands:
 
 ```
-quigsphoto-uploader process <folder-path> [--dry-run] [--verbose-results] [--json-results] [--results-dir <path>]
-quigsphoto-uploader setup
-quigsphoto-uploader clear-cache [--upload-log] [--email-log]
+piqley process <folder-path> [--dry-run] [--verbose-results] [--json-results] [--results-dir <path>]
+piqley setup
+piqley clear-cache [--upload-log] [--email-log]
 ```
 
 **DESCRIPTION** — reads exported images from a folder, extracts EXIF metadata (keywords, camera model, title, description), resizes images, uploads to Ghost CMS as scheduled posts. Optionally emails 365 Project entries via SMTP. Two-tier deduplication (local cache + Ghost API fallback) prevents duplicate posts. Posts without titles are saved as drafts. Only one instance can run at a time (enforced by an advisory process lock). Email send failures are non-fatal and do not affect the exit code.
@@ -30,7 +30,7 @@ quigsphoto-uploader clear-cache [--upload-log] [--email-log]
 - `setup` — interactive configuration wizard, writes config.json and Keychain secrets
 - `clear-cache` — deletes log caches. Flags: `--upload-log`, `--email-log` (no flags = delete both)
 
-**CONFIGURATION** — full `~/.config/quigsphoto-uploader/config.json` reference:
+**CONFIGURATION** — full `~/.config/piqley/config.json` reference:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
@@ -72,11 +72,11 @@ Pattern matching syntax (used by `tagBlocklist` and `cameraModelTags` keys):
 
 **FILES**
 
-- `~/.config/quigsphoto-uploader/config.json` — configuration file
-- `~/.config/quigsphoto-uploader/upload-log.jsonl` — upload dedup cache
-- `~/.config/quigsphoto-uploader/email-log.jsonl` — email dedup cache
-- Keychain service `quigsphoto-uploader-ghost` — Ghost Admin API key
-- Keychain service `quigsphoto-uploader-smtp` — SMTP password
+- `~/.config/piqley/config.json` — configuration file
+- `~/.config/piqley/upload-log.jsonl` — upload dedup cache
+- `~/.config/piqley/email-log.jsonl` — email dedup cache
+- Keychain service `piqley-ghost` — Ghost Admin API key
+- Keychain service `piqley-smtp` — SMTP password
 
 **EXIT CODES**
 
@@ -93,11 +93,11 @@ Add version 1.0.0 to the tool:
 - Add a `--version` flag to the root command via ArgumentParser's `CommandConfiguration.version`
 - The version string: `"1.0.0"`
 
-This is a one-line change in `QuigsphotoUploader.swift`:
+This is a one-line change in `Piqley.swift`:
 
 ```swift
 static let configuration = CommandConfiguration(
-    commandName: "quigsphoto-uploader",
+    commandName: "piqley",
     abstract: "Process and publish photos to Ghost CMS",
     version: "1.0.0",
     subcommands: [ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self]
@@ -109,12 +109,12 @@ static let configuration = CommandConfiguration(
 The formula needs a line to install the man page:
 
 ```ruby
-man1.install "man/quigsphoto-uploader.1"
+man1.install "man/piqley.1"
 ```
 
 This is out of scope for this repo but noted for the formula update.
 
 ## Deliverables
 
-1. `man/quigsphoto-uploader.1` — hand-crafted roff man page
-2. Version 1.0.0 added to `QuigsphotoUploader.swift` CommandConfiguration
+1. `man/piqley.1` — hand-crafted roff man page
+2. Version 1.0.0 added to `Piqley.swift` CommandConfiguration

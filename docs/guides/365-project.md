@@ -1,10 +1,10 @@
 # 365 Project Guide
 
-This guide covers how quigsphoto-uploader handles 365 Project photos, from tagging in Lightroom through Ghost publishing and email delivery.
+This guide covers how piqley handles 365 Project photos, from tagging in Lightroom through Ghost publishing and email delivery.
 
 ## What Is 365 Project
 
-A 365 Project is a commitment to take and share one photo per day for a year. quigsphoto-uploader has built-in support for this: it detects 365 Project photos by keyword, numbers them automatically, schedules them to Ghost, and emails them to an external service (like 365project.org).
+A 365 Project is a commitment to take and share one photo per day for a year. piqley has built-in support for this: it detects 365 Project photos by keyword, numbers them automatically, schedules them to Ghost, and emails them to an external service (like 365project.org).
 
 ## Tagging Photos in Lightroom
 
@@ -29,7 +29,7 @@ day_number = (DateTimeOriginal date - referenceDate) + 1
 
 So if your reference date is `2025-12-25` and you take a photo on `2025-12-26`, that is day 1. A photo taken on `2026-03-16` would be day 82.
 
-If `DateTimeOriginal` is before the reference date, quigsphoto-uploader logs a warning but still uses the absolute day count (plus 1). This handles edge cases like backdated test shots.
+If `DateTimeOriginal` is before the reference date, piqley logs a warning but still uses the absolute day count (plus 1). This handles edge cases like backdated test shots.
 
 ### Post Content
 
@@ -39,7 +39,7 @@ If `DateTimeOriginal` is before the reference date, quigsphoto-uploader logs a w
 
 ## How Scheduling Works
 
-365 Project posts are scheduled independently from non-365 posts. quigsphoto-uploader queries Ghost for the latest 365 Project post (using the `365 Project` tag filter) and schedules the new post for the next available day.
+365 Project posts are scheduled independently from non-365 posts. piqley queries Ghost for the latest 365 Project post (using the `365 Project` tag filter) and schedules the new post for the next available day.
 
 - If no 365 Project posts are currently scheduled, and the most recent published one was today, the new post is scheduled for tomorrow.
 - If scheduled posts exist, the new post goes one day after the furthest-out scheduled post.
@@ -49,7 +49,7 @@ Posts missing a title in their EXIF metadata are created as **drafts** and are n
 
 ## How the Email Feature Works
 
-After all Ghost operations for a batch are complete, quigsphoto-uploader sends one email per 365 Project image to the address configured in `project365.emailTo`. This is meant for posting to 365project.org or a similar service that accepts photo submissions by email.
+After all Ghost operations for a batch are complete, piqley sends one email per 365 Project image to the address configured in `project365.emailTo`. This is meant for posting to 365project.org or a similar service that accepts photo submissions by email.
 
 Each email contains:
 
@@ -72,23 +72,23 @@ Email failures are non-fatal. If sending fails, the image is not recorded in the
 
 ## Email Deduplication
 
-The file `~/.config/quigsphoto-uploader/email-log.jsonl` tracks every successfully sent email. Each line is a JSON object:
+The file `~/.config/piqley/email-log.jsonl` tracks every successfully sent email. Each line is a JSON object:
 
 ```json
 {"filename": "IMG_1234.jpg", "emailTo": "user@365project.example", "subject": "...", "timestamp": "2026-03-16T09:35:00Z"}
 ```
 
-Before sending, quigsphoto-uploader checks this log for a filename match. If found, the email is skipped.
+Before sending, piqley checks this log for a filename match. If found, the email is skipped.
 
 ### Seeding from Ghost
 
-If `email-log.jsonl` does not exist (for example, on a new machine), quigsphoto-uploader seeds it automatically by querying Ghost for all 365 Project-tagged posts from the past year. It writes their image filenames to the log, so already-published photos are not re-emailed.
+If `email-log.jsonl` does not exist (for example, on a new machine), piqley seeds it automatically by querying Ghost for all 365 Project-tagged posts from the past year. It writes their image filenames to the log, so already-published photos are not re-emailed.
 
-This means you can set up quigsphoto-uploader on a new machine without worrying about a flood of duplicate emails for photos already posted.
+This means you can set up piqley on a new machine without worrying about a flood of duplicate emails for photos already posted.
 
 ## Configuration Reference
 
-All 365 Project configuration lives under the `project365` key in `~/.config/quigsphoto-uploader/config.json`:
+All 365 Project configuration lives under the `project365` key in `~/.config/piqley/config.json`:
 
 ```json
 {
@@ -106,4 +106,4 @@ All 365 Project configuration lives under the `project365` key in `~/.config/qui
 | `referenceDate` | The day before day 1. Photos taken on the day after this date are day 1. | (no default, must be set) |
 | `emailTo` | Email address to send 365 Project photos to. | (no default, must be set) |
 
-SMTP settings (`smtp.host`, `smtp.port`, `smtp.username`, `smtp.from`) and the SMTP password (in Keychain as `quigsphoto-uploader-smtp`) must also be configured for email to work. Run `quigsphoto-uploader setup` to set all of these.
+SMTP settings (`smtp.host`, `smtp.port`, `smtp.username`, `smtp.from`) and the SMTP password (in Keychain as `piqley-smtp`) must also be configured for email to work. Run `piqley setup` to set all of these.

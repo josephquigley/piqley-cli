@@ -1,21 +1,21 @@
-# quigsphoto-uploader CLI Implementation Plan
+# piqley CLI Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a Swift CLI tool that processes Lightroom-exported photos, uploads them to Ghost CMS with scheduling, and emails 365 Project photos — invoked by macOS Hazel.
 
-**Architecture:** Monolithic CLI with `process` and `setup` subcommands. Protocol abstractions (`SecretStore`, `ImageProcessor`, `MetadataReader`) for platform portability. Two-tier dedup (local JSONL cache + Ghost API fallback). Config-driven via `~/.config/quigsphoto-uploader/config.json`.
+**Architecture:** Monolithic CLI with `process` and `setup` subcommands. Protocol abstractions (`SecretStore`, `ImageProcessor`, `MetadataReader`) for platform portability. Two-tier dedup (local JSONL cache + Ghost API fallback). Config-driven via `~/.config/piqley/config.json`.
 
 **Tech Stack:** Swift 5.9+, Swift Package Manager, swift-argument-parser, swift-log, SwiftSMTP (or similar), CoreGraphics/CoreImage (behind protocols), macOS Security framework (behind protocol).
 
-**Spec:** `docs/superpowers/specs/2026-03-16-quigsphoto-uploader-cli-design.md`
+**Spec:** `docs/superpowers/specs/2026-03-16-piqley-cli-design.md`
 
 ---
 
 ## File Map
 
 ```
-Sources/quigsphoto-uploader/
+Sources/piqley/
 ├── main.swift                              — Entry point, registers commands
 ├── Constants.swift                         — AppConstants enum with centralized name strings
 ├── CLI/
@@ -50,7 +50,7 @@ Sources/quigsphoto-uploader/
 │   └── ResultsWriter.swift                 — Write result files (text or JSON)
 └── ProcessLock.swift                       — Advisory file lock for single-instance
 
-Tests/quigsphoto-uploaderTests/
+Tests/piqleyTests/
 ├── ConfigTests.swift
 ├── ImageScannerTests.swift
 ├── MetadataReaderTests.swift
@@ -77,13 +77,13 @@ Tests/quigsphoto-uploaderTests/
 
 **Files:**
 - Create: `Package.swift`
-- Create: `Sources/quigsphoto-uploader/main.swift`
+- Create: `Sources/piqley/main.swift`
 
 - [ ] **Step 1: Initialize Swift package**
 
 ```bash
-cd /Users/wash/Developer/tools/quigsphoto-uploader
-swift package init --type executable --name quigsphoto-uploader
+cd /Users/wash/Developer/tools/piqley
+swift package init --type executable --name piqley
 ```
 
 - [ ] **Step 2: Edit Package.swift with dependencies**
@@ -95,7 +95,7 @@ Replace the generated `Package.swift` with:
 import PackageDescription
 
 let package = Package(
-    name: "quigsphoto-uploader",
+    name: "piqley",
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
@@ -104,7 +104,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "quigsphoto-uploader",
+            name: "piqley",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
@@ -112,8 +112,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "quigsphoto-uploaderTests",
-            dependencies: ["quigsphoto-uploader"],
+            name: "piqleyTests",
+            dependencies: ["piqley"],
             resources: [.copy("Fixtures")]
         ),
     ]
@@ -126,9 +126,9 @@ let package = Package(
 import ArgumentParser
 
 @main
-struct QuigsphotoUploader: ParsableCommand {
+struct Piqley: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "quigsphoto-uploader",
+        commandName: "piqley",
         abstract: "Process and publish photos to Ghost CMS",
         subcommands: [ProcessCommand.self, SetupCommand.self]
     )
@@ -137,7 +137,7 @@ struct QuigsphotoUploader: ParsableCommand {
 
 - [ ] **Step 4: Create stub subcommands so it compiles**
 
-Create `Sources/quigsphoto-uploader/CLI/ProcessCommand.swift`:
+Create `Sources/piqley/CLI/ProcessCommand.swift`:
 ```swift
 import ArgumentParser
 
@@ -168,7 +168,7 @@ struct ProcessCommand: ParsableCommand {
 }
 ```
 
-Create `Sources/quigsphoto-uploader/CLI/SetupCommand.swift`:
+Create `Sources/piqley/CLI/SetupCommand.swift`:
 ```swift
 import ArgumentParser
 
@@ -188,9 +188,9 @@ struct SetupCommand: ParsableCommand {
 
 ```bash
 swift build
-swift run quigsphoto-uploader --help
-swift run quigsphoto-uploader process --help
-swift run quigsphoto-uploader setup --help
+swift run piqley --help
+swift run piqley process --help
+swift run piqley setup --help
 ```
 
 Expected: clean build, help output shows both subcommands with all flags.
@@ -208,7 +208,7 @@ git commit -m "feat: initialize Swift package with CLI skeleton and subcommands"
 ### Task 1.5: App Constants
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Constants.swift`
+- Create: `Sources/piqley/Constants.swift`
 
 - [ ] **Step 1: Create Constants.swift with all name-related magic strings**
 
@@ -216,12 +216,12 @@ git commit -m "feat: initialize Swift package with CLI skeleton and subcommands"
 import Foundation
 
 enum AppConstants {
-    static let binaryName = "quigsphoto-uploader"
-    static let configDirectoryName = "quigsphoto-uploader"
-    static let keychainServicePrefix = "quigsphoto-uploader"
-    static let resultFilePrefix = ".quigsphoto-uploader"
-    static let tempDirectoryName = "quigsphoto-uploader"
-    static let loggerPrefix = "quigsphoto-uploader"
+    static let binaryName = "piqley"
+    static let configDirectoryName = "piqley"
+    static let keychainServicePrefix = "piqley"
+    static let resultFilePrefix = ".piqley"
+    static let tempDirectoryName = "piqley"
+    static let loggerPrefix = "piqley"
 }
 ```
 
@@ -236,7 +236,7 @@ Expected: clean build.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Constants.swift
+git add Sources/piqley/Constants.swift
 git commit -m "feat: add AppConstants enum for centralized name-related strings"
 ```
 
@@ -245,14 +245,14 @@ git commit -m "feat: add AppConstants enum for centralized name-related strings"
 ### Task 2: Config Model
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Config/Config.swift`
-- Create: `Tests/quigsphoto-uploaderTests/ConfigTests.swift`
+- Create: `Sources/piqley/Config/Config.swift`
+- Create: `Tests/piqleyTests/ConfigTests.swift`
 
 - [ ] **Step 1: Write Config tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class ConfigTests: XCTestCase {
     func testDecodeFullConfig() throws {
@@ -425,7 +425,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Config/ Tests/quigsphoto-uploaderTests/ConfigTests.swift
+git add Sources/piqley/Config/ Tests/piqleyTests/ConfigTests.swift
 git commit -m "feat: add Config model with load/save and tests"
 ```
 
@@ -434,8 +434,8 @@ git commit -m "feat: add Config model with load/save and tests"
 ### Task 3: SecretStore Protocol & Keychain Implementation
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Secrets/SecretStore.swift`
-- Create: `Sources/quigsphoto-uploader/Secrets/KeychainSecretStore.swift`
+- Create: `Sources/piqley/Secrets/SecretStore.swift`
+- Create: `Sources/piqley/Secrets/KeychainSecretStore.swift`
 
 - [ ] **Step 1: Write SecretStore protocol**
 
@@ -538,7 +538,7 @@ Expected: clean build. (Keychain tests require actual Keychain access so we skip
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Secrets/
+git add Sources/piqley/Secrets/
 git commit -m "feat: add SecretStore protocol and Keychain implementation"
 ```
 
@@ -547,19 +547,19 @@ git commit -m "feat: add SecretStore protocol and Keychain implementation"
 ### Task 4: Process Lock
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/ProcessLock.swift`
-- Create: `Tests/quigsphoto-uploaderTests/ProcessLockTests.swift`
+- Create: `Sources/piqley/ProcessLock.swift`
+- Create: `Tests/piqleyTests/ProcessLockTests.swift`
 
 - [ ] **Step 1: Write ProcessLock tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class ProcessLockTests: XCTestCase {
     func testAcquireAndReleaseLock() throws {
         let tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmpDir) }
 
@@ -570,7 +570,7 @@ final class ProcessLockTests: XCTestCase {
 
     func testDoubleAcquireFails() throws {
         let tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmpDir) }
 
@@ -655,7 +655,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ProcessLock.swift Tests/quigsphoto-uploaderTests/ProcessLockTests.swift
+git add Sources/piqley/ProcessLock.swift Tests/piqleyTests/ProcessLockTests.swift
 git commit -m "feat: add advisory file lock for single-instance enforcement"
 ```
 
@@ -664,16 +664,16 @@ git commit -m "feat: add advisory file lock for single-instance enforcement"
 ### Task 5: JSONL Log Files (Upload Log & Email Log)
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Logging/UploadLog.swift`
-- Create: `Sources/quigsphoto-uploader/Logging/EmailLog.swift`
-- Create: `Tests/quigsphoto-uploaderTests/UploadLogTests.swift`
-- Create: `Tests/quigsphoto-uploaderTests/EmailLogTests.swift`
+- Create: `Sources/piqley/Logging/UploadLog.swift`
+- Create: `Sources/piqley/Logging/EmailLog.swift`
+- Create: `Tests/piqleyTests/UploadLogTests.swift`
+- Create: `Tests/piqleyTests/EmailLogTests.swift`
 
 - [ ] **Step 1: Write UploadLog tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class UploadLogTests: XCTestCase {
     var tmpDir: URL!
@@ -681,7 +681,7 @@ final class UploadLogTests: XCTestCase {
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         logPath = tmpDir.appendingPathComponent("upload-log.jsonl").path
     }
@@ -804,7 +804,7 @@ Expected: all pass.
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class EmailLogTests: XCTestCase {
     var tmpDir: URL!
@@ -812,7 +812,7 @@ final class EmailLogTests: XCTestCase {
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         logPath = tmpDir.appendingPathComponent("email-log.jsonl").path
     }
@@ -928,7 +928,7 @@ Expected: all pass.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Logging/ Tests/quigsphoto-uploaderTests/UploadLogTests.swift Tests/quigsphoto-uploaderTests/EmailLogTests.swift
+git add Sources/piqley/Logging/ Tests/piqleyTests/UploadLogTests.swift Tests/piqleyTests/EmailLogTests.swift
 git commit -m "feat: add JSONL upload and email logs with atomic append"
 ```
 
@@ -937,21 +937,21 @@ git commit -m "feat: add JSONL upload and email logs with atomic append"
 ### Task 6: Results Writer
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Results/ResultsWriter.swift`
-- Create: `Tests/quigsphoto-uploaderTests/ResultsWriterTests.swift`
+- Create: `Sources/piqley/Results/ResultsWriter.swift`
+- Create: `Tests/piqleyTests/ResultsWriterTests.swift`
 
 - [ ] **Step 1: Write ResultsWriter tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class ResultsWriterTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
 
@@ -967,9 +967,9 @@ final class ResultsWriterTests: XCTestCase {
         )
         try ResultsWriter.writeText(results: results, to: tmpDir.path, verbose: false)
 
-        let failurePath = tmpDir.appendingPathComponent(".quigsphoto-uploader-failure.txt").path
-        let dupPath = tmpDir.appendingPathComponent(".quigsphoto-uploader-duplicate.txt").path
-        let successPath = tmpDir.appendingPathComponent(".quigsphoto-uploader-success.txt").path
+        let failurePath = tmpDir.appendingPathComponent(".piqley-failure.txt").path
+        let dupPath = tmpDir.appendingPathComponent(".piqley-duplicate.txt").path
+        let successPath = tmpDir.appendingPathComponent(".piqley-success.txt").path
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: failurePath))
         XCTAssertTrue(FileManager.default.fileExists(atPath: dupPath))
@@ -983,7 +983,7 @@ final class ResultsWriterTests: XCTestCase {
         let results = ProcessingResults(successes: ["a.jpg"], failures: [], duplicates: [])
         try ResultsWriter.writeText(results: results, to: tmpDir.path, verbose: true)
 
-        let successPath = tmpDir.appendingPathComponent(".quigsphoto-uploader-success.txt").path
+        let successPath = tmpDir.appendingPathComponent(".piqley-success.txt").path
         XCTAssertTrue(FileManager.default.fileExists(atPath: successPath))
     }
 
@@ -1003,7 +1003,7 @@ final class ResultsWriterTests: XCTestCase {
         )
         try ResultsWriter.writeJSON(results: results, to: tmpDir.path, verbose: true)
 
-        let jsonPath = tmpDir.appendingPathComponent(".quigsphoto-uploader-results.json").path
+        let jsonPath = tmpDir.appendingPathComponent(".piqley-results.json").path
         XCTAssertTrue(FileManager.default.fileExists(atPath: jsonPath))
 
         let data = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
@@ -1017,7 +1017,7 @@ final class ResultsWriterTests: XCTestCase {
         let results = ProcessingResults(successes: ["a.jpg"], failures: [], duplicates: [])
         try ResultsWriter.writeJSON(results: results, to: tmpDir.path, verbose: false)
 
-        let jsonPath = tmpDir.appendingPathComponent(".quigsphoto-uploader-results.json").path
+        let jsonPath = tmpDir.appendingPathComponent(".piqley-results.json").path
         let data = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
         let decoded = try JSONDecoder().decode(JSONResults.self, from: data)
         XCTAssertTrue(decoded.successes.isEmpty)
@@ -1094,7 +1094,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Results/ Tests/quigsphoto-uploaderTests/ResultsWriterTests.swift
+git add Sources/piqley/Results/ Tests/piqleyTests/ResultsWriterTests.swift
 git commit -m "feat: add results writer for text and JSON output"
 ```
 
@@ -1105,13 +1105,13 @@ git commit -m "feat: add results writer for text and JSON output"
 ### Task 7: Test Fixtures
 
 **Files:**
-- Create: `Tests/quigsphoto-uploaderTests/Fixtures/` (test images)
+- Create: `Tests/piqleyTests/Fixtures/` (test images)
 
 - [ ] **Step 1: Create test fixture images programmatically**
 
 We need test JPEGs with specific EXIF/IPTC metadata. Create a helper script that generates them using `sips` and `exiftool` (if available), or we embed minimal JPEG data in a test helper.
 
-Create `Tests/quigsphoto-uploaderTests/TestHelpers.swift`:
+Create `Tests/piqleyTests/TestHelpers.swift`:
 
 ```swift
 import Foundation
@@ -1204,7 +1204,7 @@ Expected: clean build.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Tests/quigsphoto-uploaderTests/TestHelpers.swift
+git add Tests/piqleyTests/TestHelpers.swift
 git commit -m "feat: add test fixture helper for creating JPEG images with metadata"
 ```
 
@@ -1213,10 +1213,10 @@ git commit -m "feat: add test fixture helper for creating JPEG images with metad
 ### Task 8: MetadataReader Protocol & CGImage Implementation
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/ImageMetadata.swift`
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/MetadataReader.swift`
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/CGImageMetadataReader.swift`
-- Create: `Tests/quigsphoto-uploaderTests/MetadataReaderTests.swift`
+- Create: `Sources/piqley/ImageProcessing/ImageMetadata.swift`
+- Create: `Sources/piqley/ImageProcessing/MetadataReader.swift`
+- Create: `Sources/piqley/ImageProcessing/CGImageMetadataReader.swift`
+- Create: `Tests/piqleyTests/MetadataReaderTests.swift`
 
 - [ ] **Step 1: Write ImageMetadata model**
 
@@ -1266,14 +1266,14 @@ protocol MetadataReader {
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class MetadataReaderTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
 
@@ -1420,7 +1420,7 @@ Expected: all pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ImageProcessing/ImageMetadata.swift Sources/quigsphoto-uploader/ImageProcessing/MetadataReader.swift Sources/quigsphoto-uploader/ImageProcessing/CGImageMetadataReader.swift Tests/quigsphoto-uploaderTests/MetadataReaderTests.swift
+git add Sources/piqley/ImageProcessing/ImageMetadata.swift Sources/piqley/ImageProcessing/MetadataReader.swift Sources/piqley/ImageProcessing/CGImageMetadataReader.swift Tests/piqleyTests/MetadataReaderTests.swift
 git commit -m "feat: add MetadataReader protocol and CGImage implementation with EXIF/IPTC parsing"
 ```
 
@@ -1429,21 +1429,21 @@ git commit -m "feat: add MetadataReader protocol and CGImage implementation with
 ### Task 9: ImageScanner (Scan & Sort)
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/ImageScanner.swift`
-- Create: `Tests/quigsphoto-uploaderTests/ImageScannerTests.swift`
+- Create: `Sources/piqley/ImageProcessing/ImageScanner.swift`
+- Create: `Tests/piqleyTests/ImageScannerTests.swift`
 
 - [ ] **Step 1: Write ImageScanner tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class ImageScannerTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
 
@@ -1597,7 +1597,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ImageProcessing/ImageScanner.swift Tests/quigsphoto-uploaderTests/ImageScannerTests.swift
+git add Sources/piqley/ImageProcessing/ImageScanner.swift Tests/piqleyTests/ImageScannerTests.swift
 git commit -m "feat: add ImageScanner — scan folder, read metadata, sort by date taken"
 ```
 
@@ -1606,22 +1606,22 @@ git commit -m "feat: add ImageScanner — scan folder, read metadata, sort by da
 ### Task 10: ImageProcessor Protocol & CoreGraphics Implementation
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/ImageProcessor.swift`
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/CoreGraphicsImageProcessor.swift`
-- Create: `Tests/quigsphoto-uploaderTests/ImageProcessorTests.swift`
+- Create: `Sources/piqley/ImageProcessing/ImageProcessor.swift`
+- Create: `Sources/piqley/ImageProcessing/CoreGraphicsImageProcessor.swift`
+- Create: `Tests/piqleyTests/ImageProcessorTests.swift`
 
 - [ ] **Step 1: Write ImageProcessor tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class ImageProcessorTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
 
@@ -1845,7 +1845,7 @@ Expected: all pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ImageProcessing/ImageProcessor.swift Sources/quigsphoto-uploader/ImageProcessing/CoreGraphicsImageProcessor.swift Tests/quigsphoto-uploaderTests/ImageProcessorTests.swift
+git add Sources/piqley/ImageProcessing/ImageProcessor.swift Sources/piqley/ImageProcessing/CoreGraphicsImageProcessor.swift Tests/piqleyTests/ImageProcessorTests.swift
 git commit -m "feat: add ImageProcessor protocol and CoreGraphics implementation with resize and EXIF stripping"
 ```
 
@@ -1856,9 +1856,9 @@ git commit -m "feat: add ImageProcessor protocol and CoreGraphics implementation
 ### Task 11: Ghost API Client (JWT Auth & HTTP)
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Ghost/GhostClient.swift`
-- Create: `Sources/quigsphoto-uploader/Ghost/GhostModels.swift`
-- Create: `Tests/quigsphoto-uploaderTests/GhostClientTests.swift`
+- Create: `Sources/piqley/Ghost/GhostClient.swift`
+- Create: `Sources/piqley/Ghost/GhostModels.swift`
+- Create: `Tests/piqleyTests/GhostClientTests.swift`
 
 - [ ] **Step 1: Write GhostModels**
 
@@ -1947,7 +1947,7 @@ struct GhostPostCreateResponse: Codable {
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class GhostClientTests: XCTestCase {
     func testJWTGeneration() throws {
@@ -2208,7 +2208,7 @@ Expected: all pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Ghost/GhostClient.swift Sources/quigsphoto-uploader/Ghost/GhostModels.swift Tests/quigsphoto-uploaderTests/GhostClientTests.swift
+git add Sources/piqley/Ghost/GhostClient.swift Sources/piqley/Ghost/GhostModels.swift Tests/piqleyTests/GhostClientTests.swift
 git commit -m "feat: add Ghost API client with JWT auth, image upload, and post creation"
 ```
 
@@ -2217,14 +2217,14 @@ git commit -m "feat: add Ghost API client with JWT auth, image upload, and post 
 ### Task 12: Lexical Builder
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Ghost/LexicalBuilder.swift`
-- Create: `Tests/quigsphoto-uploaderTests/LexicalBuilderTests.swift`
+- Create: `Sources/piqley/Ghost/LexicalBuilder.swift`
+- Create: `Tests/piqleyTests/LexicalBuilderTests.swift`
 
 - [ ] **Step 1: Write LexicalBuilder tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class LexicalBuilderTests: XCTestCase {
     func testBuildWithImageAndText() throws {
@@ -2381,7 +2381,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Ghost/LexicalBuilder.swift Tests/quigsphoto-uploaderTests/LexicalBuilderTests.swift
+git add Sources/piqley/Ghost/LexicalBuilder.swift Tests/piqleyTests/LexicalBuilderTests.swift
 git commit -m "feat: add LexicalBuilder for Ghost post body formatting"
 ```
 
@@ -2390,21 +2390,21 @@ git commit -m "feat: add LexicalBuilder for Ghost post body formatting"
 ### Task 13: Ghost Deduplicator
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Ghost/GhostDeduplicator.swift`
-- Create: `Tests/quigsphoto-uploaderTests/GhostDeduplicatorTests.swift`
+- Create: `Sources/piqley/Ghost/GhostDeduplicator.swift`
+- Create: `Tests/piqleyTests/GhostDeduplicatorTests.swift`
 
 - [ ] **Step 1: Write GhostDeduplicator tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class GhostDeduplicatorTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-uploader-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
 
@@ -2552,7 +2552,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Ghost/GhostDeduplicator.swift Tests/quigsphoto-uploaderTests/GhostDeduplicatorTests.swift
+git add Sources/piqley/Ghost/GhostDeduplicator.swift Tests/piqleyTests/GhostDeduplicatorTests.swift
 git commit -m "feat: add two-tier deduplicator with local cache and Ghost API fallback"
 ```
 
@@ -2561,14 +2561,14 @@ git commit -m "feat: add two-tier deduplicator with local cache and Ghost API fa
 ### Task 14: Ghost Scheduler
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Ghost/GhostScheduler.swift`
-- Create: `Tests/quigsphoto-uploaderTests/GhostSchedulerTests.swift`
+- Create: `Sources/piqley/Ghost/GhostScheduler.swift`
+- Create: `Tests/piqleyTests/GhostSchedulerTests.swift`
 
 - [ ] **Step 1: Write GhostScheduler tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class GhostSchedulerTests: XCTestCase {
     func testRandomTimeInWindow() {
@@ -2747,7 +2747,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Ghost/GhostScheduler.swift Tests/quigsphoto-uploaderTests/GhostSchedulerTests.swift
+git add Sources/piqley/Ghost/GhostScheduler.swift Tests/piqleyTests/GhostSchedulerTests.swift
 git commit -m "feat: add GhostScheduler with queue detection, scheduling logic, and 365 day calculation"
 ```
 
@@ -2758,7 +2758,7 @@ git commit -m "feat: add GhostScheduler with queue detection, scheduling logic, 
 ### Task 15: Email Sender
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Email/EmailSender.swift`
+- Create: `Sources/piqley/Email/EmailSender.swift`
 
 - [ ] **Step 1: Implement EmailSender**
 
@@ -2846,7 +2846,7 @@ Expected: clean build. (SMTP tests require a real server — manual testing only
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Email/EmailSender.swift
+git add Sources/piqley/Email/EmailSender.swift
 git commit -m "feat: add EmailSender with SMTP support via SwiftSMTP"
 ```
 
@@ -2855,7 +2855,7 @@ git commit -m "feat: add EmailSender with SMTP support via SwiftSMTP"
 ### Task 16: Setup Command
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/CLI/SetupCommand.swift`
+- Modify: `Sources/piqley/CLI/SetupCommand.swift`
 
 - [ ] **Step 1: Implement interactive setup**
 
@@ -2962,7 +2962,7 @@ Expected: clean build.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/SetupCommand.swift
+git add Sources/piqley/CLI/SetupCommand.swift
 git commit -m "feat: add interactive setup command with config creation and Keychain storage"
 ```
 
@@ -2971,7 +2971,7 @@ git commit -m "feat: add interactive setup command with config creation and Keyc
 ### Task 17: Process Command (Full Orchestration)
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/CLI/ProcessCommand.swift`
+- Modify: `Sources/piqley/CLI/ProcessCommand.swift`
 
 This is the main orchestration — ties everything together.
 
@@ -3313,9 +3313,9 @@ struct ProcessCommand: AsyncParsableCommand {
 import ArgumentParser
 
 @main
-struct QuigsphotoUploader: AsyncParsableCommand {
+struct Piqley: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "quigsphoto-uploader",
+        commandName: "piqley",
         abstract: "Process and publish photos to Ghost CMS",
         subcommands: [ProcessCommand.self, SetupCommand.self]
     )
@@ -3333,7 +3333,7 @@ Expected: clean build.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/ProcessCommand.swift Sources/quigsphoto-uploader/main.swift
+git add Sources/piqley/CLI/ProcessCommand.swift Sources/piqley/main.swift
 git commit -m "feat: add ProcessCommand with full orchestration — scan, dedup, upload, schedule, email, results"
 ```
 
@@ -3367,7 +3367,7 @@ git commit -m "fix: resolve test and compilation issues"
 - [ ] **Step 1: Run setup**
 
 ```bash
-swift run quigsphoto-uploader setup
+swift run piqley setup
 ```
 
 Walk through the interactive setup with real Ghost credentials.
@@ -3377,7 +3377,7 @@ Walk through the interactive setup with real Ghost credentials.
 Create a test folder with a few JPEG images (some with 365 Project keyword, some without).
 
 ```bash
-swift run quigsphoto-uploader process /path/to/test-folder --dry-run --verbose-results
+swift run piqley process /path/to/test-folder --dry-run --verbose-results
 ```
 
 Verify: correct sorting, dedup detection, scheduling logic, result files.
@@ -3385,7 +3385,7 @@ Verify: correct sorting, dedup detection, scheduling logic, result files.
 - [ ] **Step 3: Test with real upload**
 
 ```bash
-swift run quigsphoto-uploader process /path/to/test-folder --verbose-results
+swift run piqley process /path/to/test-folder --verbose-results
 ```
 
 Verify: images uploaded to Ghost, posts created/scheduled, emails sent for 365 Project images, dedup logs populated.
@@ -3393,7 +3393,7 @@ Verify: images uploaded to Ghost, posts created/scheduled, emails sent for 365 P
 - [ ] **Step 4: Test re-run (dedup)**
 
 ```bash
-swift run quigsphoto-uploader process /path/to/test-folder --verbose-results
+swift run piqley process /path/to/test-folder --verbose-results
 ```
 
 Verify: all images detected as duplicates from local cache, no new Ghost posts.

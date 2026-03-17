@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a comprehensive roff man page for quigsphoto-uploader and version the codebase at 1.0.0.
+**Goal:** Add a comprehensive roff man page for piqley and version the codebase at 1.0.0.
 
-**Architecture:** Two deliverables — a hand-crafted `man/quigsphoto-uploader.1` roff file covering all CLI commands, config fields, files, exit codes, and examples; and a one-line version addition to the ArgumentParser CommandConfiguration.
+**Architecture:** Two deliverables — a hand-crafted `man/piqley.1` roff file covering all CLI commands, config fields, files, exit codes, and examples; and a one-line version addition to the ArgumentParser CommandConfiguration.
 
 **Tech Stack:** roff/mdoc markup, Swift ArgumentParser
 
@@ -15,15 +15,15 @@
 ### Task 1: Add version 1.0.0 to CommandConfiguration
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/QuigsphotoUploader.swift:7-11`
+- Modify: `Sources/piqley/Piqley.swift:7-11`
 
 - [ ] **Step 1: Add version parameter**
 
-In `Sources/quigsphoto-uploader/QuigsphotoUploader.swift`, change the `CommandConfiguration` at line 7-11 from:
+In `Sources/piqley/Piqley.swift`, change the `CommandConfiguration` at line 7-11 from:
 
 ```swift
 static let configuration = CommandConfiguration(
-    commandName: "quigsphoto-uploader",
+    commandName: "piqley",
     abstract: "Process and publish photos to Ghost CMS",
     subcommands: [ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self]
 )
@@ -33,7 +33,7 @@ to:
 
 ```swift
 static let configuration = CommandConfiguration(
-    commandName: "quigsphoto-uploader",
+    commandName: "piqley",
     abstract: "Process and publish photos to Ghost CMS",
     version: "1.0.0",
     subcommands: [ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self]
@@ -45,13 +45,13 @@ static let configuration = CommandConfiguration(
 Run: `swift build 2>&1 | tail -5`
 Expected: Build succeeds.
 
-Then run: `.build/debug/quigsphoto-uploader --version`
+Then run: `.build/debug/piqley --version`
 Expected output: `1.0.0`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/QuigsphotoUploader.swift
+git add Sources/piqley/Piqley.swift
 git commit -m "feat: add version 1.0.0 to CLI"
 ```
 
@@ -60,11 +60,11 @@ git commit -m "feat: add version 1.0.0 to CLI"
 ### Task 2: Create the man page
 
 **Files:**
-- Create: `man/quigsphoto-uploader.1`
+- Create: `man/piqley.1`
 
 - [ ] **Step 1: Create man/ directory and write the man page**
 
-Create `man/quigsphoto-uploader.1` with roff content using the mdoc macro set (standard on macOS/BSD).
+Create `man/piqley.1` with roff content using the mdoc macro set (standard on macOS/BSD).
 
 Reference the spec at `docs/superpowers/specs/2026-03-16-man-page-and-versioning-design.md` for all content details.
 
@@ -75,7 +75,7 @@ Reference the spec at `docs/superpowers/specs/2026-03-16-man-page-and-versioning
 .Dt QUIGSPHOTO-UPLOADER 1
 .Os
 .Sh NAME
-.Nm quigsphoto-uploader
+.Nm piqley
 .Nd process and publish photos to Ghost CMS
 .Sh SYNOPSIS
 .Nm
@@ -106,13 +106,13 @@ Preview actions without uploading or emailing.
 - Sections: `.Sh SECTION NAME`
 - Subsections: `.Ss subsection name`
 - Tagged lists (use for config fields and flag docs): `.Bl -tag -width Ds` / `.It field-name` / `.El`
-- Paths: `.Pa ~/.config/quigsphoto-uploader/config.json`
+- Paths: `.Pa ~/.config/piqley/config.json`
 - Literal text blocks (for JSON examples): `.Bd -literal -offset indent` / `.Ed`
 - Backslashes in examples (regex): use `\e` for a literal backslash in roff (e.g., `Sony\es+a\ed+.*`)
 
 The man page must include these sections in order:
 
-1. **NAME** — `quigsphoto-uploader \- process and publish photos to Ghost CMS`
+1. **NAME** — `piqley \- process and publish photos to Ghost CMS`
 
 2. **SYNOPSIS** — three usage lines (process with all flags, setup, clear-cache with flags)
 
@@ -123,7 +123,7 @@ The man page must include these sections in order:
    - `setup` — interactive wizard, writes config.json and Keychain secrets
    - `clear-cache` with `--upload-log`, `--email-log` (no flags = both)
 
-5. **CONFIGURATION** — document `~/.config/quigsphoto-uploader/config.json` with all fields from the spec table:
+5. **CONFIGURATION** — document `~/.config/piqley/config.json` with all fields from the spec table:
    - `ghost.url`, `ghost.schedulingWindow` (start, end, timezone), `ghost.non365ProjectFilterTags`
    - `processing.maxLongEdge`, `processing.jpegQuality`
    - `project365.keyword`, `project365.referenceDate`, `project365.emailTo`
@@ -138,33 +138,33 @@ The man page must include these sections in order:
      ```
 
 6. **FILES**
-   - `~/.config/quigsphoto-uploader/config.json`
-   - `~/.config/quigsphoto-uploader/upload-log.jsonl`
-   - `~/.config/quigsphoto-uploader/email-log.jsonl`
-   - Keychain services: `quigsphoto-uploader-ghost`, `quigsphoto-uploader-smtp`
+   - `~/.config/piqley/config.json`
+   - `~/.config/piqley/upload-log.jsonl`
+   - `~/.config/piqley/email-log.jsonl`
+   - Keychain services: `piqley-ghost`, `piqley-smtp`
 
 7. **EXIT CODES** — 0 (success), 1 (fatal), 2 (partial)
 
 8. **EXAMPLES** — at least these:
-   - `quigsphoto-uploader process ~/Photos/export` — basic usage
-   - `quigsphoto-uploader process ~/Photos/export --dry-run` — preview
-   - `quigsphoto-uploader process ~/Photos/export --json-results --results-dir /tmp/results` — JSON output
-   - `quigsphoto-uploader clear-cache --upload-log` — clear specific cache
+   - `piqley process ~/Photos/export` — basic usage
+   - `piqley process ~/Photos/export --dry-run` — preview
+   - `piqley process ~/Photos/export --json-results --results-dir /tmp/results` — JSON output
+   - `piqley clear-cache --upload-log` — clear specific cache
    - A `cameraModelTags` JSON config snippet
 
 Use the mdoc macros shown in the skeleton above. For the CONFIGURATION section, use `.Bl -tag -width Ds` with `.It` entries for each config field (e.g., `.It ghost.url`). There is no roff table — tagged lists are the standard approach for documenting config fields in man pages.
 
 - [ ] **Step 2: Verify man page renders correctly**
 
-Run: `man -l man/quigsphoto-uploader.1 | head -80`
+Run: `man -l man/piqley.1 | head -80`
 Expected: Formatted man page output with NAME, SYNOPSIS, and start of DESCRIPTION visible.
 
-Run: `mandoc -Tlint man/quigsphoto-uploader.1 2>&1 || true`
+Run: `mandoc -Tlint man/piqley.1 2>&1 || true`
 Expected: No errors (warnings are acceptable).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add man/quigsphoto-uploader.1
+git add man/piqley.1
 git commit -m "docs: add comprehensive man page"
 ```

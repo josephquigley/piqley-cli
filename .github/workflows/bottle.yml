@@ -19,18 +19,18 @@ jobs:
       - name: Tap and install from source
         run: |
           brew tap quigs/tools "${{ github.workspace }}"
-          brew install --build-bottle quigs/tools/quigsphoto-uploader
+          brew install --build-bottle quigs/tools/piqley
 
       - name: Create bottle
         run: |
           cd ~
-          brew bottle --json --root-url="https://github.com/josephquigley/quigsphoto-uploader/releases/download/${{ github.event.release.tag_name }}" quigs/tools/quigsphoto-uploader
+          brew bottle --json --root-url="https://github.com/josephquigley/piqley/releases/download/${{ github.event.release.tag_name }}" quigs/tools/piqley
 
       - name: Upload bottle to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd ~
-          gh release upload "${{ github.event.release.tag_name }}" quigsphoto-uploader--*.tar.gz
+          gh release upload "${{ github.event.release.tag_name }}" piqley--*.tar.gz
           echo "Bottle uploaded. Update formula with the following JSON:"
-          cat quigsphoto-uploader--*.json
+          cat piqley--*.json

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Add GPG-based cryptographic signing to `quigsphoto-uploader`. After resizing, the tool signs a deterministic content hash of each image and embeds the signature in a custom XMP namespace. A new `verify` subcommand allows anyone with the signer's public key to verify image integrity and authorship.
+Add GPG-based cryptographic signing to `piqley`. After resizing, the tool signs a deterministic content hash of each image and embeds the signature in a custom XMP namespace. A new `verify` subcommand allows anyone with the signer's public key to verify image integrity and authorship.
 
 **Goals:**
 - **Tamper detection (integrity):** Verify an image hasn't been modified since signing
 - **Authorship attribution:** Prove a specific GPG key owner signed the image
 
-**Scope:** Sign the uploaded original only. Ghost's responsive image variants (generated server-side by Sharp) are unsigned. To verify an image from Ghost, download the original (strip `/size/wXXX/` from the variant URL) and run `quigsphoto verify` on the local file.
+**Scope:** Sign the uploaded original only. Ghost's responsive image variants (generated server-side by Sharp) are unsigned. To verify an image from Ghost, download the original (strip `/size/wXXX/` from the variant URL) and run `piqley verify` on the local file.
 
 ## Approach: Content Hash Signing
 
@@ -41,10 +41,10 @@ Scan → Dedup → Resize → **Sign** → Upload → Email
 1. `SignableContentExtractor` computes the SHA-256 content hash of the resized JPEG
 2. Shell out to `gpg --detach-sign --armor -u <fingerprint>` with the hash as stdin
 3. Write custom XMP fields to the image via `CGImageDestination`:
-   - `quigsphoto:contentHash` — SHA-256 hex string
-   - `quigsphoto:signature` — ASCII-armored GPG detached signature
-   - `quigsphoto:keyFingerprint` — signing key fingerprint
-   - `quigsphoto:algorithm` — `"GPG-SHA256"`
+   - `piqley:contentHash` — SHA-256 hex string
+   - `piqley:signature` — ASCII-armored GPG detached signature
+   - `piqley:keyFingerprint` — signing key fingerprint
+   - `piqley:algorithm` — `"GPG-SHA256"`
 4. The signed JPEG (with XMP) replaces the unsigned version in the temp directory
 5. Upload proceeds as normal
 
@@ -55,15 +55,15 @@ Signing failures are **fatal** — the tool exits with code 1. Rationale: if sig
 ## Verification Subcommand
 
 ```
-quigsphoto verify <image-path> [--key-fingerprint <fp>]
+piqley verify <image-path> [--key-fingerprint <fp>]
 ```
 
 ### Steps
 
-1. Read XMP fields (`quigsphoto:contentHash`, `quigsphoto:signature`, `quigsphoto:keyFingerprint`). Fail with a clear message if no signature is found.
+1. Read XMP fields (`piqley:contentHash`, `piqley:signature`, `piqley:keyFingerprint`). Fail with a clear message if no signature is found.
 2. Extract signable content using `SignableContentExtractor` (same logic as signing)
 3. Recompute SHA-256 over the extracted content
-4. Compare recomputed hash against `quigsphoto:contentHash`. Mismatch → image tampered.
+4. Compare recomputed hash against `piqley:contentHash`. Mismatch → image tampered.
 5. Shell out to `gpg --verify` with the embedded signature and the hash
 6. Report results:
    - **Signed by:** key fingerprint / UID (if available)
@@ -81,13 +81,13 @@ The `--key-fingerprint` flag is optional. If omitted, GPG checks against the loc
   "signing": {
     "keyFingerprint": "ABCD1234...",
     "xmpNamespace": "https://quigs.photo/xmp/1.0/",
-    "xmpPrefix": "quigsphoto"
+    "xmpPrefix": "piqley"
   }
 }
 ```
 
 - `xmpNamespace` is derived from the Ghost URL in config if omitted (e.g., `https://quigs.photo` → `https://quigs.photo/xmp/1.0/`). Can be explicitly overridden for custom namespaces.
-- `xmpPrefix` defaults to `"quigsphoto"` if omitted.
+- `xmpPrefix` defaults to `"piqley"` if omitted.
 - Field names (`contentHash`, `signature`, `keyFingerprint`, `algorithm`) are fixed.
 
 **Behavior:**
@@ -99,7 +99,7 @@ The `enabled` field is not needed — presence of the section implies enabled, a
 
 ### Setup Integration
 
-`quigsphoto setup` gains an optional signing section:
+`piqley setup` gains an optional signing section:
 
 1. "Do you want to enable image signing? (y/n)"
 2. If yes, run `gpg --list-secret-keys --keyid-format long` and display available keys
@@ -116,7 +116,7 @@ New flag:
 ### `verify` subcommand (new)
 
 ```
-quigsphoto verify <image-path> [--key-fingerprint <fp>]
+piqley verify <image-path> [--key-fingerprint <fp>]
 ```
 
 Arguments:
@@ -131,7 +131,7 @@ Exit codes:
 
 Namespace and prefix are configurable (see Configuration). Defaults:
 - Namespace: `https://quigs.photo/xmp/1.0/`
-- Prefix: `quigsphoto`
+- Prefix: `piqley`
 
 Field names are fixed (not configurable):
 
@@ -151,7 +151,7 @@ The `verify` command reads the namespace/prefix from config (or uses defaults) t
 Following the existing protocol-first, one-type-per-file convention:
 
 ```
-Sources/quigsphoto-uploader/
+Sources/piqley/
 ├── ImageProcessing/
 │   ├── ImageSigner.swift              (protocol)
 │   ├── GPGImageSigner.swift           (implementation: gpg shelling, XMP writing)
@@ -191,7 +191,7 @@ if let signingConfig = config.signing, !noSign {
 struct SigningConfig: Codable {
     let keyFingerprint: String
     var xmpNamespace: String?  // Derived from ghost.url if nil
-    var xmpPrefix: String = "quigsphoto"
+    var xmpPrefix: String = "piqley"
 }
 ```
 

@@ -4,35 +4,35 @@
 
 **Goal:** Add PixelSeal-based pixel watermarking that embeds authenticated 256-bit identifiers surviving metadata stripping, format conversion, resize, and light edits — as a fallback to XMP GPG signatures.
 
-**Architecture:** A separate C++ binary (`quigsphoto-watermark`) built with LibTorch runs the PixelSeal TorchScript model. The main Swift tool shells out to it (same pattern as GPG). 256-bit payload: 2-bit version + 46-bit image ID + 128-bit HMAC + 80-bit BCH ECC. PNG used as lossless interchange between Swift and the watermark binary, ensuring a single lossy JPEG encode.
+**Architecture:** A separate C++ binary (`piqley-watermark`) built with LibTorch runs the PixelSeal TorchScript model. The main Swift tool shells out to it (same pattern as GPG). 256-bit payload: 2-bit version + 46-bit image ID + 128-bit HMAC + 80-bit BCH ECC. PNG used as lossless interchange between Swift and the watermark binary, ensuring a single lossy JPEG encode.
 
 **Tech Stack:**
-- `quigsphoto-watermark`: C++17, LibTorch (TorchScript runtime), stb_image (vendored)
-- `quigsphoto-uploader`: Swift 6.2, CryptoKit (HMAC-SHA256), CoreGraphics/ImageIO (image pipeline), macOS Keychain (HMAC secret storage)
+- `piqley-watermark`: C++17, LibTorch (TorchScript runtime), stb_image (vendored)
+- `piqley`: Swift 6.2, CryptoKit (HMAC-SHA256), CoreGraphics/ImageIO (image pipeline), macOS Keychain (HMAC secret storage)
 
 ---
 
-### Task 0: Build `quigsphoto-watermark` C++ binary
+### Task 0: Build `piqley-watermark` C++ binary
 
 This is the new standalone project. It wraps PixelSeal's TorchScript model in a CLI that the Swift tool invokes as a subprocess.
 
 **Files:**
-- Create: `quigsphoto-watermark/CMakeLists.txt`
-- Create: `quigsphoto-watermark/src/main.cpp`
-- Create: `quigsphoto-watermark/vendor/stb_image.h` (vendored, public domain)
-- Create: `quigsphoto-watermark/vendor/stb_image_write.h` (vendored, public domain)
-- Download: `quigsphoto-watermark/model/pixelseal.jit` (218MB TorchScript model)
+- Create: `piqley-watermark/CMakeLists.txt`
+- Create: `piqley-watermark/src/main.cpp`
+- Create: `piqley-watermark/vendor/stb_image.h` (vendored, public domain)
+- Create: `piqley-watermark/vendor/stb_image_write.h` (vendored, public domain)
+- Download: `piqley-watermark/model/pixelseal.jit` (218MB TorchScript model)
 
 - [ ] **Step 1: Create project structure**
 
 ```bash
-mkdir -p quigsphoto-watermark/src quigsphoto-watermark/vendor quigsphoto-watermark/model
+mkdir -p piqley-watermark/src piqley-watermark/vendor piqley-watermark/model
 ```
 
 - [ ] **Step 2: Download PixelSeal model**
 
 ```bash
-curl -L -o quigsphoto-watermark/model/pixelseal.jit \
+curl -L -o piqley-watermark/model/pixelseal.jit \
   "https://dl.fbaipublicfiles.com/videoseal/y_256b_img.jit"
 ```
 
@@ -43,37 +43,37 @@ Verify: file should be ~218MB.
 Download from the stb repository (public domain, single-header):
 
 ```bash
-curl -L -o quigsphoto-watermark/vendor/stb_image.h \
+curl -L -o piqley-watermark/vendor/stb_image.h \
   "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h"
-curl -L -o quigsphoto-watermark/vendor/stb_image_write.h \
+curl -L -o piqley-watermark/vendor/stb_image_write.h \
   "https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h"
 ```
 
 - [ ] **Step 4: Write CMakeLists.txt**
 
-Create `quigsphoto-watermark/CMakeLists.txt`:
+Create `piqley-watermark/CMakeLists.txt`:
 
 ```cmake
 cmake_minimum_required(VERSION 3.18)
-project(quigsphoto-watermark LANGUAGES CXX)
+project(piqley-watermark LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Torch REQUIRED)
 
-add_executable(quigsphoto-watermark src/main.cpp)
-target_include_directories(quigsphoto-watermark PRIVATE vendor)
-target_link_libraries(quigsphoto-watermark "${TORCH_LIBRARIES}")
+add_executable(piqley-watermark src/main.cpp)
+target_include_directories(piqley-watermark PRIVATE vendor)
+target_link_libraries(piqley-watermark "${TORCH_LIBRARIES}")
 
 # Install binary and model
-install(TARGETS quigsphoto-watermark DESTINATION bin)
-install(FILES model/pixelseal.jit DESTINATION share/quigsphoto-watermark)
+install(TARGETS piqley-watermark DESTINATION bin)
+install(FILES model/pixelseal.jit DESTINATION share/piqley-watermark)
 ```
 
 - [ ] **Step 5: Write main.cpp**
 
-Create `quigsphoto-watermark/src/main.cpp`:
+Create `piqley-watermark/src/main.cpp`:
 
 ```cpp
 #include <torch/script.h>
@@ -98,8 +98,8 @@ std::string find_model() {
     auto local_model = exe_dir / "pixelseal.jit";
     if (fs::exists(local_model)) return local_model.string();
 
-    // 2. In ../share/quigsphoto-watermark/
-    auto share_model = exe_dir.parent_path() / "share" / "quigsphoto-watermark" / "pixelseal.jit";
+    // 2. In ../share/piqley-watermark/
+    auto share_model = exe_dir.parent_path() / "share" / "piqley-watermark" / "pixelseal.jit";
     if (fs::exists(share_model)) return share_model.string();
 
     // 3. QUIGSPHOTO_WATERMARK_MODEL env var
@@ -108,9 +108,9 @@ std::string find_model() {
     }
 
     // 4. Homebrew Cellar path (macOS)
-    auto brew_model = fs::path("/usr/local/share/quigsphoto-watermark/pixelseal.jit");
+    auto brew_model = fs::path("/usr/local/share/piqley-watermark/pixelseal.jit");
     if (fs::exists(brew_model)) return brew_model.string();
-    auto brew_arm = fs::path("/opt/homebrew/share/quigsphoto-watermark/pixelseal.jit");
+    auto brew_arm = fs::path("/opt/homebrew/share/piqley-watermark/pixelseal.jit");
     if (fs::exists(brew_arm)) return brew_arm.string();
 
     return "";
@@ -199,9 +199,9 @@ std::string bits_to_json(const torch::Tensor& detection) {
 
 void print_usage() {
     std::cerr << "Usage:" << std::endl;
-    std::cerr << "  quigsphoto-watermark embed --image <input> --message <64-hex-chars> --output <output>" << std::endl;
-    std::cerr << "  quigsphoto-watermark detect --image <input>" << std::endl;
-    std::cerr << "  quigsphoto-watermark version" << std::endl;
+    std::cerr << "  piqley-watermark embed --image <input> --message <64-hex-chars> --output <output>" << std::endl;
+    std::cerr << "  piqley-watermark detect --image <input>" << std::endl;
+    std::cerr << "  piqley-watermark version" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -213,7 +213,7 @@ int main(int argc, char* argv[]) {
     std::string command = argv[1];
 
     if (command == "version") {
-        std::cout << "quigsphoto-watermark 1.0.0" << std::endl;
+        std::cout << "piqley-watermark 1.0.0" << std::endl;
         std::cout << "Model: PixelSeal (Meta VideoSeal)" << std::endl;
         std::cout << "Payload: 256 bits" << std::endl;
         return 0;
@@ -291,7 +291,7 @@ curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/cpu/libtorch-maco
 unzip libtorch.zip
 
 # Build
-cd quigsphoto-watermark
+cd piqley-watermark
 mkdir build && cd build
 cmake .. -DCMAKE_PREFIX_PATH=/tmp/libtorch
 cmake --build . --config Release
@@ -304,16 +304,16 @@ cmake --build . --config Release
 python3 -c "from PIL import Image; Image.new('RGB', (800, 600), 'blue').save('/tmp/test_input.png')"
 
 # Test embed
-./quigsphoto-watermark embed \
+./piqley-watermark embed \
   --image /tmp/test_input.png \
   --message "$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
   --output /tmp/test_watermarked.png
 
 # Test detect
-./quigsphoto-watermark detect --image /tmp/test_watermarked.png
+./piqley-watermark detect --image /tmp/test_watermarked.png
 
 # Test version
-./quigsphoto-watermark version
+./piqley-watermark version
 ```
 
 Expected: embed produces a PNG, detect outputs JSON with 256 floats.
@@ -322,12 +322,12 @@ Expected: embed produces a PNG, detect outputs JSON with 256 floats.
 
 ```bash
 # Note: pixelseal.jit is 218MB — use Git LFS
-cd quigsphoto-watermark
+cd piqley-watermark
 git init
 git lfs install
 git lfs track "model/*.jit"
 git add .gitattributes CMakeLists.txt src/ vendor/ model/
-git commit -m "feat: initial quigsphoto-watermark binary with PixelSeal"
+git commit -m "feat: initial piqley-watermark binary with PixelSeal"
 ```
 
 ---
@@ -335,12 +335,12 @@ git commit -m "feat: initial quigsphoto-watermark binary with PixelSeal"
 ### Task 1: Add `watermark` field to `SigningConfig`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/Config/Config.swift`
-- Modify: `Tests/quigsphoto-uploaderTests/ConfigTests.swift`
+- Modify: `Sources/piqley/Config/Config.swift`
+- Modify: `Tests/piqleyTests/ConfigTests.swift`
 
 - [ ] **Step 1: Write failing test for watermark config field**
 
-In `Tests/quigsphoto-uploaderTests/ConfigTests.swift`, add:
+In `Tests/piqleyTests/ConfigTests.swift`, add:
 
 ```swift
 func testSigningConfigWatermarkDefaultsToTrue() throws {
@@ -384,7 +384,7 @@ Run: `swift test --filter ConfigTests 2>&1`
 
 - [ ] **Step 3: Add watermark field to SigningConfig**
 
-In `Sources/quigsphoto-uploader/Config/Config.swift`, add to `SigningConfig`:
+In `Sources/piqley/Config/Config.swift`, add to `SigningConfig`:
 - Property: `var watermark: Bool`
 - Static default: `static let defaultWatermark = true`
 - Init parameter: `watermark: Bool = SigningConfig.defaultWatermark`
@@ -397,7 +397,7 @@ Run: `swift test --filter ConfigTests 2>&1`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Config/Config.swift Tests/quigsphoto-uploaderTests/ConfigTests.swift
+git add Sources/piqley/Config/Config.swift Tests/piqleyTests/ConfigTests.swift
 git commit -m "feat(watermark): add watermark field to SigningConfig"
 ```
 
@@ -406,18 +406,18 @@ git commit -m "feat(watermark): add watermark field to SigningConfig"
 ### Task 2: Create `WatermarkPayload` (256-bit encode/decode with BCH ECC)
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Watermarking/WatermarkPayload.swift`
-- Create: `Sources/quigsphoto-uploader/Watermarking/BCH.swift`
-- Create: `Tests/quigsphoto-uploaderTests/WatermarkPayloadTests.swift`
+- Create: `Sources/piqley/Watermarking/WatermarkPayload.swift`
+- Create: `Sources/piqley/Watermarking/BCH.swift`
+- Create: `Tests/piqleyTests/WatermarkPayloadTests.swift`
 
 - [ ] **Step 1: Write failing tests**
 
-Create `Tests/quigsphoto-uploaderTests/WatermarkPayloadTests.swift`:
+Create `Tests/piqleyTests/WatermarkPayloadTests.swift`:
 
 ```swift
 import XCTest
 import CryptoKit
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class WatermarkPayloadTests: XCTestCase {
 
@@ -505,7 +505,7 @@ Run: `swift test --filter WatermarkPayloadTests 2>&1`
 
 - [ ] **Step 3: Implement BCH for 256-bit codewords**
 
-Create `Sources/quigsphoto-uploader/Watermarking/BCH.swift`:
+Create `Sources/piqley/Watermarking/BCH.swift`:
 
 BCH(256, 176) — 176 data bits, 80 parity bits. Use a shortened BCH code from BCH(255, 175) (standard GF(2^8) code). The brute-force syndrome decoder corrects up to t errors by trying all 1..t error patterns. For t=15 and n=256, the brute-force approach for high error counts is slow — use a lookup table or Berlekamp-Massey algorithm for production. For initial implementation, brute-force up to 6 errors (covers all measured scenarios) and fall back to HMAC validation for edge cases.
 
@@ -513,7 +513,7 @@ BCH(256, 176) — 176 data bits, 80 parity bits. Use a shortened BCH code from B
 
 - [ ] **Step 4: Implement WatermarkPayload**
 
-Create `Sources/quigsphoto-uploader/Watermarking/WatermarkPayload.swift`:
+Create `Sources/piqley/Watermarking/WatermarkPayload.swift`:
 
 Key methods:
 - `encode() -> [Bool]` — version(2) + imageId(46) + hmac(128) → 176 data bits → BCH encode → 256 bits
@@ -530,7 +530,7 @@ Run: `swift test --filter WatermarkPayloadTests 2>&1`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Watermarking/WatermarkPayload.swift Sources/quigsphoto-uploader/Watermarking/BCH.swift Tests/quigsphoto-uploaderTests/WatermarkPayloadTests.swift
+git add Sources/piqley/Watermarking/WatermarkPayload.swift Sources/piqley/Watermarking/BCH.swift Tests/piqleyTests/WatermarkPayloadTests.swift
 git commit -m "feat(watermark): add WatermarkPayload with 256-bit BCH error correction"
 ```
 
@@ -539,23 +539,23 @@ git commit -m "feat(watermark): add WatermarkPayload with 256-bit BCH error corr
 ### Task 3: Create `WatermarkReference` (JSONL logging)
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Watermarking/WatermarkReference.swift`
-- Create: `Tests/quigsphoto-uploaderTests/WatermarkReferenceTests.swift`
+- Create: `Sources/piqley/Watermarking/WatermarkReference.swift`
+- Create: `Tests/piqleyTests/WatermarkReferenceTests.swift`
 
 - [ ] **Step 1: Write failing tests**
 
-Create `Tests/quigsphoto-uploaderTests/WatermarkReferenceTests.swift`:
+Create `Tests/piqleyTests/WatermarkReferenceTests.swift`:
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class WatermarkReferenceTests: XCTestCase {
     var tmpDir: URL!
 
     override func setUp() {
         tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-wm-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-wm-test-\(UUID().uuidString)")
         try! FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
     }
     override func tearDown() { try? FileManager.default.removeItem(at: tmpDir) }
@@ -586,14 +586,14 @@ final class WatermarkReferenceTests: XCTestCase {
 
 - [ ] **Step 3: Implement WatermarkReference**
 
-Create `Sources/quigsphoto-uploader/Watermarking/WatermarkReference.swift` following the existing `UploadLog` pattern: `Codable` entry struct with fields `imageId`, `originalFilename`, `contentHash`, `modelVersion`, `ghostPostId?`, `ghostPostUrl?`, `timestamp`. Use `JSONEncoder` with `.iso8601` dates, append via POSIX `open()` with `O_APPEND`, lookup by scanning lines. The `modelVersion` field (e.g., `"pixelseal-1.0"`) tracks which watermarking model was used, enabling graceful model upgrades.
+Create `Sources/piqley/Watermarking/WatermarkReference.swift` following the existing `UploadLog` pattern: `Codable` entry struct with fields `imageId`, `originalFilename`, `contentHash`, `modelVersion`, `ghostPostId?`, `ghostPostUrl?`, `timestamp`. Use `JSONEncoder` with `.iso8601` dates, append via POSIX `open()` with `O_APPEND`, lookup by scanning lines. The `modelVersion` field (e.g., `"pixelseal-1.0"`) tracks which watermarking model was used, enabling graceful model upgrades.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Watermarking/WatermarkReference.swift Tests/quigsphoto-uploaderTests/WatermarkReferenceTests.swift
+git add Sources/piqley/Watermarking/WatermarkReference.swift Tests/piqleyTests/WatermarkReferenceTests.swift
 git commit -m "feat(watermark): add WatermarkReference JSONL logging"
 ```
 
@@ -602,14 +602,14 @@ git commit -m "feat(watermark): add WatermarkReference JSONL logging"
 ### Task 4: Add Keychain watermark secret management
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/Secrets/KeychainSecretStore.swift`
-- Create: `Tests/quigsphoto-uploaderTests/WatermarkKeyTests.swift`
+- Modify: `Sources/piqley/Secrets/KeychainSecretStore.swift`
+- Create: `Tests/piqleyTests/WatermarkKeyTests.swift`
 
 - [ ] **Step 1: Write failing test**
 
 ```swift
 func testGenerateAndRetrieveWatermarkKey() throws {
-    let store = KeychainSecretStore(service: "com.quigsphoto.test.\(UUID().uuidString)")
+    let store = KeychainSecretStore(service: "com.piqley.test.\(UUID().uuidString)")
     let fingerprint = "TEST_FP_1234"
     let key = try store.getOrCreateWatermarkKey(for: fingerprint)
     XCTAssertEqual(key.count, 32) // 256-bit key
@@ -630,7 +630,7 @@ Generate a random 256-bit key on first call, store base64-encoded in Keychain ke
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Secrets/KeychainSecretStore.swift Tests/quigsphoto-uploaderTests/WatermarkKeyTests.swift
+git add Sources/piqley/Secrets/KeychainSecretStore.swift Tests/piqleyTests/WatermarkKeyTests.swift
 git commit -m "feat(watermark): add Keychain-based HMAC key management"
 ```
 
@@ -639,15 +639,15 @@ git commit -m "feat(watermark): add Keychain-based HMAC key management"
 ### Task 5: Create `PixelSealWatermarker` (subprocess invocation)
 
 **Files:**
-- Create: `Sources/quigsphoto-uploader/Watermarking/ImageWatermarker.swift`
-- Create: `Sources/quigsphoto-uploader/Watermarking/PixelSealWatermarker.swift`
-- Create: `Tests/quigsphoto-uploaderTests/PixelSealWatermarkerTests.swift`
+- Create: `Sources/piqley/Watermarking/ImageWatermarker.swift`
+- Create: `Sources/piqley/Watermarking/PixelSealWatermarker.swift`
+- Create: `Tests/piqleyTests/PixelSealWatermarkerTests.swift`
 
 - [ ] **Step 1: Write failing tests**
 
 ```swift
 import XCTest
-@testable import quigsphoto_uploader
+@testable import piqley
 
 final class PixelSealWatermarkerTests: XCTestCase {
 
@@ -660,11 +660,11 @@ final class PixelSealWatermarkerTests: XCTestCase {
 
     func testEmbedDetectRoundTrip() throws {
         guard PixelSealWatermarker.isAvailable() else {
-            throw XCTSkip("quigsphoto-watermark not installed")
+            throw XCTSkip("piqley-watermark not installed")
         }
 
         let tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quigsphoto-wm-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-wm-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmpDir) }
 
@@ -697,7 +697,7 @@ final class PixelSealWatermarkerTests: XCTestCase {
 
 - [ ] **Step 3: Create ImageWatermarker protocol**
 
-Create `Sources/quigsphoto-uploader/Watermarking/ImageWatermarker.swift`:
+Create `Sources/piqley/Watermarking/ImageWatermarker.swift`:
 
 ```swift
 import Foundation
@@ -712,14 +712,14 @@ protocol ImageWatermarker {
 
 - [ ] **Step 4: Implement PixelSealWatermarker**
 
-Create `Sources/quigsphoto-uploader/Watermarking/PixelSealWatermarker.swift`:
+Create `Sources/piqley/Watermarking/PixelSealWatermarker.swift`:
 
 ```swift
 import Foundation
 import Logging
 
 struct PixelSealWatermarker: ImageWatermarker {
-    private let logger = Logger(label: "quigsphoto.watermark")
+    private let logger = Logger(label: "piqley.watermark")
 
     enum WatermarkError: Error, LocalizedError {
         case binaryNotFound
@@ -730,7 +730,7 @@ struct PixelSealWatermarker: ImageWatermarker {
         var errorDescription: String? {
             switch self {
             case .binaryNotFound:
-                return "quigsphoto-watermark not found. Install with: brew install quigsphoto-watermark"
+                return "piqley-watermark not found. Install with: brew install piqley-watermark"
             case .embedFailed(let msg): return "Watermark embedding failed: \(msg)"
             case .detectFailed(let msg): return "Watermark detection failed: \(msg)"
             case .invalidOutput(let msg): return "Invalid watermark output: \(msg)"
@@ -741,7 +741,7 @@ struct PixelSealWatermarker: ImageWatermarker {
     static func isAvailable() -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["quigsphoto-watermark", "version"]
+        process.arguments = ["piqley-watermark", "version"]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         do {
@@ -759,11 +759,11 @@ struct PixelSealWatermarker: ImageWatermarker {
         let outputPath = imagePath + ".watermarked.png"
         let messageHex = payload.encodeHex()
 
-        logger.debug("Watermark binary: quigsphoto-watermark embed --image \(imagePath) --message \(messageHex) --output \(outputPath)")
+        logger.debug("Watermark binary: piqley-watermark embed --image \(imagePath) --message \(messageHex) --output \(outputPath)")
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["quigsphoto-watermark", "embed",
+        process.arguments = ["piqley-watermark", "embed",
                            "--image", imagePath,
                            "--message", messageHex,
                            "--output", outputPath]
@@ -788,7 +788,7 @@ struct PixelSealWatermarker: ImageWatermarker {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["quigsphoto-watermark", "detect", "--image", imagePath]
+        process.arguments = ["piqley-watermark", "detect", "--image", imagePath]
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -824,7 +824,7 @@ Run: `swift test --filter PixelSealWatermarkerTests 2>&1`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Watermarking/ImageWatermarker.swift Sources/quigsphoto-uploader/Watermarking/PixelSealWatermarker.swift Tests/quigsphoto-uploaderTests/PixelSealWatermarkerTests.swift
+git add Sources/piqley/Watermarking/ImageWatermarker.swift Sources/piqley/Watermarking/PixelSealWatermarker.swift Tests/piqleyTests/PixelSealWatermarkerTests.swift
 git commit -m "feat(watermark): add PixelSealWatermarker with subprocess invocation"
 ```
 
@@ -833,14 +833,14 @@ git commit -m "feat(watermark): add PixelSealWatermarker with subprocess invocat
 ### Task 6: Refactor `ImageProcessor` to return `CGImage` + create `ImageFinalizer`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/ImageProcessing/ImageProcessor.swift`
-- Modify: `Sources/quigsphoto-uploader/ImageProcessing/CoreGraphicsImageProcessor.swift`
-- Create: `Sources/quigsphoto-uploader/ImageProcessing/ImageFinalizer.swift`
-- Modify: `Tests/quigsphoto-uploaderTests/ImageProcessorTests.swift`
+- Modify: `Sources/piqley/ImageProcessing/ImageProcessor.swift`
+- Modify: `Sources/piqley/ImageProcessing/CoreGraphicsImageProcessor.swift`
+- Create: `Sources/piqley/ImageProcessing/ImageFinalizer.swift`
+- Modify: `Tests/piqleyTests/ImageProcessorTests.swift`
 
 - [ ] **Step 1: Write failing tests for new interface**
 
-Add to `Tests/quigsphoto-uploaderTests/ImageProcessorTests.swift`:
+Add to `Tests/piqleyTests/ImageProcessorTests.swift`:
 
 ```swift
 func testResizeReturnsCGImage() throws {
@@ -890,7 +890,7 @@ Add `resize(inputPath:maxLongEdge:metadataAllowlist:) throws -> (CGImage, [Strin
 
 - [ ] **Step 4: Create ImageFinalizer**
 
-Create `Sources/quigsphoto-uploader/ImageProcessing/ImageFinalizer.swift` with:
+Create `Sources/piqley/ImageProcessing/ImageFinalizer.swift` with:
 
 - `static func writeJPEG(_ image: CGImage, metadata: [String: Any], quality: Int, to path: String) throws` — single JPEG encode point
 - `static func writePNG(_ image: CGImage, to path: String) throws` — lossless interchange for watermark binary
@@ -904,7 +904,7 @@ Run: `swift test --filter ImageProcessorTests 2>&1`
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/ImageProcessing/ Tests/quigsphoto-uploaderTests/ImageProcessorTests.swift
+git add Sources/piqley/ImageProcessing/ Tests/piqleyTests/ImageProcessorTests.swift
 git commit -m "refactor(pipeline): split ImageProcessor into resize + finalize for unified pipeline"
 ```
 
@@ -913,7 +913,7 @@ git commit -m "refactor(pipeline): split ImageProcessor into resize + finalize f
 ### Task 7: Integrate watermarking into `ProcessCommand`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/CLI/ProcessCommand.swift`
+- Modify: `Sources/piqley/CLI/ProcessCommand.swift`
 
 - [ ] **Step 1: Add `--no-watermark` flag**
 
@@ -953,7 +953,7 @@ Run: `swift build 2>&1`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/ProcessCommand.swift
+git add Sources/piqley/CLI/ProcessCommand.swift
 git commit -m "feat(watermark): integrate watermarking into unified processing pipeline"
 ```
 
@@ -962,20 +962,20 @@ git commit -m "feat(watermark): integrate watermarking into unified processing p
 ### Task 8: Add watermark ID to Ghost posts via LexicalBuilder
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/Ghost/LexicalBuilder.swift`
-- Modify: `Sources/quigsphoto-uploader/CLI/ProcessCommand.swift`
+- Modify: `Sources/piqley/Ghost/LexicalBuilder.swift`
+- Modify: `Sources/piqley/CLI/ProcessCommand.swift`
 
 - [ ] **Step 1: Write failing test**
 
 ```swift
 func testBuildWithWatermarkId() throws {
     let result = LexicalBuilder.build(title: "Test", description: "A photo", watermarkId: "a1b2c3d4e5f6")
-    XCTAssertTrue(result.contains("data-quigsphoto-id"))
+    XCTAssertTrue(result.contains("data-piqley-id"))
     XCTAssertTrue(result.contains("a1b2c3d4e5f6"))
 }
 func testBuildWithoutWatermarkId() throws {
     let result = LexicalBuilder.build(title: "Test", description: "A photo", watermarkId: nil)
-    XCTAssertFalse(result.contains("data-quigsphoto-id"))
+    XCTAssertFalse(result.contains("data-piqley-id"))
 }
 ```
 
@@ -990,7 +990,7 @@ Add optional `watermarkId: String? = nil`. When non-nil, append an HTML card nod
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/Ghost/LexicalBuilder.swift Sources/quigsphoto-uploader/CLI/ProcessCommand.swift Tests/
+git add Sources/piqley/Ghost/LexicalBuilder.swift Sources/piqley/CLI/ProcessCommand.swift Tests/
 git commit -m "feat(watermark): embed watermark ID in Ghost posts via Lexical HTML card"
 ```
 
@@ -999,13 +999,13 @@ git commit -m "feat(watermark): embed watermark ID in Ghost posts via Lexical HT
 ### Task 9: Add watermark extraction to `VerifyCommand`
 
 **Files:**
-- Modify: `Sources/quigsphoto-uploader/CLI/VerifyCommand.swift`
+- Modify: `Sources/piqley/CLI/VerifyCommand.swift`
 
 - [ ] **Step 1: Add watermark fallback after XMP verification fails**
 
 When no XMP signature is found, add:
 1. Check `PixelSealWatermarker.isAvailable()`
-2. Shell out to `quigsphoto-watermark detect`
+2. Shell out to `piqley-watermark detect`
 3. Parse 256 float confidences → threshold to bits
 4. BCH decode → validate HMAC
 5. Look up image ID in `WatermarkReference`
@@ -1018,7 +1018,7 @@ Run: `swift build 2>&1`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Sources/quigsphoto-uploader/CLI/VerifyCommand.swift
+git add Sources/piqley/CLI/VerifyCommand.swift
 git commit -m "feat(watermark): add watermark extraction fallback to verify command"
 ```
 
