@@ -70,4 +70,16 @@ enum EmailSenderError: Error, LocalizedError {
         case let .sendFailed(msg): "Email send failed: \(msg)"
         }
     }
+
+    var failureReason: String? {
+        switch self {
+        case .sendFailed: "The email notification could not be delivered."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .sendFailed: "Verify your email configuration and that the mail server is reachable."
+        }
+    }
 }

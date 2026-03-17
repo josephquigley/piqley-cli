@@ -168,6 +168,30 @@ enum GhostClientError: Error, LocalizedError {
         case .noPostReturned: return "No post returned from create"
         }
     }
+
+    var failureReason: String? {
+        switch self {
+        case .invalidAPIKey: "The API key does not match the expected id:secret format."
+        case .invalidResponse: "The Ghost server returned a response that could not be parsed."
+        case .httpError: "The Ghost API returned an error status code."
+        case .noImageURL: "The image upload succeeded but the response did not include a URL."
+        case .noPostReturned: "The post creation request succeeded but no post data was returned."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .invalidAPIKey: return "Run 'piqley setup' to reconfigure your Ghost Admin API key."
+        case .invalidResponse: return "Check that your Ghost API URL is correct and the server is running."
+        case let .httpError(code, _):
+            if code == 401 || code == 403 {
+                return "Your API key may be invalid or expired. Run 'piqley setup' to update it."
+            }
+            return "Check your Ghost server logs for more details."
+        case .noImageURL, .noPostReturned:
+            return "This may indicate a Ghost API version mismatch. Check your Ghost server version."
+        }
+    }
 }
 
 // MARK: - Data Extensions

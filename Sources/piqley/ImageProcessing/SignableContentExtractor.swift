@@ -3,14 +3,28 @@ import Foundation
 import ImageIO
 
 struct SignableContentExtractor {
-    enum ExtractionError: Error, CustomStringConvertible {
+    enum ExtractionError: Error, LocalizedError {
         case cannotReadFile(String)
         case cannotProcessImage(String)
 
-        var description: String {
+        var errorDescription: String? {
             switch self {
             case let .cannotReadFile(path): "Cannot read file at \(path)"
             case let .cannotProcessImage(path): "Cannot process image at \(path)"
+            }
+        }
+
+        var failureReason: String? {
+            switch self {
+            case .cannotReadFile: "The file could not be opened or does not exist."
+            case .cannotProcessImage: "The image data could not be decoded or written."
+            }
+        }
+
+        var recoverySuggestion: String? {
+            switch self {
+            case .cannotReadFile: "Verify the file path exists and is a supported image format."
+            case .cannotProcessImage: "Ensure the image is not corrupted and is a supported format (JPEG, PNG, HEIC)."
             }
         }
     }

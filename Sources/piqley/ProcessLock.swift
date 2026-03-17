@@ -38,4 +38,18 @@ enum ProcessLockError: Error, LocalizedError {
         case .alreadyRunning: "Another instance of \(AppConstants.name) is already running"
         }
     }
+
+    var failureReason: String? {
+        switch self {
+        case .cannotOpenLockFile: "The lock file could not be created or opened."
+        case .alreadyRunning: "A process lock is already held by another instance."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .cannotOpenLockFile: "Check that the parent directory exists and is writable."
+        case .alreadyRunning: "Wait for the other instance to finish, or remove the stale lock file if the previous run crashed."
+        }
+    }
 }

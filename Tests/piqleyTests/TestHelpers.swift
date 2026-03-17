@@ -61,9 +61,18 @@ enum TestFixtures {
     }
 }
 
-enum TestFixtureError: Error {
+enum TestFixtureError: Error, LocalizedError {
     case cannotCreateContext
     case cannotCreateImage
     case cannotCreateDestination
     case cannotFinalize
+
+    var errorDescription: String? {
+        switch self {
+        case .cannotCreateContext: "Test fixture: cannot create graphics context"
+        case .cannotCreateImage: "Test fixture: cannot create test image"
+        case .cannotCreateDestination: "Test fixture: cannot create image destination"
+        case .cannotFinalize: "Test fixture: cannot finalize test image"
+        }
+    }
 }

@@ -4,16 +4,32 @@ import ImageIO
 struct GPGImageSigner: ImageSigner {
     let config: AppConfig.SigningConfig
 
-    enum SigningError: Error, CustomStringConvertible {
+    enum SigningError: Error, LocalizedError {
         case gpgNotFound
         case gpgFailed(String)
         case xmpWriteFailed(String)
 
-        var description: String {
+        var errorDescription: String? {
             switch self {
-            case .gpgNotFound: "GPG not found. Install with: brew install gnupg"
+            case .gpgNotFound: "GPG not found"
             case let .gpgFailed(msg): "GPG signing failed: \(msg)"
             case let .xmpWriteFailed(msg): "Failed to write XMP signature: \(msg)"
+            }
+        }
+
+        var failureReason: String? {
+            switch self {
+            case .gpgNotFound: "The gpg binary could not be located on this system."
+            case .gpgFailed: "The gpg process exited with a non-zero status."
+            case .xmpWriteFailed: "The XMP metadata could not be embedded into the image."
+            }
+        }
+
+        var recoverySuggestion: String? {
+            switch self {
+            case .gpgNotFound: "Install GPG with: brew install gnupg"
+            case .gpgFailed: "Ensure your GPG key is valid and the gpg-agent has your passphrase cached. Try: gpg --card-status"
+            case .xmpWriteFailed: "Verify the image file is writable and not corrupted."
             }
         }
     }
@@ -55,7 +71,7 @@ struct GPGImageSigner: ImageSigner {
     private func gpgSign(data: String, keyFingerprint: String) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["gpg", "--detach-sign", "--armor", "-u", keyFingerprint]
+        process.arguments = ["gpg", "--detach-sign", "--armor", "--no-tty", "-u", keyFingerprint]
 
         let inputPipe = Pipe()
         let outputPipe = Pipe()
@@ -67,14 +83,19 @@ struct GPGImageSigner: ImageSigner {
         try process.run()
         inputPipe.fileHandleForWriting.write(Data(data.utf8))
         inputPipe.fileHandleForWriting.closeFile()
+
+        // Read stdout/stderr before waitUntilExit to avoid pipe buffer deadlock
+        // when GPG produces output (e.g. during pinentry passphrase prompts)
+        let stdoutData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let stderrData = errorPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            let stderr = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            let stderr = String(data: stderrData, encoding: .utf8) ?? ""
             throw SigningError.gpgFailed(stderr)
         }
 
-        let output = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let output = String(data: stdoutData, encoding: .utf8) ?? ""
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

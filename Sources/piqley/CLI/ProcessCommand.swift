@@ -340,7 +340,7 @@ struct ProcessCommand: AsyncParsableCommand {
                 }
 
             } catch {
-                logger.error("[\(image.filename)] Error: \(error.localizedDescription)")
+                logger.error("[\(image.filename)] Error: \(formatError(error))")
                 results.failures.append(image.filename)
             }
         }
@@ -381,7 +381,7 @@ struct ProcessCommand: AsyncParsableCommand {
                     try emailLog.append(entry)
                     logger.info("[\(image.filename)] Email sent")
                 } catch {
-                    logger.error("[\(image.filename)] Email error: \(error.localizedDescription)")
+                    logger.error("[\(image.filename)] Email error: \(formatError(error))")
                     // Email errors are non-fatal
                 }
             }
@@ -445,7 +445,7 @@ struct ProcessCommand: AsyncParsableCommand {
             }
             logger.info("Email log seeded from Ghost")
         } catch {
-            logger.warning("Failed to seed email log: \(error.localizedDescription)")
+            logger.warning("Failed to seed email log: \(formatError(error))")
         }
     }
 }

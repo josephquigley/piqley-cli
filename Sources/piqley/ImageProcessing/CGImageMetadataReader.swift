@@ -53,4 +53,18 @@ enum MetadataReaderError: Error, LocalizedError {
         case let .cannotReadProperties(path): "Cannot read EXIF/IPTC from: \(path)"
         }
     }
+
+    var failureReason: String? {
+        switch self {
+        case .cannotOpenFile: "The image file could not be opened or does not exist."
+        case .cannotReadProperties: "The image does not contain readable EXIF or IPTC metadata."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .cannotOpenFile: "Verify the file path exists and is a supported image format."
+        case .cannotReadProperties: "Ensure the image was exported from Lightroom with metadata included."
+        }
+    }
 }

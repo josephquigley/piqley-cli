@@ -93,4 +93,23 @@ enum ImageProcessorError: Error, LocalizedError {
         case let .cannotWriteImage(path): "Cannot write image: \(path)"
         }
     }
+
+    var failureReason: String? {
+        switch self {
+        case .cannotReadImage: "The image file could not be opened or decoded."
+        case .cannotCreateContext: "Core Graphics failed to allocate a bitmap context."
+        case .cannotCreateResizedImage: "The resized image could not be rendered from the graphics context."
+        case .cannotCreateDestination: "Core Graphics could not create an output destination."
+        case .cannotWriteImage: "The processed image could not be written to disk."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .cannotReadImage: "Verify the file exists and is a supported format (JPEG, PNG, HEIC)."
+        case .cannotCreateContext, .cannotCreateResizedImage, .cannotCreateDestination:
+            "This may indicate insufficient memory. Try processing fewer images at once."
+        case .cannotWriteImage: "Check that the output directory exists and is writable."
+        }
+    }
 }

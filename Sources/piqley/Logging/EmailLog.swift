@@ -44,4 +44,12 @@ enum EmailLogError: Error, LocalizedError {
     var errorDescription: String? {
         switch self { case let .cannotOpenFile(path): "Cannot open email log: \(path)" }
     }
+
+    var failureReason: String? {
+        switch self { case .cannotOpenFile: "The email log file could not be opened or created." }
+    }
+
+    var recoverySuggestion: String? {
+        switch self { case .cannotOpenFile: "Check that the log directory exists and is writable." }
+    }
 }

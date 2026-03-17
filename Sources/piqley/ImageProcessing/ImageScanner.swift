@@ -30,7 +30,7 @@ struct ImageScanner {
                 let metadata = try metadataReader.read(from: file.path)
                 scanned.append(ScannedImage(path: file.path, filename: file.lastPathComponent, metadata: metadata))
             } catch {
-                logger.warning("Skipping \(file.lastPathComponent): \(error.localizedDescription)")
+                logger.warning("Skipping \(file.lastPathComponent): \(formatError(error))")
             }
         }
         return scanned.sorted { lhs, rhs in

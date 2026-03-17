@@ -46,13 +46,27 @@ struct KeywordFilterResult {
     let blocked: [(keyword: String, matcher: String)]
 }
 
-enum TagMatcherError: Error, CustomStringConvertible {
+enum TagMatcherError: Error, LocalizedError {
     case invalidRegex(pattern: String, underlying: Error)
 
-    var description: String {
+    var errorDescription: String? {
         switch self {
-        case let .invalidRegex(pattern, underlying):
-            "Invalid regex pattern '\(pattern)': \(underlying.localizedDescription)"
+        case let .invalidRegex(pattern, _):
+            "Invalid regex pattern '\(pattern)'"
+        }
+    }
+
+    var failureReason: String? {
+        switch self {
+        case let .invalidRegex(_, underlying):
+            underlying.localizedDescription
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .invalidRegex:
+            "Check the regex syntax in your tag matching configuration."
         }
     }
 }

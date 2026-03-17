@@ -67,7 +67,19 @@ enum GhostDeduplicatorError: Error, LocalizedError {
     case apiFailed(underlying: Error)
     var errorDescription: String? {
         switch self {
-        case let .apiFailed(err): "Ghost API dedup query failed (fatal): \(err.localizedDescription)"
+        case let .apiFailed(err): "Ghost API dedup query failed (fatal): \(formatError(err))"
+        }
+    }
+
+    var failureReason: String? {
+        switch self {
+        case .apiFailed: "The Ghost API did not return a valid response for the deduplication check."
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .apiFailed: "Verify your Ghost API URL and admin key are correct, and that the Ghost server is reachable."
         }
     }
 }
