@@ -6,7 +6,7 @@ struct TempFolder: Sendable {
     static let imageExtensions: Set<String> = ["jpg", "jpeg", "jxl"]
 
     static func create() throws -> TempFolder {
-        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+        let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return TempFolder(url: url)
