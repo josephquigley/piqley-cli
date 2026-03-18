@@ -15,7 +15,7 @@ struct PipelineOrchestrator: Sendable {
 
     /// Runs the full pipeline for a source folder.
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
-    func run(sourceURL: URL, dryRun: Bool) async throws -> Bool {
+    func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false) async throws -> Bool {
         var pipeline = config.pipeline
 
         // Auto-discover new plugins if enabled
@@ -37,6 +37,7 @@ struct PipelineOrchestrator: Sendable {
 
         let blocklist = PluginBlocklist()
         let stateStore = StateStore()
+        var ruleEvaluatorCache: [String: RuleEvaluator] = [:]
 
         // Extract metadata from all images into original namespace
         let imageFiles = try FileManager.default.contentsOfDirectory(
@@ -53,19 +54,9 @@ struct PipelineOrchestrator: Sendable {
         }
 
         // Validate plugin dependencies
-        var allManifests: [PluginManifest] = []
-        for hook in PluginManifest.canonicalHooks {
-            for pluginName in pipeline[hook] ?? [] {
-                let name = pluginName.split(separator: ":").first.map(String.init) ?? pluginName
-                if let loaded = try loadPlugin(named: name) {
-                    if !allManifests.contains(where: { $0.name == loaded.manifest.name }) {
-                        allManifests.append(loaded.manifest)
-                    }
-                }
-            }
-        }
-        if let error = DependencyValidator.validate(manifests: allManifests, pipeline: pipeline) {
-            logger.error("Dependency validation failed: \(error)")
+        do {
+            try validateDependencies(pipeline: pipeline)
+        } catch is PipelineError {
             try? temp.delete()
             return false
         }
@@ -81,9 +72,7 @@ struct PipelineOrchestrator: Sendable {
 
         // Execute hooks in order
         for hook in PluginManifest.canonicalHooks {
-            let pluginNames = pipeline[hook] ?? []
-            for pluginEntry in pluginNames {
-                // Strip any suffix (e.g. ":required" kept for forward-compat)
+            for pluginEntry in pipeline[hook] ?? [] {
                 let pluginName = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
 
                 guard !blocklist.isBlocked(pluginName) else {
@@ -91,89 +80,16 @@ struct PipelineOrchestrator: Sendable {
                     continue
                 }
 
-                guard let loadedPlugin = try loadPlugin(named: pluginName) else {
-                    logger.error("Plugin '\(pluginName)' not found in \(pluginsDirectory.path)")
-                    blocklist.block(pluginName)
-                    return false
-                }
-
-                // Fetch secrets — missing secret is a critical failure
-                let secrets: [String: String]
-                do {
-                    secrets = try fetchSecrets(for: loadedPlugin)
-                } catch {
-                    blocklist.block(pluginName)
-                    return false
-                }
-
-                // Resolve execution log path (tilde-expanded)
-                let execLogPath = pluginsDirectory
-                    .appendingPathComponent(pluginName)
-                    .appendingPathComponent("logs/execution.jsonl")
-                try FileManager.default.createDirectory(
-                    at: execLogPath.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
+                let ctx = HookContext(
+                    pluginName: pluginName, hook: hook, temp: temp,
+                    stateStore: stateStore, dryRun: dryRun, nonInteractive: nonInteractive
                 )
-
-                let pluginConfigURL = pluginsDirectory
-                    .appendingPathComponent(pluginName)
-                    .appendingPathComponent("config.json")
-                let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
-                let runner = PluginRunner(
-                    plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig
-                )
-
-                // Build state payload for JSON protocol plugins with dependencies
-                let deps = loadedPlugin.manifest.dependencies ?? []
-                let proto = loadedPlugin.manifest.hooks[hook]?.pluginProtocol ?? .json
-                var pluginState: [String: [String: [String: JSONValue]]]?
-                if proto == .json, !deps.isEmpty {
-                    var statePayload: [String: [String: [String: JSONValue]]] = [:]
-                    for imageName in await stateStore.allImageNames {
-                        let resolved = await stateStore.resolve(
-                            image: imageName, dependencies: deps
-                        )
-                        if !resolved.isEmpty {
-                            statePayload[imageName] = resolved
-                        }
-                    }
-                    if !statePayload.isEmpty {
-                        pluginState = statePayload
-                    }
-                }
-
-                logger.info("Running plugin '\(pluginName)' for hook '\(hook)'")
-                let (result, returnedState) = try await runner.run(
-                    hook: hook,
-                    tempFolder: temp,
-                    executionLogPath: execLogPath,
-                    dryRun: dryRun,
-                    state: pluginState
-                )
-
-                // Store returned state under the plugin's namespace
-                if let returnedState {
-                    for (imageName, values) in returnedState {
-                        let imageExists = FileManager.default.fileExists(
-                            atPath: temp.url.appendingPathComponent(imageName).path
-                        )
-                        if imageExists {
-                            await stateStore.setNamespace(
-                                image: imageName, plugin: pluginName, values: values
-                            )
-                        }
-                    }
-                }
+                let result = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
 
                 switch result {
-                case .success:
-                    logger.info("[\(pluginName)] hook '\(hook)': success")
-                case .warning:
-                    logger.warning("[\(pluginName)] hook '\(hook)': completed with warnings")
-                case .critical:
-                    logger.error(
-                        "[\(pluginName)] hook '\(hook)': critical failure — aborting pipeline"
-                    )
+                case .success, .warning, .skipped:
+                    continue
+                case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
                     blocklist.block(pluginName)
                     return false
                 }
@@ -181,6 +97,239 @@ struct PipelineOrchestrator: Sendable {
         }
 
         return true
+    }
+
+    // MARK: - Internal Types
+
+    private struct HookContext {
+        let pluginName: String
+        let hook: String
+        let temp: TempFolder
+        let stateStore: StateStore
+        let dryRun: Bool
+        let nonInteractive: Bool
+    }
+
+    private enum HookResult {
+        case success, warning, critical, skipped
+        case pluginNotFound, secretMissing, ruleCompilationFailed
+    }
+
+    // MARK: - Per-Plugin Hook Execution
+
+    private func runPluginHook(
+        _ ctx: HookContext,
+        ruleEvaluatorCache: inout [String: RuleEvaluator]
+    ) async throws -> HookResult {
+        guard let loadedPlugin = try loadPlugin(named: ctx.pluginName) else {
+            logger.error("Plugin '\(ctx.pluginName)' not found in \(pluginsDirectory.path)")
+            return .pluginNotFound
+        }
+
+        // Fetch secrets
+        let secrets: [String: String]
+        do {
+            secrets = try fetchSecrets(for: loadedPlugin)
+        } catch {
+            return .secretMissing
+        }
+
+        // Resolve execution log path
+        let execLogPath = pluginsDirectory
+            .appendingPathComponent(ctx.pluginName)
+            .appendingPathComponent("logs/execution.jsonl")
+        try FileManager.default.createDirectory(
+            at: execLogPath.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let pluginConfigURL = pluginsDirectory
+            .appendingPathComponent(ctx.pluginName)
+            .appendingPathComponent("config.json")
+        let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
+
+        // Evaluate declarative rules if present
+        let manifestDeps = loadedPlugin.manifest.dependencies ?? []
+        let rulesDidRun: Bool
+        do {
+            rulesDidRun = try await evaluateRules(
+                ctx, manifestDeps: manifestDeps,
+                pluginConfig: pluginConfig,
+                ruleEvaluatorCache: &ruleEvaluatorCache
+            )
+        } catch {
+            logger.error("[\(ctx.pluginName)] rule compilation failed: \(error.localizedDescription)")
+            return .ruleCompilationFailed
+        }
+
+        // Skip binary execution if no command is configured
+        let hookConfig = loadedPlugin.manifest.hooks[ctx.hook]
+        guard hookConfig?.command != nil else {
+            if rulesDidRun {
+                logger.info("[\(ctx.pluginName)] hook '\(ctx.hook)': rules evaluated (no binary)")
+            } else {
+                logger.debug("[\(ctx.pluginName)] hook '\(ctx.hook)': no command and no rules — skipping")
+            }
+            return .skipped
+        }
+
+        // Build state and run binary
+        return try await runBinary(
+            ctx, loadedPlugin: loadedPlugin,
+            secrets: secrets, pluginConfig: pluginConfig,
+            hookConfig: hookConfig, manifestDeps: manifestDeps,
+            rulesDidRun: rulesDidRun, execLogPath: execLogPath
+        )
+    }
+
+    // MARK: - Rule Evaluation
+
+    private func evaluateRules(
+        _ ctx: HookContext,
+        manifestDeps: [String],
+        pluginConfig: PluginConfig,
+        ruleEvaluatorCache: inout [String: RuleEvaluator]
+    ) async throws -> Bool {
+        guard !pluginConfig.rules.isEmpty else { return false }
+
+        let evaluator: RuleEvaluator
+        if let cached = ruleEvaluatorCache[ctx.pluginName] {
+            evaluator = cached
+        } else {
+            evaluator = try RuleEvaluator(
+                rules: pluginConfig.rules,
+                nonInteractive: ctx.nonInteractive,
+                logger: logger
+            )
+            ruleEvaluatorCache[ctx.pluginName] = evaluator
+        }
+
+        var didRun = false
+        for imageName in await ctx.stateStore.allImageNames {
+            let resolved = await ctx.stateStore.resolve(
+                image: imageName, dependencies: manifestDeps + ["original", ctx.pluginName]
+            )
+            let ruleOutput = evaluator.evaluate(hook: ctx.hook, state: resolved)
+            if !ruleOutput.isEmpty {
+                await ctx.stateStore.mergeNamespace(
+                    image: imageName, plugin: ctx.pluginName, values: ruleOutput
+                )
+                didRun = true
+            }
+        }
+        return didRun
+    }
+
+    // MARK: - Binary Execution
+
+    // swiftlint:disable:next function_parameter_count
+    private func runBinary(
+        _ ctx: HookContext,
+        loadedPlugin: LoadedPlugin,
+        secrets: [String: String],
+        pluginConfig: PluginConfig,
+        hookConfig: PluginManifest.HookConfig?,
+        manifestDeps: [String],
+        rulesDidRun: Bool,
+        execLogPath: URL
+    ) async throws -> HookResult {
+        let runner = PluginRunner(
+            plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig
+        )
+
+        // Build state payload for JSON protocol plugins with dependencies
+        let proto = hookConfig?.pluginProtocol ?? .json
+        let pluginState = await buildStatePayload(
+            proto: proto, manifestDeps: manifestDeps,
+            pluginName: ctx.pluginName, rulesDidRun: rulesDidRun,
+            stateStore: ctx.stateStore
+        )
+
+        logger.info("Running plugin '\(ctx.pluginName)' for hook '\(ctx.hook)'")
+        let (result, returnedState) = try await runner.run(
+            hook: ctx.hook,
+            tempFolder: ctx.temp,
+            executionLogPath: execLogPath,
+            dryRun: ctx.dryRun,
+            state: pluginState
+        )
+
+        // Store returned state under the plugin's namespace
+        if let returnedState {
+            for (imageName, values) in returnedState {
+                let imageExists = FileManager.default.fileExists(
+                    atPath: ctx.temp.url.appendingPathComponent(imageName).path
+                )
+                guard imageExists else { continue }
+                if rulesDidRun {
+                    await ctx.stateStore.mergeNamespace(
+                        image: imageName, plugin: ctx.pluginName, values: values
+                    )
+                } else {
+                    await ctx.stateStore.setNamespace(
+                        image: imageName, plugin: ctx.pluginName, values: values
+                    )
+                }
+            }
+        }
+
+        switch result {
+        case .success:
+            logger.info("[\(ctx.pluginName)] hook '\(ctx.hook)': success")
+            return .success
+        case .warning:
+            logger.warning("[\(ctx.pluginName)] hook '\(ctx.hook)': completed with warnings")
+            return .warning
+        case .critical:
+            logger.error(
+                "[\(ctx.pluginName)] hook '\(ctx.hook)': critical failure — aborting pipeline"
+            )
+            return .critical
+        }
+    }
+
+    // MARK: - State Payload
+
+    private func buildStatePayload(
+        proto: PluginManifest.PluginProtocol,
+        manifestDeps: [String],
+        pluginName: String,
+        rulesDidRun: Bool,
+        stateStore: StateStore
+    ) async -> [String: [String: [String: JSONValue]]]? {
+        guard proto == .json, !manifestDeps.isEmpty || rulesDidRun else { return nil }
+
+        var statePayload: [String: [String: [String: JSONValue]]] = [:]
+        let allDeps = rulesDidRun ? manifestDeps + [pluginName] : manifestDeps
+        for imageName in await stateStore.allImageNames {
+            let resolved = await stateStore.resolve(
+                image: imageName, dependencies: allDeps
+            )
+            if !resolved.isEmpty {
+                statePayload[imageName] = resolved
+            }
+        }
+        return statePayload.isEmpty ? nil : statePayload
+    }
+
+    // MARK: - Dependency Validation
+
+    private func validateDependencies(pipeline: [String: [String]]) throws {
+        var allManifests: [PluginManifest] = []
+        for hook in PluginManifest.canonicalHooks {
+            for pluginName in pipeline[hook] ?? [] {
+                let name = pluginName.split(separator: ":").first.map(String.init) ?? pluginName
+                if let loaded = try loadPlugin(named: name) {
+                    if !allManifests.contains(where: { $0.name == loaded.manifest.name }) {
+                        allManifests.append(loaded.manifest)
+                    }
+                }
+            }
+        }
+        if let error = DependencyValidator.validate(manifests: allManifests, pipeline: pipeline) {
+            logger.error("Dependency validation failed: \(error)")
+            throw PipelineError.dependencyValidationFailed(error)
+        }
     }
 
     private func loadPlugin(named name: String) throws -> LoadedPlugin? {
@@ -193,8 +342,6 @@ struct PipelineOrchestrator: Sendable {
     }
 
     /// Fetches all declared secrets for a plugin from the secret store.
-    /// Returns the secret map on success.
-    /// Throws if any declared secret is missing — missing secrets are a critical failure per spec.
     private func fetchSecrets(for plugin: LoadedPlugin) throws -> [String: String] {
         var result: [String: String] = [:]
         for key in plugin.manifest.secretKeys {
@@ -210,5 +357,18 @@ struct PipelineOrchestrator: Sendable {
             }
         }
         return result
+    }
+}
+
+// MARK: - Pipeline Errors
+
+enum PipelineError: Error, LocalizedError {
+    case dependencyValidationFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .dependencyValidationFailed(msg):
+            "Dependency validation failed: \(msg)"
+        }
     }
 }

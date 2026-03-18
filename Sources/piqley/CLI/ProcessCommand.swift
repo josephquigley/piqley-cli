@@ -20,6 +20,9 @@ struct ProcessCommand: AsyncParsableCommand {
     @Flag(help: "Delete the source folder and its contents after a successful run")
     var deleteSourceFolder = false
 
+    @Flag(help: "Skip interactive prompts; drop invalid rules with warnings")
+    var nonInteractive = false
+
     private var logger: Logger { Logger(label: "piqley.process") }
 
     func run() async throws {
@@ -47,7 +50,7 @@ struct ProcessCommand: AsyncParsableCommand {
             secretStore: secretStore
         )
 
-        let succeeded = try await orchestrator.run(sourceURL: sourceURL, dryRun: dryRun)
+        let succeeded = try await orchestrator.run(sourceURL: sourceURL, dryRun: dryRun, nonInteractive: nonInteractive)
 
         if succeeded, !dryRun {
             if deleteSourceFolder {

@@ -244,6 +244,24 @@ struct PluginManifestTests {
         #expect(manifest.dependencies == ["hashtag", "original"])
     }
 
+    @Test("hook with no command decodes with nil command")
+    func testNoCommand() throws {
+        let json = """
+        {
+          "name": "rules-only",
+          "pluginProtocolVersion": "1",
+          "hooks": {
+            "pre-process": {}
+          }
+        }
+        """
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let hook = try #require(manifest.hooks["pre-process"])
+        #expect(hook.command == nil)
+        #expect(hook.args.isEmpty)
+        #expect(hook.timeout == nil)
+    }
+
     @Test("absent dependencies decodes to nil")
     func testNoDependencies() throws {
         let json = """

@@ -51,7 +51,7 @@ struct PluginManifest: Codable, Sendable {
     }
 
     struct HookConfig: Codable, Sendable {
-        let command: String
+        let command: String?
         let args: [String]
         let timeout: Int?
         let pluginProtocol: PluginProtocol?
@@ -64,6 +64,38 @@ struct PluginManifest: Codable, Sendable {
             case command, args, timeout
             case pluginProtocol = "protocol"
             case successCodes, warningCodes, criticalCodes, batchProxy
+        }
+
+        init(
+            command: String? = nil,
+            args: [String] = [],
+            timeout: Int? = nil,
+            pluginProtocol: PluginProtocol? = nil,
+            successCodes: [Int32]? = nil,
+            warningCodes: [Int32]? = nil,
+            criticalCodes: [Int32]? = nil,
+            batchProxy: BatchProxyConfig? = nil
+        ) {
+            self.command = command
+            self.args = args
+            self.timeout = timeout
+            self.pluginProtocol = pluginProtocol
+            self.successCodes = successCodes
+            self.warningCodes = warningCodes
+            self.criticalCodes = criticalCodes
+            self.batchProxy = batchProxy
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            command = try container.decodeIfPresent(String.self, forKey: .command)
+            args = try (container.decodeIfPresent([String].self, forKey: .args)) ?? []
+            timeout = try container.decodeIfPresent(Int.self, forKey: .timeout)
+            pluginProtocol = try container.decodeIfPresent(PluginProtocol.self, forKey: .pluginProtocol)
+            successCodes = try container.decodeIfPresent([Int32].self, forKey: .successCodes)
+            warningCodes = try container.decodeIfPresent([Int32].self, forKey: .warningCodes)
+            criticalCodes = try container.decodeIfPresent([Int32].self, forKey: .criticalCodes)
+            batchProxy = try container.decodeIfPresent(BatchProxyConfig.self, forKey: .batchProxy)
         }
 
         func makeEvaluator() -> ExitCodeEvaluator {

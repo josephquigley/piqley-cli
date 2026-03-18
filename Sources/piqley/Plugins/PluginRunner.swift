@@ -24,6 +24,11 @@ struct PluginRunner: Sendable {
             return (.critical, nil)
         }
 
+        guard let command = hookConfig.command else {
+            logger.error("Plugin '\(plugin.name)' hook '\(hook)': no command specified")
+            return (.critical, nil)
+        }
+
         let proto = hookConfig.pluginProtocol ?? .json
 
         if proto == .json, hookConfig.batchProxy != nil {
@@ -51,7 +56,7 @@ struct PluginRunner: Sendable {
             dryRun: dryRun
         )
         let args = substitute(args: hookConfig.args, environment: environment)
-        let executable = resolveExecutable(hookConfig.command)
+        let executable = resolveExecutable(command)
 
         switch proto {
         case .json:
@@ -267,7 +272,7 @@ struct PluginRunner: Sendable {
                 dryRun: context.dryRun
             )
             let args = substitute(args: context.hookConfig.args, environment: environment)
-            let executable = resolveExecutable(context.hookConfig.command)
+            let executable = resolveExecutable(context.hookConfig.command!)
             let result = try await runPipe(
                 executable: executable,
                 args: args,

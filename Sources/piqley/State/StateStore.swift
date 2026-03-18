@@ -13,6 +13,21 @@ actor StateStore {
         images[image]![plugin] = values
     }
 
+    /// Merges values into a plugin's namespace for a specific image.
+    /// New keys are added, existing keys are overwritten. Keys not in `values` are preserved.
+    func mergeNamespace(image: String, plugin: String, values: [String: JSONValue]) {
+        if images[image] == nil {
+            images[image] = [:]
+        }
+        if images[image]![plugin] == nil {
+            images[image]![plugin] = values
+        } else {
+            for (key, value) in values {
+                images[image]![plugin]![key] = value
+            }
+        }
+    }
+
     /// Resolve state for an image, returning only namespaces listed in dependencies.
     func resolve(image: String, dependencies: [String]) -> [String: [String: JSONValue]] {
         guard let namespaces = images[image] else { return [:] }

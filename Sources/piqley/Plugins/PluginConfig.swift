@@ -4,8 +4,20 @@ import Foundation
 struct PluginConfig: Codable, Sendable {
     var values: [String: JSONValue] = [:]
     var isSetUp: Bool?
+    var rules: [Rule] = []
+
+    private enum CodingKeys: String, CodingKey {
+        case values, isSetUp, rules
+    }
 
     init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        values = (try? container.decodeIfPresent([String: JSONValue].self, forKey: .values)) ?? [:]
+        isSetUp = try container.decodeIfPresent(Bool.self, forKey: .isSetUp)
+        rules = (try? container.decodeIfPresent([Rule].self, forKey: .rules)) ?? []
+    }
 
     static func load(from url: URL) throws -> PluginConfig {
         let data = try Data(contentsOf: url)

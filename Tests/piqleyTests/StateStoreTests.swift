@@ -54,6 +54,46 @@ struct StateStoreTests {
         #expect(r2["hashtag"]?["a"] == .string("2"))
     }
 
+    @Test("mergeNamespace adds new fields")
+    func testMergeAddsNew() async {
+        let store = StateStore()
+        await store.setNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: ["a": .string("1")])
+        await store.mergeNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: ["b": .string("2")])
+        let resolved = await store.resolve(image: "IMG_001.jpg", dependencies: ["hashtag"])
+        #expect(resolved["hashtag"]?["a"] == .string("1"))
+        #expect(resolved["hashtag"]?["b"] == .string("2"))
+    }
+
+    @Test("mergeNamespace overwrites existing fields")
+    func testMergeOverwrites() async {
+        let store = StateStore()
+        await store.setNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: ["a": .string("old")])
+        await store.mergeNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: ["a": .string("new")])
+        let resolved = await store.resolve(image: "IMG_001.jpg", dependencies: ["hashtag"])
+        #expect(resolved["hashtag"]?["a"] == .string("new"))
+    }
+
+    @Test("mergeNamespace preserves fields not in new values")
+    func testMergePreserves() async {
+        let store = StateStore()
+        await store.setNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: [
+            "a": .string("1"),
+            "b": .string("2"),
+        ])
+        await store.mergeNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: ["b": .string("updated")])
+        let resolved = await store.resolve(image: "IMG_001.jpg", dependencies: ["hashtag"])
+        #expect(resolved["hashtag"]?["a"] == .string("1"))
+        #expect(resolved["hashtag"]?["b"] == .string("updated"))
+    }
+
+    @Test("mergeNamespace creates namespace if none exists")
+    func testMergeCreatesNamespace() async {
+        let store = StateStore()
+        await store.mergeNamespace(image: "IMG_001.jpg", plugin: "hashtag", values: ["a": .string("1")])
+        let resolved = await store.resolve(image: "IMG_001.jpg", dependencies: ["hashtag"])
+        #expect(resolved["hashtag"]?["a"] == .string("1"))
+    }
+
     @Test("allImageNames returns all images with state")
     func testAllImageNames() async {
         let store = StateStore()
