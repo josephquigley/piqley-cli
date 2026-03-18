@@ -5,9 +5,9 @@
 <h1 align="center">piqley</h1>
 
 <p align="center">
-  A plugin-driven photographer workflow engine for macOS.
+  A plugin-driven photographer workflow engine for macOS (other platforms coming soon).
 </p>
-
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/I3I2LL7Y1)
 ---
 
 Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, email, social media, or your own custom workflow.
