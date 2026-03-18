@@ -23,16 +23,18 @@ If `--name` is not provided, the plugin name is derived from the last path compo
 
 ## Version Resolution
 
-1. Read the CLI's major version from `AppConstants.version`.
-2. Run `git ls-remote --tags <sdk-repo-url>` to list all tags.
-3. Parse tags as semantic versions, filter to those matching the CLI's major version.
+1. Read the CLI's version from `AppConstants.version`.
+2. Run `git ls-remote --tags <sdk-repo-url>` to list all tags. Requires `git` on the user's PATH.
+3. Parse tags as semantic versions. Filter using semver compatibility rules:
+   - For CLI major version `>=1`: match tags with the same major version.
+   - For CLI major version `0`: match tags with the same major AND minor version (per semver, `0.x` releases have no cross-minor compatibility guarantees).
 4. Select the highest matching tag.
 5. Error if no compatible release is found.
 
 ## Skeleton Fetch
 
 1. Download `<sdk-repo-url>/archive/refs/tags/<tag>.tar.gz` to a temporary directory.
-2. Extract the tarball.
+2. Extract the tarball. Note: GitHub (and most hosts) wrap contents in a top-level directory (e.g., `piqley-plugin-sdk-0.1.0/`). The implementation must find the single top-level directory and look inside it.
 3. Locate `Skeletons/<language>/` inside the extracted contents (language is lowercased from the `--language` argument).
 4. Copy the skeleton contents to `target-directory`.
 5. Clean up temporary files.
@@ -105,3 +107,7 @@ The skeleton's `Package.swift` always points to the canonical GitHub URL for the
 - Register `CreateSubcommand` as a new subcommand of the existing `PluginCommand` alongside `setup` and `init`.
 - Reuse `InitSubcommand.validatePluginName` for name validation (or extract to a shared utility).
 - The skeleton files are authored in the `piqley-plugin-sdk` repo, not the CLI repo. The CLI only fetches and templates them.
+
+## Prerequisites
+
+- The `piqley-plugin-sdk` repo must have at least one semver tag and contain `Skeletons/swift/` before this command is usable. The Swift skeleton files should be committed to the SDK repo as part of this work.
