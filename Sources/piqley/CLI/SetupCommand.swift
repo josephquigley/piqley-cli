@@ -10,8 +10,26 @@ struct SetupCommand: AsyncParsableCommand {
 
     private var logger: Logger { Logger(label: "piqley.setup") }
 
+    private static let logo = """
+        (\\____/)
+        / @__@ \\
+       (  (oo)  )
+        `-.~~.-'
+         /    \\
+       @/      \\_
+      (/ /    \\ \\)
+        WW`----'WW
+
+       _ __ (_)  __ _  | |  ___  _   _
+      | '_ \\| | / _` | | | / _ \\| | | |
+      | |_) | || (_| | | ||  __/| |_| |
+      | .__/|_| \\__, | |_| \\___| \\__, |
+      |_|          |_|            |___/
+    """
+
     func run() async throws {
-        print("Welcome to piqley setup.\n")
+        print(Self.logo)
+        print()
 
         var config = AppConfig()
 
