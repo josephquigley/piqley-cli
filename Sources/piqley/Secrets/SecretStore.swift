@@ -21,7 +21,7 @@ extension SecretStore {
     }
 
     private func pluginSecretKey(plugin: String, key: String) -> String {
-        "piqley.plugins.\(plugin).\(key)"
+        SecretNamespace.pluginKey(plugin: plugin, key: key)
     }
 }
 

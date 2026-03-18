@@ -49,7 +49,7 @@ struct PluginSetupScanner {
         if hasSecrets {
             try secretStore.setPluginSecret(
                 plugin: plugin.name,
-                key: "pluginProtocolVersion",
+                key: SecretNamespace.pluginProtocolVersion,
                 value: plugin.manifest.pluginProtocolVersion
             )
         }

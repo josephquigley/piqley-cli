@@ -354,7 +354,7 @@ struct PipelineOrchestrator: Sendable {
                     "[\(plugin.name)] required secret '\(key)' not found: \(error)"
                 )
                 logger.error("Run 'piqley secret set \(plugin.name) \(key)' to configure it.")
-                throw SecretStoreError.notFound(key: "piqley.plugins.\(plugin.name).\(key)")
+                throw SecretStoreError.notFound(key: SecretNamespace.pluginKey(plugin: plugin.name, key: key))
             }
         }
         return result
