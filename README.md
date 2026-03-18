@@ -10,11 +10,11 @@
 
 ---
 
-Piqley processes exported photos and publishes them to any service with an API or CLI — Ghost, WordPress, Squarespace, email, social media, or your own custom workflow.
+Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, email, social media, or your own custom workflow.
 
-Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system) — mix and match first-party and custom plugins into a pipeline that fits your workflow.
+Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system). Mix and match first-party and custom plugins into a pipeline that fits your workflow.
 
-It works with any photo editor that exports to a folder — Lightroom, Capture One, Apple Photos, darktable, RawTherapee — and pairs with [Hazel](https://www.noodlesoft.com) or any folder-watching automation for a fully hands-off workflow.
+It works with any photo editor that exports to a folder (Lightroom, Capture One, Apple Photos, darktable, RawTherapee, etc.) and pairs well with [Hazel](https://www.noodlesoft.com) on macOS or any folder-watching automation for a fully hands-off workflow.
 
 ## Installation
 
@@ -26,7 +26,7 @@ brew install quigs/tools/piqley
 ## Quick Start
 
 ```bash
-# Interactive setup — installs bundled plugins and configures secrets
+# Interactive setup - installs bundled plugins and configures secrets
 piqley setup
 
 # Process a folder of exported photos
@@ -47,18 +47,18 @@ piqley process /path/to/exported/photos
 
 ### Process Options
 
-- `--dry-run` — Preview actions without uploading or emailing
-- `--verbose-results` — Include successful images in result output
-- `--json-results` — Write a single JSON results file instead of individual text files
-- `--results-dir <path>` — Directory to write result files to (default: input folder)
+- `--dry-run` - Preview actions without uploading or emailing
+- `--verbose-results` - Include successful images in result output
+- `--json-results` - Write a single JSON results file instead of individual text files
+- `--results-dir <path>` - Directory to write result files to (default: input folder)
 
 ## Plugin System
 
-Piqley's core is a lightweight orchestrator. All real work — image processing, uploading, scheduling — is handled by plugins running as isolated subprocesses.
+Piqley's core is a lightweight orchestrator. All real work (image processing, uploading, scheduling) is handled by plugins running as isolated subprocesses.
 
 ### How Plugins Work
 
-A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` containing a `manifest.json` and an executable. Any language works — Swift, Python, Go, Bash, or anything else that can read JSON from stdin and write JSON lines to stdout.
+A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` containing a `manifest.json` and an executable. Write plugins in any language: Swift, Python, Go, Bash, or anything else that can read JSON from stdin and write JSON lines to stdout.
 
 ```
 ~/.config/piqley/plugins/my-plugin/
@@ -96,7 +96,7 @@ The pipeline order is configured in `~/.config/piqley/config.json`:
 
 Plugins communicate over stdin/stdout using one of two protocols:
 
-**JSON protocol** (default) — piqley sends a JSON object on stdin, the plugin streams JSON lines back:
+**JSON protocol** (default). Piqley sends a JSON object on stdin and the plugin streams JSON lines back:
 
 ```json
 {"type": "progress", "message": "Uploading photo.jpg..."}
@@ -104,11 +104,11 @@ Plugins communicate over stdin/stdout using one of two protocols:
 {"type": "result", "success": true, "error": null}
 ```
 
-**Pipe protocol** — context is passed via environment variables and stdout/stderr are forwarded directly. Exit code determines success.
+**Pipe protocol.** Context is passed via environment variables and stdout/stderr are forwarded directly. Exit code determines success.
 
 ### Building Plugins
 
-Use the [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) for Swift, Python, Node.js, or Go — or skip the SDK entirely and write a plain executable. See the SDK README for the full manifest schema and protocol details.
+The [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides libraries for Swift, Python, Node.js, and Go. You can also skip the SDK entirely and write a plain executable. See the SDK README for the full manifest schema and protocol details.
 
 ## Development
 
@@ -142,7 +142,7 @@ brew reinstall --HEAD quigs/tools/piqley
 
 Bottles are prebuilt binaries so users don't need Xcode to install.
 
-**Automated (GitHub Actions):** Push a tag and create a GitHub release — the `bottle.yml` workflow builds and uploads a bottle automatically.
+**Automated (GitHub Actions):** Push a tag and create a GitHub release. The `bottle.yml` workflow builds and uploads a bottle automatically.
 
 ```bash
 git tag v1.0.0
