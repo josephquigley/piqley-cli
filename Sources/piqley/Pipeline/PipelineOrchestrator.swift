@@ -146,7 +146,7 @@ struct PipelineOrchestrator: Sendable {
 
         let pluginConfigURL = pluginsDirectory
             .appendingPathComponent(ctx.pluginName)
-            .appendingPathComponent("config.json")
+            .appendingPathComponent(PluginFile.config)
         let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
 
         // Evaluate declarative rules if present
@@ -335,7 +335,7 @@ struct PipelineOrchestrator: Sendable {
 
     private func loadPlugin(named name: String) throws -> LoadedPlugin? {
         let pluginDir = pluginsDirectory.appendingPathComponent(name)
-        let manifestURL = pluginDir.appendingPathComponent("manifest.json")
+        let manifestURL = pluginDir.appendingPathComponent(PluginFile.manifest)
         guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
         let data = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)

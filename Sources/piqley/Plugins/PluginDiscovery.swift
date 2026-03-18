@@ -26,7 +26,7 @@ struct PluginDiscovery: Sendable {
             guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
             let name = url.lastPathComponent
             guard !disabled.contains(name) else { return nil }
-            let manifestURL = url.appendingPathComponent("manifest.json")
+            let manifestURL = url.appendingPathComponent(PluginFile.manifest)
             guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
             let data = try Data(contentsOf: manifestURL)
             let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)

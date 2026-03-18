@@ -22,7 +22,7 @@ struct PluginSetupScanner {
 
     /// Runs setup scan for a single plugin.
     mutating func scan(plugin: LoadedPlugin, force: Bool = false) throws {
-        let configURL = plugin.directory.appendingPathComponent("config.json")
+        let configURL = plugin.directory.appendingPathComponent(PluginFile.config)
         var pluginConfig = force ? PluginConfig() : PluginConfig.load(fromIfExists: configURL)
 
         // Phase 1: Config value resolution
