@@ -1,4 +1,6 @@
 import Foundation
+
+#if canImport(CoreGraphics) && canImport(ImageIO)
 import CoreGraphics
 import ImageIO
 
@@ -60,6 +62,29 @@ enum TestFixtures {
         guard CGImageDestinationFinalize(dest) else { throw TestFixtureError.cannotFinalize }
     }
 }
+#else
+enum TestFixtures {
+    /// On Linux, copy the static test fixture JPEG to the target path.
+    static func createTestJPEG(
+        at path: String,
+        width: Int = 3000,
+        height: Int = 2000,
+        title: String? = nil,
+        description: String? = nil,
+        keywords: [String]? = nil,
+        dateTimeOriginal: String? = "2026:01:15 10:30:00",
+        cameraMake: String? = nil,
+        cameraModel: String? = nil,
+        lensModel: String? = nil,
+        gps: Bool = false
+    ) throws {
+        guard let fixtureURL = Bundle.module.url(forResource: "test", withExtension: "jpg", subdirectory: "Fixtures") else {
+            throw TestFixtureError.cannotCreateImage
+        }
+        try FileManager.default.copyItem(at: fixtureURL, to: URL(fileURLWithPath: path))
+    }
+}
+#endif
 
 enum TestFixtureError: Error, LocalizedError {
     case cannotCreateContext
