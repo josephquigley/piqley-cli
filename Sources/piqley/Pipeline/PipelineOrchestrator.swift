@@ -82,8 +82,8 @@ struct PipelineOrchestrator: Sendable {
                     withIntermediateDirectories: true
                 )
 
-                var pluginConfig = PluginConfig()
-                pluginConfig.values = config.plugins[pluginName] ?? [:]
+                let pluginConfigURL = pluginsDirectory.appendingPathComponent(pluginName).appendingPathComponent("config.json")
+                let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
                 let runner = PluginRunner(plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig)
 
                 logger.info("Running plugin '\(pluginName)' for hook '\(hook)'")
