@@ -64,7 +64,7 @@ struct PluginRunnerTests {
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -82,7 +82,7 @@ struct PluginRunnerTests {
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -100,7 +100,7 @@ struct PluginRunnerTests {
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "post-publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -118,7 +118,7 @@ struct PluginRunnerTests {
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "post-publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -150,7 +150,7 @@ struct PluginRunnerTests {
         let plugin = LoadedPlugin(name: "slow", directory: tempDir, manifest: manifest)
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -189,7 +189,7 @@ struct PluginRunnerTests {
         let plugin = LoadedPlugin(name: "token-test", directory: tempDir, manifest: manifest)
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -224,7 +224,7 @@ struct PluginRunnerTests {
         let plugin = LoadedPlugin(name: "bad", directory: tempDir, manifest: manifest)
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
@@ -287,7 +287,7 @@ struct PluginRunnerTests {
             "retry-count": .number(3)
         ]
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: config)
-        let result = try await runner.run(
+        let (result, _) = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),

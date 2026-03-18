@@ -10,26 +10,29 @@ struct PluginRunner: Sendable {
 
     static let defaultTimeoutSeconds = 30
 
+    /// Runs the plugin for a given hook. Returns the exit code result and any state
+    /// returned by the plugin (JSON protocol only, nil for pipe/batchProxy).
     func run(
         hook: String,
         tempFolder: TempFolder,
         executionLogPath: URL,
-        dryRun: Bool
-    ) async throws -> ExitCodeResult {
+        dryRun: Bool,
+        state: [String: [String: [String: JSONValue]]]? = nil
+    ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
         guard let hookConfig = plugin.manifest.hooks[hook] else {
             logger.error("Plugin '\(plugin.name)' has no config for hook '\(hook)'")
-            return .critical
+            return (.critical, nil)
         }
 
         let proto = hookConfig.pluginProtocol ?? .json
 
         if proto == .json, hookConfig.batchProxy != nil {
             logger.error("Plugin '\(plugin.name)' hook '\(hook)': batchProxy is only valid with pipe protocol")
-            return .critical
+            return (.critical, nil)
         }
 
         if proto == .pipe, let batchProxy = hookConfig.batchProxy {
-            return try await runBatchProxy(context: BatchRunContext(
+            let result = try await runBatchProxy(context: BatchRunContext(
                 hook: hook,
                 hookConfig: hookConfig,
                 batchProxy: batchProxy,
@@ -37,6 +40,7 @@ struct PluginRunner: Sendable {
                 executionLogPath: executionLogPath,
                 dryRun: dryRun
             ))
+            return (result, nil)
         }
 
         let environment = buildEnvironment(
@@ -59,15 +63,17 @@ struct PluginRunner: Sendable {
                 hookConfig: hookConfig,
                 folderPath: tempFolder.url,
                 executionLogPath: executionLogPath,
-                dryRun: dryRun
+                dryRun: dryRun,
+                state: state
             ))
         case .pipe:
-            return try await runPipe(
+            let result = try await runPipe(
                 executable: executable,
                 args: args,
                 environment: environment,
                 hookConfig: hookConfig
             )
+            return (result, nil)
         }
     }
 
@@ -83,9 +89,12 @@ struct PluginRunner: Sendable {
         let folderPath: URL
         let executionLogPath: URL
         let dryRun: Bool
+        let state: [String: [String: [String: JSONValue]]]?
     }
 
-    private func runJSON(context: JSONRunContext) async throws -> ExitCodeResult {
+    private func runJSON(
+        context: JSONRunContext
+    ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: context.executable)
         process.arguments = context.args
@@ -106,7 +115,8 @@ struct PluginRunner: Sendable {
             hook: context.hook,
             folderPath: context.folderPath,
             executionLogPath: context.executionLogPath,
-            dryRun: context.dryRun
+            dryRun: context.dryRun,
+            state: context.state
         )
         if let data = try? JSONEncoder().encode(payload) {
             stdinPipe.fileHandleForWriting.write(data)
@@ -129,10 +139,11 @@ struct PluginRunner: Sendable {
         stderrPipe: Pipe,
         hookConfig: PluginManifest.HookConfig,
         timeoutSeconds: Int
-    ) async -> ExitCodeResult {
+    ) async -> (ExitCodeResult, [String: [String: JSONValue]]?) {
         let evaluator = hookConfig.makeEvaluator()
         let activityTracker = ActivityTracker()
         var gotResult = false
+        var resultState: [String: [String: JSONValue]]?
 
         // Background task reads stderr and updates activity
         let stderrTask = Task {
@@ -169,9 +180,12 @@ struct PluginRunner: Sendable {
                 case "progress":
                     logger.info("[\(plugin.name)]: \(obj.message ?? "")")
                 case "imageResult":
-                    logger.debug("[\(plugin.name)] imageResult: \(obj.filename ?? "") success=\(obj.success ?? false)")
+                    logger.debug(
+                        "[\(plugin.name)] imageResult: \(obj.filename ?? "") success=\(obj.success ?? false)"
+                    )
                 case "result":
                     gotResult = true
+                    resultState = obj.state
                 default:
                     break
                 }
@@ -186,10 +200,10 @@ struct PluginRunner: Sendable {
 
         if !gotResult {
             logger.warning("[\(plugin.name)]: no 'result' line received — treating as critical")
-            return .critical
+            return (.critical, nil)
         }
 
-        return evaluator.evaluate(process.terminationStatus)
+        return (evaluator.evaluate(process.terminationStatus), resultState)
     }
 
     // MARK: - Pipe Protocol
@@ -327,7 +341,8 @@ struct PluginRunner: Sendable {
         hook: String,
         folderPath: URL,
         executionLogPath: URL,
-        dryRun: Bool
+        dryRun: Bool,
+        state: [String: [String: [String: JSONValue]]]? = nil
     ) -> PluginInputPayload {
         PluginInputPayload(
             hook: hook,
@@ -335,7 +350,8 @@ struct PluginRunner: Sendable {
             pluginConfig: pluginConfig.values,
             secrets: secrets,
             executionLogPath: executionLogPath.path,
-            dryRun: dryRun
+            dryRun: dryRun,
+            state: state
         )
     }
 
@@ -356,7 +372,9 @@ struct PluginRunner: Sendable {
             return sort.order == .ascending ? sorted : sorted.reversed()
         default:
             // EXIF/IPTC sort keys require metadata reading — return filename-sorted as fallback
-            logger.warning("batchProxy sort key '\(sort.key)' requires metadata reading — falling back to filename sort")
+            logger.warning(
+                "batchProxy sort key '\(sort.key)' requires metadata reading — falling back to filename sort"
+            )
             return contents.sorted { $0.lastPathComponent < $1.lastPathComponent }
         }
     }
@@ -386,6 +404,7 @@ private struct PluginInputPayload: Encodable {
     let secrets: [String: String]
     let executionLogPath: String
     let dryRun: Bool
+    let state: [String: [String: [String: JSONValue]]]?
 }
 
 private struct PluginOutputLine: Decodable {
@@ -394,4 +413,5 @@ private struct PluginOutputLine: Decodable {
     let filename: String?
     let success: Bool?
     let error: String?
+    let state: [String: [String: JSONValue]]?
 }
