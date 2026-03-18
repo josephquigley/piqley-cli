@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import Logging
+import PiqleyCore
 
 struct ClearCacheCommand: ParsableCommand {
     static let configuration = CommandConfiguration(

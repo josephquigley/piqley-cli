@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import Logging
+import PiqleyCore
 import PiqleyPluginSDK
 
 struct PluginCommand: ParsableCommand {

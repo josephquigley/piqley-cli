@@ -1,4 +1,5 @@
 import Foundation
+import PiqleyCore
 
 protocol TagMatcher: Sendable {
     func matches(_ value: String) -> Bool
