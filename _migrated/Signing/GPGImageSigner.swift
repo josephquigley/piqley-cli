@@ -3,6 +3,7 @@ import ImageIO
 
 struct GPGImageSigner: ImageSigner {
     let config: AppConfig.SigningConfig
+    let keyFingerprint: String
 
     enum SigningError: Error, LocalizedError {
         case gpgNotFound
@@ -49,14 +50,14 @@ struct GPGImageSigner: ImageSigner {
         let contentHash = try extractor.hashFile(at: path)
 
         // 2. Sign the hash with GPG
-        let signature = try gpgSign(data: contentHash, keyFingerprint: config.keyFingerprint)
+        let signature = try gpgSign(data: contentHash, keyFingerprint: keyFingerprint)
 
         // 3. Embed XMP signature fields
         try writeXMPSignature(
             to: path,
             contentHash: contentHash,
             signature: signature,
-            keyFingerprint: config.keyFingerprint,
+            keyFingerprint: keyFingerprint,
             namespace: namespace,
             prefix: config.xmpPrefix
         )
@@ -64,7 +65,7 @@ struct GPGImageSigner: ImageSigner {
         return SigningResult(
             contentHash: contentHash,
             signature: signature,
-            keyFingerprint: config.keyFingerprint
+            keyFingerprint: keyFingerprint
         )
     }
 

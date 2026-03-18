@@ -13,7 +13,7 @@ struct VerifyCommand: ParsableCommand {
     @Option(help: "Assert the signature was made by this specific GPG key fingerprint")
     var keyFingerprint: String?
 
-    @Option(help: "XMP namespace to look for signature in (default: derived from Ghost URL in config)")
+    @Option(help: "XMP namespace to look for signature in (default: derived from config)")
     var xmpNamespace: String?
 
     @Option(help: "XMP prefix to look for signature in (default: piqley)")
@@ -30,28 +30,18 @@ struct VerifyCommand: ParsableCommand {
 
         if let explicitNamespace = xmpNamespace {
             namespace = explicitNamespace
-        } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
-                  let config = try? AppConfig.load(from: AppConfig.configPath.path),
-                  let resolved = config.resolvedSigningConfig,
-                  let resolvedNamespace = resolved.xmpNamespace
+        } else if let config = try? AppConfig.load(),
+                  let signing = config.signing,
+                  let configuredNamespace = signing.xmpNamespace
         {
-            namespace = resolvedNamespace
-        } else if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
-                  let config = try? AppConfig.load(from: AppConfig.configPath.path)
-        {
-            // No signing config, but we have a Ghost URL — derive from it
-            namespace = AppConfig.SigningConfig.deriveXmpNamespace(from: config.ghost.url)
+            namespace = configuredNamespace
         } else {
-            print("No config found and --xmp-namespace not specified. Cannot determine XMP namespace.")
-            print("Use --xmp-namespace to specify the namespace, or run 'piqley setup'.")
+            print("No XMP namespace configured. Use --xmp-namespace or run 'piqley setup'.")
             throw ExitCode(1)
         }
 
         prefix = xmpPrefix ?? {
-            if FileManager.default.fileExists(atPath: AppConfig.configPath.path),
-               let config = try? AppConfig.load(from: AppConfig.configPath.path),
-               let signing = config.signing
-            {
+            if let config = try? AppConfig.load(), let signing = config.signing {
                 return signing.xmpPrefix
             }
             return AppConfig.SigningConfig.defaultXmpPrefix
@@ -138,7 +128,6 @@ struct VerifyCommand: ParsableCommand {
             return false
         }
 
-        // If a specific fingerprint is required, check it
         if let expected = expectedFingerprint {
             return stderr.contains(expected)
         }

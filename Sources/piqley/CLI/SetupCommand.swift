@@ -1,128 +1,107 @@
 import ArgumentParser
 import Foundation
+import Logging
 
-struct SetupCommand: ParsableCommand {
+struct SetupCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "setup",
-        abstract: "Interactive setup — configure Ghost, SMTP, and processing settings"
+        abstract: "Set up piqley configuration and install bundled plugins"
     )
 
-    func run() throws {
-        print("Welcome to \(AppConstants.name) setup!")
-        print("This will walk you through configuring the tool.\n")
+    private var logger: Logger { Logger(label: "piqley.setup") }
 
-        // Ghost
-        let ghostURL = prompt("Ghost CMS URL (e.g., https://quigs.photo):")
-        let windowStart = prompt("Scheduling window start (HH:MM, default 08:00):", default: "08:00")
-        let windowEnd = prompt("Scheduling window end (HH:MM, default 10:00):", default: "10:00")
-        let timezone = prompt("Timezone (e.g., America/New_York):", default: "America/New_York")
+    func run() async throws {
+        print("Welcome to piqley setup.\n")
 
-        // Processing
-        let maxLongEdgeStr = prompt("Max long edge pixels (default 2000):", default: "2000")
-        let maxLongEdge = Int(maxLongEdgeStr) ?? 2000
-        let jpegQualityStr = prompt("JPEG quality 1-100 (default 80):", default: "80")
-        let jpegQuality = Int(jpegQualityStr) ?? 80
+        var config = AppConfig()
 
-        // 365 Project
-        let keyword365 = prompt("365 Project keyword (default \"365 Project\"):", default: "365 Project")
-        let refDate = prompt("365 Project reference date (YYYY-MM-DD, default 2025-12-25):", default: "2025-12-25")
-        let emailTo = prompt("365 Project email address:")
+        // Auto-discover preference
+        let autoDiscoverInput = prompt("Auto-discover new plugins from ~/.config/piqley/plugins/? [Y/n]: ",
+                                       default: "Y")
+        config.autoDiscoverPlugins = autoDiscoverInput.lowercased() != "n"
 
-        // SMTP
-        let smtpHost = prompt("SMTP host:")
-        let smtpPortStr = prompt("SMTP port (default 587):", default: "587")
-        let smtpPort = Int(smtpPortStr) ?? 587
-        let smtpUsername = prompt("SMTP username:")
-        let smtpFrom = prompt("SMTP from address (default: same as username):", default: smtpUsername)
+        // Seed default pipeline with bundled plugins
+        config.pipeline["pre-process"] = ["piqley-metadata", "piqley-resize"]
 
-        // Tag blocklist
-        let blocklistStr = prompt(
-            "Tag blocklist (comma-separated, or empty; use glob: or regex: prefixes for patterns):",
-            default: ""
-        )
-        let blocklist = blocklistStr.isEmpty
-            ? []
-            : blocklistStr.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        // Save config
+        try config.save()
+        print("\nConfig saved to \(AppConfig.configURL.path)")
 
-        // Signing (optional)
-        var signingConfig: AppConfig.SigningConfig?
-        let enableSigning = prompt("Enable image signing? (y/n):", default: "n")
-        if enableSigning.lowercased() == "y" {
-            print("\nAvailable GPG secret keys:")
-            let listProcess = Process()
-            listProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            listProcess.arguments = ["gpg", "--list-secret-keys", "--keyid-format", "long"]
-            listProcess.standardError = FileHandle.standardError
-            do {
-                try listProcess.run()
-                listProcess.waitUntilExit()
-            } catch {
-                print("Could not list GPG keys. Is gnupg installed?")
-            }
+        // Install bundled plugins
+        installBundledPlugins()
 
-            let fingerprint = prompt("GPG key fingerprint:")
-            if !fingerprint.isEmpty {
-                let derivedNs = AppConfig.SigningConfig.deriveXmpNamespace(from: ghostURL)
-                let customNs = prompt("XMP namespace (default: \(derivedNs)):", default: derivedNs)
-                let customPrefix = prompt(
-                    "XMP prefix (default: \(AppConfig.SigningConfig.defaultXmpPrefix)):",
-                    default: AppConfig.SigningConfig.defaultXmpPrefix
-                )
-                signingConfig = AppConfig.SigningConfig(
-                    keyFingerprint: fingerprint,
-                    xmpNamespace: customNs,
-                    xmpPrefix: customPrefix
-                )
+        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+        let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
+        let plugins = try discovery.loadManifests(disabled: config.disabledPlugins)
+
+        if !plugins.isEmpty {
+            print("\nConfiguring plugins...\n")
+            let secretStore = KeychainSecretStore()
+            var scanner = PluginSetupScanner(
+                secretStore: secretStore,
+                inputSource: StdinInputSource()
+            )
+            for plugin in plugins {
+                try scanner.scan(plugin: plugin)
             }
         }
 
-        var config = AppConfig(
-            ghost: .init(
-                url: ghostURL,
-                schedulingWindow: .init(start: windowStart, end: windowEnd, timezone: timezone)
-            ),
-            processing: .init(maxLongEdge: maxLongEdge, jpegQuality: jpegQuality),
-            project365: .init(keyword: keyword365, referenceDate: refDate, emailTo: emailTo),
-            smtp: .init(host: smtpHost, port: smtpPort, username: smtpUsername, from: smtpFrom),
-            tagBlocklist: blocklist
-        )
-        config.signing = signingConfig
-
-        try config.save(to: AppConfig.configPath.path)
-        print("\nConfig saved to \(AppConfig.configPath.path)")
-
-        // Secrets
-        let secretStore = KeychainSecretStore()
-
-        let ghostAPIKey = promptSecret("Ghost Admin API key (id:secret):")
-        try secretStore.set(key: "\(AppConstants.name)-ghost", value: ghostAPIKey)
-        print("Ghost API key saved to Keychain.")
-
-        let smtpPassword = promptSecret("SMTP password:")
-        try secretStore.set(key: "\(AppConstants.name)-smtp", value: smtpPassword)
-        print("SMTP password saved to Keychain.")
-
-        print("\nSetup complete! Run `\(AppConstants.name) process <folder>` to start processing.")
+        print("\nSetup complete. Run 'piqley secret set <plugin> <key>' to configure plugin credentials.")
     }
 
-    private func prompt(_ message: String, default defaultValue: String? = nil) -> String {
-        if let defaultValue {
-            print("\(message) [\(defaultValue)] ", terminator: "")
-        } else {
-            print("\(message) ", terminator: "")
+    // MARK: - Bundled Plugin Install
+
+    private func installBundledPlugins() {
+        // Bundled plugins live alongside the piqley binary at ../lib/piqley/plugins/
+        guard let executablePath = ProcessInfo.processInfo.arguments.first else { return }
+        let execURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath()
+        let bundledPluginsDir = execURL
+            .deletingLastPathComponent() // bin/
+            .deletingLastPathComponent() // prefix/
+            .appendingPathComponent("lib/piqley/plugins")
+
+        guard FileManager.default.fileExists(atPath: bundledPluginsDir.path) else {
+            logger.debug("No bundled plugins directory at \(bundledPluginsDir.path) — skipping")
+            return
         }
-        guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !input.isEmpty
-        else {
-            return defaultValue ?? ""
+
+        let targetDir = PipelineOrchestrator.defaultPluginsDirectory
+        do {
+            let bundled = try FileManager.default.contentsOfDirectory(
+                at: bundledPluginsDir, includingPropertiesForKeys: [.isDirectoryKey]
+            )
+            for src in bundled where (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                let dest = targetDir.appendingPathComponent(src.lastPathComponent)
+                if FileManager.default.fileExists(atPath: dest.path) {
+                    logger.debug("Plugin '\(src.lastPathComponent)' already installed — skipping")
+                    continue
+                }
+                try FileManager.default.createDirectory(
+                    at: dest.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try FileManager.default.copyItem(at: src, to: dest)
+                print("Installed bundled plugin: \(src.lastPathComponent)")
+            }
+        } catch {
+            logger.warning("Failed to install bundled plugins: \(error)")
         }
-        return input
     }
 
-    private func promptSecret(_ message: String) -> String {
-        print("\(message) ", terminator: "")
-        // In a real implementation, you'd disable echo here
-        let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return input
+    // MARK: - Input Helpers
+
+    private func prompt(_ message: String, default defaultValue: String) -> String {
+        print(message, terminator: "")
+        let input = readLine(strippingNewline: true) ?? ""
+        return input.isEmpty ? defaultValue : input
+    }
+
+    private func promptRequired(_ message: String) -> String {
+        while true {
+            print(message, terminator: "")
+            let input = readLine(strippingNewline: true) ?? ""
+            if !input.isEmpty { return input }
+            print("Value is required.")
+        }
     }
 }
