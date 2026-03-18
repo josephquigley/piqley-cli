@@ -1,12 +1,13 @@
 import ArgumentParser
 import Foundation
 import Logging
+import PiqleyPluginSDK
 
 struct PluginCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "plugin",
         abstract: "Manage plugins",
-        subcommands: [SetupSubcommand.self]
+        subcommands: [SetupSubcommand.self, InitSubcommand.self]
     )
 
     struct SetupSubcommand: ParsableCommand {
@@ -54,6 +55,98 @@ struct PluginCommand: ParsableCommand {
             }
 
             print("\nPlugin setup complete.")
+        }
+    }
+
+    struct InitSubcommand: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "init",
+            abstract: "Create a new declarative-only plugin"
+        )
+
+        @Argument(help: "Plugin name")
+        var pluginName: String?
+
+        @Flag(help: "Skip example rules in generated config")
+        var noExamples = false
+
+        @Flag(help: "Non-interactive mode (requires name argument)")
+        var nonInteractive = false
+
+        static func validatePluginName(_ name: String) throws {
+            if name.isEmpty {
+                throw ValidationError("Plugin name must not be empty")
+            }
+            if name == "original" {
+                throw ValidationError("'original' is a reserved name")
+            }
+            if name.contains("/") || name.contains("\\") || name.contains("..") {
+                throw ValidationError("Plugin name must not contain path separators")
+            }
+            if name.contains(where: \.isWhitespace) {
+                throw ValidationError("Plugin name must not contain whitespace")
+            }
+        }
+
+        func run() throws {
+            try execute(pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory)
+        }
+
+        /// Core logic, extracted for testability (injectable plugins directory).
+        func execute(pluginsDirectory: URL) throws {
+            let name: String
+            let hook: Hook
+
+            if nonInteractive {
+                guard let pluginName else {
+                    throw ValidationError("Non-interactive mode requires a plugin name argument")
+                }
+                name = pluginName
+                hook = .preProcess
+            } else {
+                // Interactive mode — implemented later
+                // For now, require name argument in all modes
+                guard let pluginName else {
+                    throw ValidationError("Plugin name argument required (interactive mode not yet implemented)")
+                }
+                name = pluginName
+                hook = .preProcess
+            }
+
+            try Self.validatePluginName(name)
+
+            let pluginDir = pluginsDirectory.appendingPathComponent(name)
+
+            if FileManager.default.fileExists(atPath: pluginDir.path) {
+                throw ValidationError("Plugin '\(name)' already exists at \(pluginDir.path)")
+            }
+
+            try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+
+            let manifest = try buildManifest {
+                Name(name)
+                ProtocolVersion("1")
+                Hooks {
+                    HookEntry(hook)
+                }
+            }
+            try manifest.writeValidated(to: pluginDir)
+
+            let config: PluginConfig = if !noExamples, !nonInteractive {
+                buildConfig {
+                    Rules {
+                        ConfigRule(
+                            match: .field(.original(.model), pattern: .exact("Canon EOS R5")),
+                            emit: .values(field: "tags", ["Canon", "EOS R5"])
+                        )
+                    }
+                }
+            } else {
+                buildConfig {}
+            }
+            try config.write(to: pluginDir)
+
+            print("Created plugin '\(name)' at \(pluginDir.path)")
         }
     }
 }
