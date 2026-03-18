@@ -41,35 +41,65 @@ Remove `platforms: [.macOS(.v13)]` to allow building on Linux. The macOS deploym
 
 Wrap the entire file contents in `#if os(macOS)` / `#endif` so it does not compile on Linux (the `Security` framework is unavailable).
 
-### 5. Modified: `Piqley.swift`
+### 5. Modified: `MetadataExtractor.swift`
 
-Platform-conditional `SecretStore` construction at the point where the store is created:
+Wrap the entire file in `#if canImport(ImageIO)` / `#endif`. ImageIO is unavailable on Linux.
+
+Add a Linux stub that returns an empty dictionary — metadata extraction from EXIF/IPTC is macOS-only for now. The "original" state namespace will be empty on Linux, which is acceptable since plugins can still function without it.
+
+### 6. Factory Function for SecretStore Construction
+
+Add a `makeDefaultSecretStore()` factory function in `SecretStore.swift` to centralize platform branching:
 
 ```swift
-#if os(macOS)
-let secretStore: SecretStore = KeychainSecretStore()
-#else
-let secretStore: SecretStore = FileSecretStore()
-#endif
+func makeDefaultSecretStore() -> any SecretStore {
+    #if os(macOS)
+    KeychainSecretStore()
+    #else
+    FileSecretStore()
+    #endif
+}
 ```
 
-### 6. Modified: `ProcessLock.swift`
+Replace all 5 `KeychainSecretStore()` call sites across 4 files with `makeDefaultSecretStore()`:
+- `ProcessCommand.swift` (line 43)
+- `SetupCommand.swift` (line 57)
+- `SecretCommand.swift` (lines 28, 47)
+- `PluginCommand.swift` (line 36)
+
+### 7. Modified: `ProcessLock.swift`
 
 Replace `(path as NSString).deletingLastPathComponent` with URL-based path manipulation to avoid the NSString Objective-C bridge, which behaves differently on Linux.
 
-### 7. Modified: `TempFolder.swift`
+### 8. Modified: `TempFolder.swift`
 
 Replace `NSTemporaryDirectory()` with `FileManager.default.temporaryDirectory` for cross-platform compatibility.
 
-### 8. Modified: `SecretCommand.swift` and `SecretStore.swift`
+### 9. Modified: `SecretStore.swift`
 
-Platform-conditional user-facing strings:
+**Error enum changes:**
+- Replace `OSStatus` in `SecretStoreError.unexpectedError(status: OSStatus)` with `Int32` (which `OSStatus` aliases on Darwin). This allows the shared error enum to compile on Linux.
+- Make error description strings platform-conditional:
+  - macOS: "Keychain secret not found", "Check Keychain Access.app"
+  - Linux: "Secret not found", "Check ~/.config/piqley/secrets.json"
+
+### 10. Modified: `SecretCommand.swift`
+
+Platform-conditional help text:
 - macOS: references "macOS Keychain"
 - Linux: references "secrets file (~/.config/piqley/secrets.json)"
 
-### 9. Modified: `TestHelpers.swift`
+### 11. Modified: `PipelineOrchestrator.swift`
+
+Update comment on line 100 and log message on line 206 to use generic "secret store" instead of "Keychain".
+
+### 12. Modified: `TestHelpers.swift`
 
 Wrap the CoreGraphics/ImageIO test JPEG generator in `#if os(macOS)`. On Linux, tests load the static JPEG fixture from `Tests/piqleyTests/Fixtures/` instead.
+
+### 13. Modified: `MetadataExtractorTests.swift`
+
+Wrap entire test file in `#if canImport(ImageIO)` since the tests exercise CoreGraphics/ImageIO APIs that are unavailable on Linux.
 
 ## What Does NOT Change
 
@@ -83,3 +113,5 @@ Wrap the CoreGraphics/ImageIO test JPEG generator in `#if os(macOS)`. On Linux, 
 
 - The plain-text secrets file is less secure than Keychain. This is an accepted trade-off, consistent with how many CLI tools (gh, docker) handle credentials on Linux.
 - `flock()` in ProcessLock works on both macOS and Linux with the same semantics for the non-blocking exclusive lock pattern used here. No changes needed to the locking mechanism itself.
+- Metadata extraction (EXIF/IPTC) is macOS-only. On Linux, the "original" state namespace will be empty. This is acceptable for now; a future enhancement could shell out to `exiftool` on Linux.
+- `NSTemporaryDirectory()` actually works on Linux via swift-corelibs-foundation, but `FileManager.default.temporaryDirectory` is the more idiomatic API.
