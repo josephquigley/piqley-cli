@@ -25,7 +25,7 @@ struct AppConfig: Codable, Sendable {
 
     static var configURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/piqley/config.json")
+            .appendingPathComponent(PiqleyPath.config)
     }
 
     static func load(from url: URL = AppConfig.configURL) throws -> AppConfig {

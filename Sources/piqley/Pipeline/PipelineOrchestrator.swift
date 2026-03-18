@@ -11,7 +11,7 @@ struct PipelineOrchestrator: Sendable {
     /// Resolves the default plugins directory.
     static var defaultPluginsDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/piqley/plugins")
+            .appendingPathComponent(PiqleyPath.plugins)
     }
 
     /// Runs the full pipeline for a source folder.

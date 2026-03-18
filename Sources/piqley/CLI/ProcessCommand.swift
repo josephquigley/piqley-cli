@@ -32,7 +32,7 @@ struct ProcessCommand: AsyncParsableCommand {
         }
 
         let lockPath = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/piqley/piqley.lock").path
+            .appendingPathComponent(PiqleyPath.lock).path
         let lock = try ProcessLock(path: lockPath)
         defer { lock.release() }
 

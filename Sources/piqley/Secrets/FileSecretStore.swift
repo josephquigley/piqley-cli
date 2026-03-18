@@ -6,7 +6,7 @@
 
         init() {
             fileURL = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".config/piqley/secrets.json")
+                .appendingPathComponent(PiqleyPath.secrets)
         }
 
         init(fileURL: URL) {
