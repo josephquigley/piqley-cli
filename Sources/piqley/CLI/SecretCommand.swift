@@ -25,7 +25,7 @@ struct SecretCommand: ParsableCommand {
             guard let value = readLine(strippingNewline: true), !value.isEmpty else {
                 throw ValidationError("No value entered")
             }
-            let store = KeychainSecretStore()
+            let store = makeDefaultSecretStore()
             try store.setPluginSecret(plugin: plugin, key: key, value: value)
             print("Stored secret '\(key)' for plugin '\(plugin)'")
         }
@@ -44,7 +44,7 @@ struct SecretCommand: ParsableCommand {
         var key: String
 
         func run() throws {
-            let store = KeychainSecretStore()
+            let store = makeDefaultSecretStore()
             try store.deletePluginSecret(plugin: plugin, key: key)
             print("Deleted secret '\(key)' for plugin '\(plugin)'")
         }

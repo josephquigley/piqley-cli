@@ -54,7 +54,7 @@ struct SetupCommand: AsyncParsableCommand {
 
         if !plugins.isEmpty {
             print("\nConfiguring plugins...\n")
-            let secretStore = KeychainSecretStore()
+            let secretStore = makeDefaultSecretStore()
             var scanner = PluginSetupScanner(
                 secretStore: secretStore,
                 inputSource: StdinInputSource()

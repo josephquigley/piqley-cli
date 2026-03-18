@@ -25,6 +25,14 @@ extension SecretStore {
     }
 }
 
+func makeDefaultSecretStore() -> any SecretStore {
+    #if os(macOS)
+        KeychainSecretStore()
+    #else
+        FileSecretStore()
+    #endif
+}
+
 enum SecretStoreError: Error, LocalizedError {
     case notFound(key: String)
     case unexpectedError(status: Int32)

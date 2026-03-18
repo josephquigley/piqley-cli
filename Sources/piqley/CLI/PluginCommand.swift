@@ -33,7 +33,7 @@ struct PluginCommand: ParsableCommand {
             let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
             let plugins = try discovery.loadManifests(disabled: config.disabledPlugins)
 
-            let secretStore = KeychainSecretStore()
+            let secretStore = makeDefaultSecretStore()
             var scanner = PluginSetupScanner(
                 secretStore: secretStore,
                 inputSource: StdinInputSource()

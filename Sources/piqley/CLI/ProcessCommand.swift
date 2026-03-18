@@ -40,7 +40,7 @@ struct ProcessCommand: AsyncParsableCommand {
             throw ValidationError("Failed to load config: \(formatError(error))\nRun 'piqley setup' to create a config.")
         }
 
-        let secretStore = KeychainSecretStore()
+        let secretStore = makeDefaultSecretStore()
         let orchestrator = PipelineOrchestrator(
             config: config,
             pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory,
