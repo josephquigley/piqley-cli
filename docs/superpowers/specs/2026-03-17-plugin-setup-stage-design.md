@@ -10,6 +10,7 @@ Plugins declare their configuration schema and optional setup commands in `manif
 ~/.config/piqley/plugins/<plugin-name>/
 ├── manifest.json    # Declarative: schema, hooks, setup command (read-only)
 ├── config.json      # Mutable: resolved values, isSetUp flag (written by piqley)
+├── data/            # Plugin working directory (created by piqley on load, cwd for plugin processes)
 └── setup.sh         # Optional: plugin-provided setup binary
 ```
 
@@ -147,6 +148,10 @@ Triggered by:
 - Remove `secrets: [String]` field
 - Add `config: [ConfigEntry]` — tagged enum or struct handling both `key`/`value` and `secret_key` shapes
 - Add `setup: SetupConfig?` — struct with `command` and `args`
+
+### Plugin Working Directory (`data/`)
+
+When a plugin is loaded, piqley creates a `data/` subdirectory inside the plugin's directory if it does not already exist. All plugin processes (hooks and setup binaries) run with `data/` as their current working directory. This ensures any files the plugin writes to cwd land in an isolated location rather than the plugin root.
 
 ### `PluginRunner` Secret Fetching
 
