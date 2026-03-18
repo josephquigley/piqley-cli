@@ -85,7 +85,15 @@ Without examples:
 
 ## Implementation Strategy
 
-Construct `PluginManifest` and `PluginConfig` instances from PiqleyCore types and encode them via `JSONEncoder`. Use `PluginConfig.save(to:)` for config (handles directory creation and pretty-printing). Encode `PluginManifest` the same way. No raw JSON string templates.
+Add `PiqleyPluginSDK` as a dependency of the CLI (alongside `PiqleyCore`). Use the SDK's builder DSL and file-writing helpers:
+
+- `buildManifest { Name(...); ProtocolVersion(...); Hooks { ... } }` to construct the manifest
+- `buildConfig { Rules { ConfigRule(...) } }` to construct the config with example rules
+- `manifest.writeValidated(to:)` to write `manifest.json` (includes validation)
+- `config.write(to:)` to write `config.json`
+- `MatchField.original(.model)`, `MatchPattern.exact(...)`, `RuleEmit.keywords(...)` for typed example rules
+
+This requires adding `PiqleyPluginSDK` to `Package.swift` dependencies and the `piqley` target.
 
 ## Implementation Location
 
@@ -93,6 +101,7 @@ Add `InitSubcommand` to `PluginCommand.swift`, registered in the `subcommands` a
 
 ## Scope
 
+- Add `PiqleyPluginSDK` dependency to `Package.swift`
 - No changes to PiqleyCore
 - No changes to pipeline execution
 - No changes to existing commands
