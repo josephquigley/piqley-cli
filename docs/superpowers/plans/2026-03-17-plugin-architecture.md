@@ -1151,7 +1151,7 @@ struct PluginManifest: Codable, Sendable {
 swift test --filter PluginManifestTests 2>&1 | tail -10
 ```
 
-Expected: All 4 tests pass.
+Expected: All 6 tests pass.
 
 - [ ] **Step 5: Commit**
 
@@ -2871,6 +2871,7 @@ Expected: All tests pass. The following test suites should pass:
 - `PluginManifestTests`
 - `PluginDiscoveryTests`
 - `PluginRunnerTests`
+- `PipelineOrchestratorTests`
 - `ProcessLockTests`
 
 - [ ] **Step 2: Build release**
