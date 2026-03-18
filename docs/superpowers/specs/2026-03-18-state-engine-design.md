@@ -53,9 +53,11 @@ An array of plugin names whose state this plugin needs to read.
 }
 ```
 
+**Reserved names:** `original` is a valid dependency that is always satisfied (it is populated by core, not a plugin). No user plugin may be named `original`.
+
 **Validation at startup:**
-- Every dependency must reference a plugin that exists in the pipeline
-- Every dependency must run before the declaring plugin (based on pipeline order in config)
+- Every dependency (except `original`) must reference a plugin that exists in the pipeline
+- Every dependency must run before the declaring plugin. "Runs before" means the dependency appears in an earlier hook (per canonical hook ordering: pre-process → post-process → publish → schedule → post-publish), or in the same hook at an earlier array index.
 - Circular dependencies are impossible since pipeline order is linear
 - Missing or misordered dependency → fail fast with clear error
 
@@ -119,13 +121,17 @@ hashtag:caption   → "Golden hour at Shelby Bottoms"
 
 **`state` is optional** in both directions — plugins that don't need state ignore it, plugins that don't produce state omit it.
 
+**Partial image responses:** If a plugin's response omits an image from its `state` object, no state is stored for that image under that plugin's namespace. State keys that don't match any image in the temp folder are silently ignored.
+
+**Multi-hook invocations:** If the same plugin runs in multiple hooks, each invocation fully replaces that plugin's namespace for each image present in the response. Keys from a prior invocation that are absent in the new response are removed.
+
 ---
 
 ## Section 4: Metadata Extraction
 
 At pipeline start, after copying images to the temp folder, core reads EXIF/IPTC/XMP from each image and populates the `original` namespace.
 
-- Uses native tag paths as keys (e.g., `IPTC:Keywords`, `EXIF:DateTimeOriginal`, `TIFF:Model`) — no transformation or flattening
+- Keys follow `CGImageSource` property dictionary structure, flattened to `Group:Tag` format (e.g., `IPTC:Keywords`, `EXIF:DateTimeOriginal`, `TIFF:Model`). The group names correspond to `CGImageProperty` dictionary keys (`{IPTC}` → `IPTC`, `{Exif}` → `EXIF`, `{TIFF}` → `TIFF`, etc.).
 - Implemented using `ImageIO`/`CGImageSource` (available on macOS)
 - Extraction happens once, before any plugin runs
 - If an image has no readable metadata, its `original` namespace is an empty object
