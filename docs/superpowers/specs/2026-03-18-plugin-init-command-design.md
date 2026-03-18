@@ -18,7 +18,7 @@ Prompts for:
 1. Plugin name
 2. Which hook to target (from canonical hook list)
 
-Generates `manifest.json` and `config.json` with an example rule.
+Generates `manifest.json` and `config.json` with an example rule. If the chosen hook is not `pre-process`, the example rule includes `"hook": "<chosen-hook>"` in the match config.
 
 ### Interactive + `--no-examples`
 
@@ -56,9 +56,10 @@ With examples:
 
 ```json
 {
+  "values": {},
   "rules": [
     {
-      "match": { "field": "EXIF:Model", "pattern": "exact:Canon EOS R5" },
+      "match": { "field": "EXIF:Model", "pattern": "Canon EOS R5" },
       "emit": { "field": "tags", "values": ["Canon", "EOS R5"] }
     }
   ]
@@ -69,6 +70,7 @@ Without examples:
 
 ```json
 {
+  "values": {},
   "rules": []
 }
 ```
@@ -77,6 +79,9 @@ Without examples:
 
 - Error if plugin directory already exists (prevents overwriting user work)
 - In non-interactive mode, error if `name` argument is omitted
+- Reject reserved name `"original"` (used internally by the state engine)
+- Reject names with path separators, empty strings, or whitespace
+- Create intermediate directories if `~/.config/piqley/plugins/` doesn't exist
 
 ## Implementation Location
 
