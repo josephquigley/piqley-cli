@@ -30,14 +30,24 @@ enum PluginEnvironment {
 }
 ```
 
-Group related constants by domain — one enum per file, not one catch-all:
+Group related constants by domain — one enum per file. Place them in the **lowest package** that needs them:
+
+**PiqleyCore** (shared across CLI and Plugin SDK):
+
+| Domain | Enum | Location |
+|--------|------|----------|
+| Plugin filenames | `PluginFile` | `PiqleyCore/Constants/PluginFile.swift` |
+| Reserved identifiers | `ReservedName` | `PiqleyCore/Constants/ReservedName.swift` |
+| Pattern prefixes | `PatternPrefix` | `PiqleyCore/Constants/PatternPrefix.swift` |
+| Hook stages | `Hook` | `PiqleyCore/Hook.swift` (String-backed enum with cases) |
+
+**piqley-cli** (CLI-only constants):
 
 | Domain | Enum | Location |
 |--------|------|----------|
 | Environment variables | `PluginEnvironment` | `Sources/piqley/Constants/PluginEnvironment.swift` |
 | Filesystem paths | `PiqleyPath` | `Sources/piqley/Constants/PiqleyPath.swift` |
-| Plugin filenames & dirs | `PluginFile` | `Sources/piqley/Constants/PluginFile.swift` |
-| Reserved names & hooks | `ReservedName` | `Sources/piqley/Constants/ReservedName.swift` |
+| Plugin directories | `PluginDirectory` | `Sources/piqley/Constants/PluginDirectory.swift` |
 | Secret namespacing | `SecretNamespace` | `Sources/piqley/Constants/SecretNamespace.swift` |
 
 ### Rules
