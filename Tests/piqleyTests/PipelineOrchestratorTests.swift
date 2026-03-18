@@ -125,7 +125,7 @@ struct PipelineOrchestratorTests {
         let manifest: [String: Any] = [
             "name": "secret-plugin",
             "pluginProtocolVersion": "1",
-            "secrets": ["api-key"],
+            "config": [["secret_key": "api-key", "type": "string"]],
             "hooks": ["publish": ["command": script.path, "args": [], "protocol": "pipe"]]
         ]
         let data = try JSONSerialization.data(withJSONObject: manifest)

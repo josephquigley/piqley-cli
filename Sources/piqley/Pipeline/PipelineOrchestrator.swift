@@ -124,7 +124,7 @@ struct PipelineOrchestrator: Sendable {
     /// Throws if any declared secret is missing — missing secrets are a critical failure per spec.
     private func fetchSecrets(for plugin: LoadedPlugin) throws -> [String: String] {
         var result: [String: String] = [:]
-        for key in plugin.manifest.secrets {
+        for key in plugin.manifest.secretKeys {
             do {
                 let value = try secretStore.getPluginSecret(plugin: plugin.name, key: key)
                 result[key] = value

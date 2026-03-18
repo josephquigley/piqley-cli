@@ -3,19 +3,45 @@ import Foundation
 struct PluginManifest: Codable, Sendable {
     let name: String
     let pluginProtocolVersion: String
-    let secrets: [String]
+    let config: [ConfigEntry]
+    let setup: SetupConfig?
     let hooks: [String: HookConfig]
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
         pluginProtocolVersion = try container.decode(String.self, forKey: .pluginProtocolVersion)
-        secrets = (try? container.decode([String].self, forKey: .secrets)) ?? []
+        config = (try? container.decode([ConfigEntry].self, forKey: .config)) ?? []
+        setup = try? container.decodeIfPresent(SetupConfig.self, forKey: .setup)
         hooks = try container.decode([String: HookConfig].self, forKey: .hooks)
     }
 
+    init(name: String, pluginProtocolVersion: String, config: [ConfigEntry] = [], setup: SetupConfig? = nil, hooks: [String: HookConfig]) {
+        self.name = name
+        self.pluginProtocolVersion = pluginProtocolVersion
+        self.config = config
+        self.setup = setup
+        self.hooks = hooks
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case name, pluginProtocolVersion, secrets, hooks
+        case name, pluginProtocolVersion, config, setup, hooks
+    }
+
+    /// Returns secret key names from config entries with `secret_key`.
+    var secretKeys: [String] {
+        config.compactMap { entry in
+            if case let .secret(secretKey, _) = entry { return secretKey }
+            return nil
+        }
+    }
+
+    /// Returns value entries as tuples for easy iteration.
+    var valueEntries: [(key: String, type: ConfigValueType, value: JSONValue)] {
+        config.compactMap { entry in
+            if case let .value(key, type, value) = entry { return (key, type, value) }
+            return nil
+        }
     }
 
     struct HookConfig: Codable, Sendable {
