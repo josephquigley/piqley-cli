@@ -1,3 +1,4 @@
+#if canImport(ImageIO)
 import Testing
 import Foundation
 @testable import piqley
@@ -72,3 +73,4 @@ struct MetadataExtractorTests {
         #expect(result.isEmpty)
     }
 }
+#endif
