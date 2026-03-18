@@ -1,36 +1,114 @@
-# piqley
+<p align="center">
+  <img src="logo.svg" alt="piqley" width="460"/>
+</p>
 
-A macOS CLI tool that processes Lightroom-exported photos, uploads them to Ghost CMS with scheduling, and emails 365 Project photos. Designed to be invoked by Hazel.
+<h1 align="center">piqley</h1>
+
+<p align="center">
+  A plugin-driven photographer workflow engine for macOS.
+</p>
+
+---
+
+Piqley processes exported photos and publishes them to any service with an API or CLI — Ghost, email, social media, or your own custom workflow.
+
+Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system) — mix and match first-party and custom plugins into a pipeline that fits your workflow.
+
+It works with any photo editor that exports to a folder — Lightroom, Capture One, Apple Photos, darktable, RawTherapee — and pairs with [Hazel](https://www.noodlesoft.com) or any folder-watching automation for a fully hands-off workflow.
 
 ## Installation
 
 ```bash
-brew tap quigs/tools /Users/wash/Developer/tools/quigsphoto-uploader
-brew install --HEAD quigs/tools/piqley
+brew tap quigs/tools https://github.com/josephquigley/piqley.git
+brew install quigs/tools/piqley
 ```
 
-## Usage
-
-### Initial setup
+## Quick Start
 
 ```bash
+# Interactive setup — installs bundled plugins and configures secrets
 piqley setup
-```
 
-Walks you through configuring Ghost CMS, SMTP, processing settings, and stores secrets in the macOS Keychain.
-
-### Process a folder
-
-```bash
+# Process a folder of exported photos
 piqley process /path/to/exported/photos
 ```
 
-Options:
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `piqley setup` | Interactive configuration and bundled plugin installation |
+| `piqley process <path>` | Process and publish photos from a folder |
+| `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
+| `piqley secret set <key>` | Store a secret in the macOS Keychain |
+| `piqley secret delete <key>` | Remove a secret from the Keychain |
+| `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
+| `piqley verify <image>` | Verify a GPG signature on an image |
+
+### Process Options
 
 - `--dry-run` — Preview actions without uploading or emailing
 - `--verbose-results` — Include successful images in result output
 - `--json-results` — Write a single JSON results file instead of individual text files
 - `--results-dir <path>` — Directory to write result files to (default: input folder)
+
+## Plugin System
+
+Piqley's core is a lightweight orchestrator. All real work — image processing, uploading, scheduling — is handled by plugins running as isolated subprocesses.
+
+### How Plugins Work
+
+A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` containing a `manifest.json` and an executable. Any language works — Swift, Python, Go, Bash, or anything else that can read JSON from stdin and write JSON lines to stdout.
+
+```
+~/.config/piqley/plugins/my-plugin/
+├── manifest.json    # Declarative: config schema, hooks, setup command
+├── config.json      # Mutable: resolved values (managed by piqley)
+├── data/            # Plugin working directory
+└── bin/             # Plugin executables
+```
+
+### Pipeline
+
+Plugins register for hooks in a five-stage pipeline:
+
+| Hook | Purpose |
+|------|---------|
+| `pre-process` | Modify images before processing (e.g. watermarking) |
+| `post-process` | Modify images after processing (e.g. resize, metadata) |
+| `publish` | Upload or distribute processed images |
+| `schedule` | Schedule or queue posts |
+| `post-publish` | Clean up, notify, or log after publishing |
+
+The pipeline order is configured in `~/.config/piqley/config.json`:
+
+```json
+{
+  "autoDiscoverPlugins": true,
+  "pipeline": {
+    "post-process": ["piqley-metadata", "piqley-resize"],
+    "publish": ["piqley-ghost"]
+  }
+}
+```
+
+### Communication Protocol
+
+Plugins communicate over stdin/stdout using one of two protocols:
+
+**JSON protocol** (default) — piqley sends a JSON object on stdin, the plugin streams JSON lines back:
+
+```json
+{"type": "progress", "message": "Uploading photo.jpg..."}
+{"type": "imageResult", "filename": "photo.jpg", "success": true}
+{"type": "result", "success": true, "error": null}
+```
+
+**Pipe protocol** — context is passed via environment variables and stdout/stderr are forwarded directly. Exit code determines success.
+
+### Building Plugins
+
+Use the [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) for Swift, Python, Node.js, or Go — or skip the SDK entirely and write a plain executable. See the SDK README for the full manifest schema and protocol details.
 
 ## Development
 
@@ -49,17 +127,14 @@ swift test
 ### Install locally via Homebrew
 
 ```bash
-brew tap quigs/tools /Users/wash/Developer/tools/quigsphoto-uploader
+brew tap quigs/tools /path/to/quigsphoto-uploader
 brew install --HEAD quigs/tools/piqley
 ```
 
 After making changes, rebuild and reinstall:
 
 ```bash
-# Sync the tap with your local repo
 cd /opt/homebrew/Library/Taps/quigs/homebrew-tools && git pull origin main
-
-# Reinstall from HEAD
 brew reinstall --HEAD quigs/tools/piqley
 ```
 
@@ -73,7 +148,6 @@ Bottles are prebuilt binaries so users don't need Xcode to install.
 git tag v1.0.0
 git push origin v1.0.0
 gh release create v1.0.0 --generate-notes
-# Workflow uploads bottle, then update formula with the bottle block from the workflow output
 ```
 
 **Manual (local):**
@@ -84,17 +158,6 @@ gh release create v1.0.0 --generate-notes
 # Paste the bottle block into Formula/piqley.rb
 ```
 
-### Switching to GitHub
+## License
 
-When publishing to GitHub, update `Formula/piqley.rb`:
-
-1. Replace the local `head` URL with the GitHub URL:
-   ```ruby
-   head "https://github.com/josephquigley/piqley.git", branch: "main"
-   ```
-2. Add `url`, `sha256`, and `bottle` block for the tagged release.
-3. Update the tap to point at the GitHub repo:
-   ```bash
-   brew untap quigs/tools
-   brew tap quigs/tools https://github.com/josephquigley/piqley.git
-   ```
+[GPLv3](LICENSE)
