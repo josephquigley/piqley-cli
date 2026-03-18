@@ -25,7 +25,7 @@ The top-level `secrets` array is removed. Secret declarations move into the unif
 
 ### New `config` Array
 
-A unified array of config entries. Two shapes:
+A unified array of config entries. Each entry must have exactly one of `key` or `secret_key` (never both). Two shapes:
 
 **Regular config entry:**
 ```json
@@ -54,13 +54,13 @@ A unified array of config entries. Two shapes:
 {
   "setup": {
     "command": "./setup.sh",
-    "args": ["$PIQLEY_SECRET_API_KEY", "$url"]
+    "args": ["$PIQLEY_SECRET_API_KEY", "$PIQLEY_CONFIG_URL"]
   }
 }
 ```
 
 - `command`: executable path (same resolution rules as hooks — relative to plugin dir)
-- `args`: argument list with env/arg substitution (secrets as `$PIQLEY_SECRET_*`, config values by key name)
+- `args`: argument list with env/arg substitution (secrets as `$PIQLEY_SECRET_*`, config values as `$PIQLEY_CONFIG_*`)
 
 ### Full Manifest Example
 
@@ -107,7 +107,7 @@ Written and managed by piqley. Never edited by plugins directly.
 ## Setup Scan Logic
 
 Triggered by:
-- `piqley plugin setup` (explicit, all plugins or a named plugin)
+- `piqley plugin setup` (explicit, all plugins or a named plugin; `--force` flag clears `isSetUp` and existing config values before scanning)
 - `piqley setup` (after bundled plugin install)
 - Auto-discovery of new plugins
 
@@ -119,14 +119,16 @@ Triggered by:
    - If `values[key]` already exists in `config.json` → skip
    - If manifest `value` is non-null and non-empty-string → prompt with default: `[plugin] quality [80]: `
    - If manifest `value` is null or `""` → prompt, require input: `[plugin] url: `
+   - If user input cannot be parsed as the declared type, re-prompt with an error message
    - Write resolved value to `config.json`
 4. **Secret validation** — for each config entry with `secret_key`:
    - Check keychain for existing value
    - If missing → prompt user, store in keychain via existing `SecretStore`
    - Store `pluginProtocolVersion` in keychain for the plugin
 5. **Setup binary** — if `setup` object exists and `isSetUp != true` in `config.json`:
-   - Build environment: secrets as `PIQLEY_SECRET_*`, config values available for arg substitution
-   - Run setup command
+   - If the setup command does not exist or is not executable, log an error and leave `isSetUp` unset
+   - Build environment: secrets as `PIQLEY_SECRET_*`, config values as `PIQLEY_CONFIG_*`
+   - Run setup command with env/arg substitution
    - If exit 0 → set `isSetUp: true` in `config.json`
    - If non-zero → log error, leave `isSetUp` unset
 
@@ -152,7 +154,7 @@ Currently reads from `manifest.secrets`. Changes to derive the secret list from 
 
 ### `PluginRunner` Config Passing
 
-Currently receives `pluginConfig` from piqley's central `config.json`. Changes to read from the plugin's own `config.json` sidecar `values`.
+Currently receives `pluginConfig` from piqley's central `config.json`. Changes to read from the plugin's own `config.json` sidecar `values`. The `PluginInputPayload` JSON shape sent to hooks remains the same — only the data source changes.
 
 ### `AppConfig` Cleanup
 
