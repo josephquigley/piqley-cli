@@ -13,7 +13,7 @@ struct VerifyCommand: ParsableCommand {
     @Option(help: "Assert the signature was made by this specific GPG key fingerprint")
     var keyFingerprint: String?
 
-    @Option(help: "XMP namespace to look for signature in")
+    @Option(help: "XMP namespace to look for signature in (default: derived from config)")
     var xmpNamespace: String?
 
     @Option(help: "XMP prefix to look for signature in (default: piqley)")
@@ -24,12 +24,28 @@ struct VerifyCommand: ParsableCommand {
             throw ValidationError("File not found: \(imagePath)")
         }
 
-        guard let namespace = xmpNamespace else {
-            print("--xmp-namespace is required (config migration in progress).")
+        // Resolve XMP namespace/prefix: CLI flags > config > error
+        let namespace: String
+        let prefix: String
+
+        if let explicitNamespace = xmpNamespace {
+            namespace = explicitNamespace
+        } else if let config = try? AppConfig.load(),
+                  let signing = config.signing,
+                  let configuredNamespace = signing.xmpNamespace
+        {
+            namespace = configuredNamespace
+        } else {
+            print("No XMP namespace configured. Use --xmp-namespace or run 'piqley setup'.")
             throw ExitCode(1)
         }
 
-        let prefix = xmpPrefix ?? AppConfig.SigningConfig.defaultXmpPrefix
+        prefix = xmpPrefix ?? {
+            if let config = try? AppConfig.load(), let signing = config.signing {
+                return signing.xmpPrefix
+            }
+            return AppConfig.SigningConfig.defaultXmpPrefix
+        }()
 
         // Read XMP signature
         guard let xmp = try XMPSignatureReader.read(
