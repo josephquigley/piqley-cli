@@ -97,7 +97,7 @@ struct PipelineOrchestrator: Sendable {
                     return false
                 }
 
-                // Fetch secrets from Keychain — missing secret is a critical failure
+                // Fetch secrets — missing secret is a critical failure
                 let secrets: [String: String]
                 do {
                     secrets = try fetchSecrets(for: loadedPlugin)
@@ -192,7 +192,7 @@ struct PipelineOrchestrator: Sendable {
         return LoadedPlugin(name: name, directory: pluginDir, manifest: manifest)
     }
 
-    /// Fetches all declared secrets for a plugin from the Keychain.
+    /// Fetches all declared secrets for a plugin from the secret store.
     /// Returns the secret map on success.
     /// Throws if any declared secret is missing — missing secrets are a critical failure per spec.
     private func fetchSecrets(for plugin: LoadedPlugin) throws -> [String: String] {
@@ -203,7 +203,7 @@ struct PipelineOrchestrator: Sendable {
                 result[key] = value
             } catch {
                 logger.error(
-                    "[\(plugin.name)] required secret '\(key)' not found in Keychain: \(error)"
+                    "[\(plugin.name)] required secret '\(key)' not found: \(error)"
                 )
                 logger.error("Run 'piqley secret set \(plugin.name) \(key)' to configure it.")
                 throw SecretStoreError.notFound(key: "piqley.plugins.\(plugin.name).\(key)")
