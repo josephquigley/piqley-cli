@@ -77,7 +77,7 @@ struct PluginCommand: ParsableCommand {
             if name.isEmpty {
                 throw ValidationError("Plugin name must not be empty")
             }
-            if name == "original" {
+            if name == ReservedName.original {
                 throw ValidationError("'original' is a reserved name")
             }
             if name.contains("/") || name.contains("\\") || name.contains("..") {

@@ -9,7 +9,7 @@ enum DependencyValidator {
         pipeline: [String: [String]]
     ) -> String? {
         // Check for reserved name "original"
-        for manifest in manifests where manifest.name == "original" {
+        for manifest in manifests where manifest.name == ReservedName.original {
             return "Plugin name 'original' is reserved and cannot be used."
         }
 
@@ -34,7 +34,7 @@ enum DependencyValidator {
             guard let myPos = positionMap[manifest.name] else { continue }
 
             for dep in deps {
-                if dep == "original" { continue }
+                if dep == ReservedName.original { continue }
 
                 guard let depPos = positionMap[dep] else {
                     return "Plugin '\(manifest.name)' depends on '\(dep)' which is not in the pipeline."

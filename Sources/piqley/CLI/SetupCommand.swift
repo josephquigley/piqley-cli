@@ -39,7 +39,7 @@ struct SetupCommand: AsyncParsableCommand {
         config.autoDiscoverPlugins = autoDiscoverInput.lowercased() != "n"
 
         // Seed default pipeline with bundled plugins
-        config.pipeline["pre-process"] = ["piqley-metadata", "piqley-resize"]
+        config.pipeline[HookName.preProcess] = ["piqley-metadata", "piqley-resize"]
 
         // Save config
         try config.save()

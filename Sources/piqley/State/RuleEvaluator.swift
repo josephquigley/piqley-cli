@@ -33,7 +33,7 @@ struct RuleEvaluator: Sendable {
     init(rules: [Rule], nonInteractive: Bool = false, logger: Logger) throws {
         var compiled: [CompiledRule] = []
         for (index, rule) in rules.enumerated() {
-            let hook = rule.match.hook ?? "pre-process"
+            let hook = rule.match.hook ?? HookName.preProcess
 
             // Validate hook
             guard Hook.canonicalOrder.map(\.rawValue).contains(hook) else {

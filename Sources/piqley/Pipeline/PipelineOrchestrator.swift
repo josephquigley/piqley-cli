@@ -49,7 +49,7 @@ struct PipelineOrchestrator: Sendable {
             let metadata = MetadataExtractor.extract(from: imageFile)
             await stateStore.setNamespace(
                 image: imageFile.lastPathComponent,
-                plugin: "original",
+                plugin: ReservedName.original,
                 values: metadata
             )
         }
@@ -208,7 +208,7 @@ struct PipelineOrchestrator: Sendable {
         var didRun = false
         for imageName in await ctx.stateStore.allImageNames {
             let resolved = await ctx.stateStore.resolve(
-                image: imageName, dependencies: manifestDeps + ["original", ctx.pluginName]
+                image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginName]
             )
             let ruleOutput = evaluator.evaluate(hook: ctx.hook, state: resolved)
             if !ruleOutput.isEmpty {
