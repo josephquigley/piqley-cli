@@ -30,6 +30,22 @@ struct SetupCommand: AsyncParsableCommand {
         // Install bundled plugins
         installBundledPlugins()
 
+        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+        let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
+        let plugins = try discovery.loadManifests(disabled: config.disabledPlugins)
+
+        if !plugins.isEmpty {
+            print("\nConfiguring plugins...\n")
+            let secretStore = KeychainSecretStore()
+            var scanner = PluginSetupScanner(
+                secretStore: secretStore,
+                inputSource: StdinInputSource()
+            )
+            for plugin in plugins {
+                try scanner.scan(plugin: plugin)
+            }
+        }
+
         print("\nSetup complete. Run 'piqley secret set <plugin> <key>' to configure plugin credentials.")
     }
 
