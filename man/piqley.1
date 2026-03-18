@@ -28,8 +28,13 @@ Lightroom \(-> Hazel \(-> Ghost workflow.
 .Pp
 Given a folder of exported JPEG images,
 .Nm
+copies them into a temporary working directory and then
 extracts EXIF metadata including keywords, camera model, title, and
 description from each image.
+Plugins never have access to the original files and cannot modify or
+destroy them.
+The temporary directory is automatically cleaned up when processing
+finishes.
 Images are resized according to the configured maximum long-edge and JPEG
 quality settings, then uploaded to Ghost CMS as scheduled posts.
 .Pp

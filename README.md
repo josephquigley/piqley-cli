@@ -56,7 +56,7 @@ piqley process /path/to/exported/photos
 
 ## Plugin System
 
-Piqley's core is a lightweight orchestrator. All real work (image processing, uploading, scheduling) is handled by plugins running as isolated subprocesses.
+Piqley's core is a lightweight orchestrator. All real work (image processing, uploading, scheduling) is handled by plugins running as isolated subprocesses. Plugins never touch your original files — piqley copies images into a temporary folder before the pipeline runs, and plugins only operate on those copies. The temp folder is automatically cleaned up when processing finishes.
 
 ### How Plugins Work
 
