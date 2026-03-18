@@ -96,7 +96,7 @@ struct PluginInitTests {
         #expect(decodedConfig.rules.isEmpty)
     }
 
-    @Test("default mode includes example rule with correct structure")
+    @Test("default mode includes example rules with correct structure")
     func testExampleRuleGeneration() throws {
         let dir = try makeTempPluginsDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -104,13 +104,35 @@ struct PluginInitTests {
         let cmd = try PluginCommand.InitSubcommand.parse(["example-plugin"])
         try cmd.execute(pluginsDirectory: dir)
 
+        // Verify manifest has full example fields
+        let manifestData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/manifest.json"))
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        #expect(manifest.pluginVersion != nil)
+        #expect(manifest.config.count == 3)
+        #expect(manifest.dependencies == ["example-dependency"])
+
+        // Verify config has values and multiple rules
         let configData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/config.json"))
         let config = try JSONDecoder().decode(PluginConfig.self, from: configData)
-        #expect(config.rules.count == 1)
+        #expect(config.values.count == 2)
+        #expect(config.rules.count == 4)
+
+        // First rule: exact match on camera model
         #expect(config.rules[0].match.field == "original:TIFF:Model")
         #expect(config.rules[0].match.pattern == "Canon EOS R5")
         #expect(config.rules[0].emit.field == "tags")
         #expect(config.rules[0].emit.values == ["Canon", "EOS R5"])
+
+        // Second rule: glob match on lens
+        #expect(config.rules[1].match.field == "original:EXIF:LensModel")
+        #expect(config.rules[1].match.pattern == "glob:RF*")
+
+        // Third rule: regex match on ISO
+        #expect(config.rules[2].match.field == "original:EXIF:ISOSpeedRatings")
+
+        // Fourth rule: emits keywords (no explicit field)
+        #expect(config.rules[3].emit.field == nil)
+        #expect(config.rules[3].emit.values == ["Portrait"])
     }
 
     @Test("rejects init when plugin directory already exists")
@@ -138,6 +160,67 @@ struct PluginInitTests {
         let cmd = try PluginCommand.InitSubcommand.parse(["--non-interactive"])
         #expect(throws: (any Error).self) {
             try cmd.execute(pluginsDirectory: dir)
+        }
+    }
+
+    // MARK: - parseHookSelection
+
+    @Test("parses single hook number")
+    func testParseSingleHook() throws {
+        let hooks = Hook.canonicalOrder
+        let result = try PluginCommand.InitSubcommand.parseHookSelection("2", from: hooks)
+        #expect(result == [hooks[1]])
+    }
+
+    @Test("parses range of hooks")
+    func testParseHookRange() throws {
+        let hooks = Hook.canonicalOrder
+        let result = try PluginCommand.InitSubcommand.parseHookSelection("1-4", from: hooks)
+        #expect(result == hooks)
+    }
+
+    @Test("parses comma-separated hooks")
+    func testParseCommaSeparated() throws {
+        let hooks = Hook.canonicalOrder
+        let result = try PluginCommand.InitSubcommand.parseHookSelection("1,3", from: hooks)
+        #expect(result == [hooks[0], hooks[2]])
+    }
+
+    @Test("parses mixed commas and ranges")
+    func testParseMixedSelection() throws {
+        let hooks = Hook.canonicalOrder
+        let result = try PluginCommand.InitSubcommand.parseHookSelection("1,3-4", from: hooks)
+        #expect(result == [hooks[0], hooks[2], hooks[3]])
+    }
+
+    @Test("deduplicates overlapping selections")
+    func testDeduplicatesSelection() throws {
+        let hooks = Hook.canonicalOrder
+        let result = try PluginCommand.InitSubcommand.parseHookSelection("1-3,2", from: hooks)
+        #expect(result == [hooks[0], hooks[1], hooks[2]])
+    }
+
+    @Test("rejects out-of-range hook number")
+    func testRejectsOutOfRange() {
+        let hooks = Hook.canonicalOrder
+        #expect(throws: (any Error).self) {
+            try PluginCommand.InitSubcommand.parseHookSelection("5", from: hooks)
+        }
+    }
+
+    @Test("rejects reversed range")
+    func testRejectsReversedRange() {
+        let hooks = Hook.canonicalOrder
+        #expect(throws: (any Error).self) {
+            try PluginCommand.InitSubcommand.parseHookSelection("3-1", from: hooks)
+        }
+    }
+
+    @Test("rejects non-numeric input")
+    func testRejectsNonNumeric() {
+        let hooks = Hook.canonicalOrder
+        #expect(throws: (any Error).self) {
+            try PluginCommand.InitSubcommand.parseHookSelection("abc", from: hooks)
         }
     }
 }
