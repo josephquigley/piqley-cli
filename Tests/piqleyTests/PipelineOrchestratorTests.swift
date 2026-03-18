@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 /// A fake SecretStore that returns pre-configured values, throws for missing keys.

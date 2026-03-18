@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 @Suite("PluginConfig")
@@ -36,9 +37,7 @@ struct PluginConfigTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let url = tempDir.appendingPathComponent("config.json")
-        var config = PluginConfig()
-        config.values["quality"] = .number(80)
-        config.isSetUp = true
+        let config = PluginConfig(values: ["quality": .number(80)], isSetUp: true)
         try config.save(to: url)
 
         let loaded = try PluginConfig.load(from: url)
@@ -79,13 +78,12 @@ struct PluginConfigTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let url = tempDir.appendingPathComponent("config.json")
-        var config = PluginConfig()
-        config.rules = [
+        let config = PluginConfig(rules: [
             Rule(
                 match: MatchConfig(hook: "pre-process", field: "original:TIFF:Model", pattern: "Sony"),
                 emit: EmitConfig(field: "keywords", values: ["sony"])
             )
-        ]
+        ])
         try config.save(to: url)
 
         let loaded = try PluginConfig.load(from: url)

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 @Suite("DependencyValidator")
@@ -10,7 +11,7 @@ struct DependencyValidatorTests {
             name: name,
             pluginProtocolVersion: "1",
             dependencies: dependencies,
-            hooks: [hook: PluginManifest.HookConfig(
+            hooks: [hook: HookConfig(
                 command: "./bin/tool", args: [], timeout: nil,
                 pluginProtocol: .json, successCodes: nil,
                 warningCodes: nil, criticalCodes: nil, batchProxy: nil

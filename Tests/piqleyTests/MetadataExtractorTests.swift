@@ -1,6 +1,7 @@
 #if canImport(ImageIO)
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 @Suite("MetadataExtractor")

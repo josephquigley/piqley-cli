@@ -7,6 +7,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
+        .package(url: "https://github.com/josephquigley/piqley-core.git", from: "0.1.0"),
     ],
     targets: [
         .executableTarget(
@@ -14,6 +15,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "PiqleyCore", package: "piqley-core"),
             ]
         ),
         .testTarget(

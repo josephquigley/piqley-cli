@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 private func makeTempScript(_ body: String) throws -> URL {

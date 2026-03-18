@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import PiqleyCore
 
 struct LoadedPlugin: Sendable {
     let name: String
@@ -44,7 +45,7 @@ struct PluginDiscovery: Sendable {
     /// Only adds to hooks the plugin actually declares.
     static func autoAppend(discovered: [LoadedPlugin], into pipeline: inout [String: [String]]) {
         for plugin in discovered {
-            for hookName in PluginManifest.canonicalHooks {
+            for hookName in Hook.canonicalOrder.map(\.rawValue) {
                 guard plugin.manifest.hooks[hookName] != nil else { continue }
                 var list = pipeline[hookName] ?? []
                 // Check if plugin name (without any suffix) is already listed

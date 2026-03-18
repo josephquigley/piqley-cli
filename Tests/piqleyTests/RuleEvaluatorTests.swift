@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import Logging
+import PiqleyCore
 @testable import piqley
 
 @Suite("RuleEvaluator")

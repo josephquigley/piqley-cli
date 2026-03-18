@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 // MARK: - Test helpers
@@ -113,8 +114,7 @@ struct PluginSetupScannerTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         // Pre-write config.json with existing value
-        var existingConfig = PluginConfig()
-        existingConfig.values["api-url"] = .string("https://existing.com")
+        let existingConfig = PluginConfig(values: ["api-url": .string("https://existing.com")])
         try existingConfig.save(to: dir.appendingPathComponent("config.json"))
 
         let plugin = LoadedPlugin(name: "test-plugin", directory: dir, manifest: manifest)
@@ -143,8 +143,7 @@ struct PluginSetupScannerTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         // Pre-write config.json with existing value
-        var existingConfig = PluginConfig()
-        existingConfig.values["api-url"] = .string("https://old.com")
+        let existingConfig = PluginConfig(values: ["api-url": .string("https://old.com")])
         try existingConfig.save(to: dir.appendingPathComponent("config.json"))
 
         let plugin = LoadedPlugin(name: "test-plugin", directory: dir, manifest: manifest)

@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import PiqleyCore
 
 struct CompiledRule: Sendable {
     let hook: String
@@ -35,7 +36,7 @@ struct RuleEvaluator: Sendable {
             let hook = rule.match.hook ?? "pre-process"
 
             // Validate hook
-            guard PluginManifest.canonicalHooks.contains(hook) else {
+            guard Hook.canonicalOrder.map(\.rawValue).contains(hook) else {
                 let error = RuleCompilationError.unknownHook(ruleIndex: index, hook: hook)
                 if nonInteractive {
                     logger.warning("\(error.localizedDescription) — skipping rule")

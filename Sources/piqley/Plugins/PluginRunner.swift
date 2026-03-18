@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import PiqleyCore
 
 /// Runs a single plugin hook as a subprocess.
 struct PluginRunner: Sendable {
@@ -90,7 +91,7 @@ struct PluginRunner: Sendable {
         let executable: String
         let args: [String]
         let environment: [String: String]
-        let hookConfig: PluginManifest.HookConfig
+        let hookConfig: HookConfig
         let folderPath: URL
         let executionLogPath: URL
         let dryRun: Bool
@@ -142,7 +143,7 @@ struct PluginRunner: Sendable {
         process: Process,
         stdoutPipe: Pipe,
         stderrPipe: Pipe,
-        hookConfig: PluginManifest.HookConfig,
+        hookConfig: HookConfig,
         timeoutSeconds: Int
     ) async -> (ExitCodeResult, [String: [String: JSONValue]]?) {
         let evaluator = hookConfig.makeEvaluator()
@@ -217,7 +218,7 @@ struct PluginRunner: Sendable {
         executable: String,
         args: [String],
         environment: [String: String],
-        hookConfig: PluginManifest.HookConfig
+        hookConfig: HookConfig
     ) async throws -> ExitCodeResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -253,8 +254,8 @@ struct PluginRunner: Sendable {
     /// Encapsulates the inputs required for a batch-proxy hook invocation.
     private struct BatchRunContext {
         let hook: String
-        let hookConfig: PluginManifest.HookConfig
-        let batchProxy: PluginManifest.BatchProxyConfig
+        let hookConfig: HookConfig
+        let batchProxy: BatchProxyConfig
         let tempFolder: TempFolder
         let executionLogPath: URL
         let dryRun: Bool
@@ -349,20 +350,27 @@ struct PluginRunner: Sendable {
         dryRun: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil
     ) -> PluginInputPayload {
-        PluginInputPayload(
+        let dataPath = plugin.directory.appendingPathComponent("data").path
+        let logPath = plugin.directory.appendingPathComponent("logs").path
+        let pluginVersion = plugin.manifest.pluginVersion ?? SemanticVersion(major: 0, minor: 0, patch: 0)
+        return PluginInputPayload(
             hook: hook,
             folderPath: folderPath.path,
             pluginConfig: pluginConfig.values,
             secrets: secrets,
             executionLogPath: executionLogPath.path,
+            dataPath: dataPath,
+            logPath: logPath,
             dryRun: dryRun,
-            state: state
+            state: state,
+            pluginVersion: pluginVersion,
+            lastExecutedVersion: nil
         )
     }
 
     private func sortedImages(
         in directory: URL,
-        sort: PluginManifest.SortConfig?
+        sort: SortConfig?
     ) throws -> [URL] {
         let contents = try FileManager.default.contentsOfDirectory(
             at: directory,
@@ -398,25 +406,4 @@ private actor ActivityTracker {
     func secondsSinceLastActivity() -> Double {
         Date().timeIntervalSince(lastActivity)
     }
-}
-
-// MARK: - JSON I/O Types
-
-private struct PluginInputPayload: Encodable {
-    let hook: String
-    let folderPath: String
-    let pluginConfig: [String: JSONValue]
-    let secrets: [String: String]
-    let executionLogPath: String
-    let dryRun: Bool
-    let state: [String: [String: [String: JSONValue]]]?
-}
-
-private struct PluginOutputLine: Decodable {
-    let type: String
-    let message: String?
-    let filename: String?
-    let success: Bool?
-    let error: String?
-    let state: [String: [String: JSONValue]]?
 }

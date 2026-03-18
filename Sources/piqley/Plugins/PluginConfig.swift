@@ -1,24 +1,7 @@
 import Foundation
+import PiqleyCore
 
-/// Per-plugin mutable configuration sidecar (`config.json`).
-struct PluginConfig: Codable, Sendable {
-    var values: [String: JSONValue] = [:]
-    var isSetUp: Bool?
-    var rules: [Rule] = []
-
-    private enum CodingKeys: String, CodingKey {
-        case values, isSetUp, rules
-    }
-
-    init() {}
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        values = (try? container.decodeIfPresent([String: JSONValue].self, forKey: .values)) ?? [:]
-        isSetUp = try container.decodeIfPresent(Bool.self, forKey: .isSetUp)
-        rules = (try? container.decodeIfPresent([Rule].self, forKey: .rules)) ?? []
-    }
-
+extension PluginConfig {
     static func load(from url: URL) throws -> PluginConfig {
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(PluginConfig.self, from: data)
@@ -39,5 +22,27 @@ struct PluginConfig: Codable, Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(self)
         try data.write(to: url)
+    }
+
+    /// Returns a new PluginConfig with the given values dictionary.
+    func withValues(_ values: [String: JSONValue]) -> PluginConfig {
+        PluginConfig(values: values, isSetUp: isSetUp, rules: rules)
+    }
+
+    /// Returns a new PluginConfig with a single value updated.
+    func settingValue(_ value: JSONValue, forKey key: String) -> PluginConfig {
+        var newValues = values
+        newValues[key] = value
+        return PluginConfig(values: newValues, isSetUp: isSetUp, rules: rules)
+    }
+
+    /// Returns a new PluginConfig with isSetUp set to the given value.
+    func withIsSetUp(_ isSetUp: Bool?) -> PluginConfig {
+        PluginConfig(values: values, isSetUp: isSetUp, rules: rules)
+    }
+
+    /// Returns a new PluginConfig with the given rules.
+    func withRules(_ rules: [Rule]) -> PluginConfig {
+        PluginConfig(values: values, isSetUp: isSetUp, rules: rules)
     }
 }

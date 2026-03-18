@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import PiqleyCore
 
 struct PipelineOrchestrator: Sendable {
     let config: AppConfig
@@ -71,7 +72,7 @@ struct PipelineOrchestrator: Sendable {
         }
 
         // Execute hooks in order
-        for hook in PluginManifest.canonicalHooks {
+        for hook in Hook.canonicalOrder.map(\.rawValue) {
             for pluginEntry in pipeline[hook] ?? [] {
                 let pluginName = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
 
@@ -228,7 +229,7 @@ struct PipelineOrchestrator: Sendable {
         loadedPlugin: LoadedPlugin,
         secrets: [String: String],
         pluginConfig: PluginConfig,
-        hookConfig: PluginManifest.HookConfig?,
+        hookConfig: HookConfig?,
         manifestDeps: [String],
         rulesDidRun: Bool,
         execLogPath: URL
@@ -238,7 +239,7 @@ struct PipelineOrchestrator: Sendable {
         )
 
         // Build state payload for JSON protocol plugins with dependencies
-        let proto = hookConfig?.pluginProtocol ?? .json
+        let proto: PluginProtocol = hookConfig?.pluginProtocol ?? .json
         let pluginState = await buildStatePayload(
             proto: proto, manifestDeps: manifestDeps,
             pluginName: ctx.pluginName, rulesDidRun: rulesDidRun,
@@ -291,7 +292,7 @@ struct PipelineOrchestrator: Sendable {
     // MARK: - State Payload
 
     private func buildStatePayload(
-        proto: PluginManifest.PluginProtocol,
+        proto: PluginProtocol,
         manifestDeps: [String],
         pluginName: String,
         rulesDidRun: Bool,
@@ -316,7 +317,7 @@ struct PipelineOrchestrator: Sendable {
 
     private func validateDependencies(pipeline: [String: [String]]) throws {
         var allManifests: [PluginManifest] = []
-        for hook in PluginManifest.canonicalHooks {
+        for hook in Hook.canonicalOrder.map(\.rawValue) {
             for pluginName in pipeline[hook] ?? [] {
                 let name = pluginName.split(separator: ":").first.map(String.init) ?? pluginName
                 if let loaded = try loadPlugin(named: name) {

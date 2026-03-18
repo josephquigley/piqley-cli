@@ -1,4 +1,5 @@
 import Foundation
+import PiqleyCore
 
 /// Per-pipeline-run, in-memory state store. Namespaced per image, per plugin.
 actor StateStore {

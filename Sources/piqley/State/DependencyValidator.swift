@@ -1,4 +1,5 @@
 import Foundation
+import PiqleyCore
 
 enum DependencyValidator {
     /// Validates plugin dependencies against pipeline ordering.
@@ -13,7 +14,7 @@ enum DependencyValidator {
         }
 
         // Build a position map: pluginName → (hookIndex, positionInHook)
-        let canonicalHooks = PluginManifest.canonicalHooks
+        let canonicalHooks = Hook.canonicalOrder.map(\.rawValue)
         var positionMap: [String: (hookIndex: Int, position: Int)] = [:]
         for (hookIndex, hookName) in canonicalHooks.enumerated() {
             let plugins = pipeline[hookName] ?? []

@@ -1,5 +1,6 @@
 import Foundation
 import Logging
+import PiqleyCore
 
 /// Abstraction for reading user input. Uses `mutating` so both a mock
 /// (which advances an index) and the real stdin (non-mutating) can conform.
@@ -29,7 +30,7 @@ struct PluginSetupScanner {
             guard case let .value(key, type, defaultValue) = entry else { continue }
             if !force, pluginConfig.values[key] != nil { continue }
             let resolved = promptForValue(pluginName: plugin.name, key: key, type: type, defaultValue: defaultValue)
-            pluginConfig.values[key] = resolved
+            pluginConfig = pluginConfig.settingValue(resolved, forKey: key)
         }
 
         // Phase 2: Secret validation
@@ -70,7 +71,7 @@ struct PluginSetupScanner {
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
             let exitCode = try runSetupBinary(executable: executable, args: args, environment: environment, workingDirectory: dataDir)
             if exitCode == 0 {
-                pluginConfig.isSetUp = true
+                pluginConfig = pluginConfig.withIsSetUp(true)
             } else {
                 logger.error("[\(plugin.name)] Setup binary exited with code \(exitCode)")
             }

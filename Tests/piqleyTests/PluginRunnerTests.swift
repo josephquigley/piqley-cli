@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 // Helpers to write temp shell scripts used as fake plugins
@@ -281,11 +282,10 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
-        var config = PluginConfig()
-        config.values = [
+        let config = PluginConfig(values: [
             "api-url": .string("https://example.com"),
             "retry-count": .number(3)
-        ]
+        ])
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: config)
         let (result, _) = try await runner.run(
             hook: "publish",

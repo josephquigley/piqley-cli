@@ -1,6 +1,7 @@
 #if canImport(ImageIO)
     @preconcurrency import Foundation
     import ImageIO
+    import PiqleyCore
 
     enum MetadataExtractor {
         /// Known CGImageSource property dictionary keys mapped to short group names.
@@ -52,6 +53,7 @@
     }
 #else
     import Foundation
+    import PiqleyCore
 
     enum MetadataExtractor {
         /// Metadata extraction is not available on this platform (requires ImageIO).
