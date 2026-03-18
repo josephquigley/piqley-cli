@@ -36,6 +36,39 @@ struct PipelineOrchestrator: Sendable {
         }
 
         let blocklist = PluginBlocklist()
+        let stateStore = StateStore()
+
+        // Extract metadata from all images into original namespace
+        let imageFiles = try FileManager.default.contentsOfDirectory(
+            at: temp.url, includingPropertiesForKeys: nil
+        ).filter { TempFolder.imageExtensions.contains($0.pathExtension.lowercased()) }
+
+        for imageFile in imageFiles {
+            let metadata = MetadataExtractor.extract(from: imageFile)
+            await stateStore.setNamespace(
+                image: imageFile.lastPathComponent,
+                plugin: "original",
+                values: metadata
+            )
+        }
+
+        // Validate plugin dependencies
+        var allManifests: [PluginManifest] = []
+        for hook in PluginManifest.canonicalHooks {
+            for pluginName in pipeline[hook] ?? [] {
+                let name = pluginName.split(separator: ":").first.map(String.init) ?? pluginName
+                if let loaded = try loadPlugin(named: name) {
+                    if !allManifests.contains(where: { $0.name == loaded.manifest.name }) {
+                        allManifests.append(loaded.manifest)
+                    }
+                }
+            }
+        }
+        if let error = DependencyValidator.validate(manifests: allManifests, pipeline: pipeline) {
+            logger.error("Dependency validation failed: \(error)")
+            try? temp.delete()
+            return false
+        }
 
         defer {
             do {
@@ -82,17 +115,55 @@ struct PipelineOrchestrator: Sendable {
                     withIntermediateDirectories: true
                 )
 
-                let pluginConfigURL = pluginsDirectory.appendingPathComponent(pluginName).appendingPathComponent("config.json")
+                let pluginConfigURL = pluginsDirectory
+                    .appendingPathComponent(pluginName)
+                    .appendingPathComponent("config.json")
                 let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
-                let runner = PluginRunner(plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig)
+                let runner = PluginRunner(
+                    plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig
+                )
+
+                // Build state payload for JSON protocol plugins with dependencies
+                let deps = loadedPlugin.manifest.dependencies ?? []
+                let proto = loadedPlugin.manifest.hooks[hook]?.pluginProtocol ?? .json
+                var pluginState: [String: [String: [String: JSONValue]]]?
+                if proto == .json, !deps.isEmpty {
+                    var statePayload: [String: [String: [String: JSONValue]]] = [:]
+                    for imageName in await stateStore.allImageNames {
+                        let resolved = await stateStore.resolve(
+                            image: imageName, dependencies: deps
+                        )
+                        if !resolved.isEmpty {
+                            statePayload[imageName] = resolved
+                        }
+                    }
+                    if !statePayload.isEmpty {
+                        pluginState = statePayload
+                    }
+                }
 
                 logger.info("Running plugin '\(pluginName)' for hook '\(hook)'")
-                let (result, _) = try await runner.run(
+                let (result, returnedState) = try await runner.run(
                     hook: hook,
                     tempFolder: temp,
                     executionLogPath: execLogPath,
-                    dryRun: dryRun
+                    dryRun: dryRun,
+                    state: pluginState
                 )
+
+                // Store returned state under the plugin's namespace
+                if let returnedState {
+                    for (imageName, values) in returnedState {
+                        let imageExists = FileManager.default.fileExists(
+                            atPath: temp.url.appendingPathComponent(imageName).path
+                        )
+                        if imageExists {
+                            await stateStore.setNamespace(
+                                image: imageName, plugin: pluginName, values: values
+                            )
+                        }
+                    }
+                }
 
                 switch result {
                 case .success:
@@ -100,7 +171,9 @@ struct PipelineOrchestrator: Sendable {
                 case .warning:
                     logger.warning("[\(pluginName)] hook '\(hook)': completed with warnings")
                 case .critical:
-                    logger.error("[\(pluginName)] hook '\(hook)': critical failure — aborting pipeline")
+                    logger.error(
+                        "[\(pluginName)] hook '\(hook)': critical failure — aborting pipeline"
+                    )
                     blocklist.block(pluginName)
                     return false
                 }
@@ -129,7 +202,9 @@ struct PipelineOrchestrator: Sendable {
                 let value = try secretStore.getPluginSecret(plugin: plugin.name, key: key)
                 result[key] = value
             } catch {
-                logger.error("[\(plugin.name)] required secret '\(key)' not found in Keychain: \(error)")
+                logger.error(
+                    "[\(plugin.name)] required secret '\(key)' not found in Keychain: \(error)"
+                )
                 logger.error("Run 'piqley secret set \(plugin.name) \(key)' to configure it.")
                 throw SecretStoreError.notFound(key: "piqley.plugins.\(plugin.name).\(key)")
             }
