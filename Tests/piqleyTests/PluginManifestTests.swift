@@ -229,4 +229,31 @@ struct PluginManifestTests {
         #expect(manifest.secretKeys.isEmpty)
         #expect(manifest.valueEntries.isEmpty)
     }
+
+    @Test("decodes manifest with dependencies")
+    func testDependencies() throws {
+        let json = """
+        {
+          "name": "flickr",
+          "pluginProtocolVersion": "1",
+          "dependencies": ["hashtag", "original"],
+          "hooks": {"publish": {"command": "./tool", "args": []}}
+        }
+        """
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        #expect(manifest.dependencies == ["hashtag", "original"])
+    }
+
+    @Test("absent dependencies decodes to nil")
+    func testNoDependencies() throws {
+        let json = """
+        {
+          "name": "simple",
+          "pluginProtocolVersion": "1",
+          "hooks": {"publish": {"command": "./tool", "args": []}}
+        }
+        """
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        #expect(manifest.dependencies == nil)
+    }
 }
