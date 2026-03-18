@@ -7,19 +7,11 @@ struct AppConfig: Codable, Sendable {
     var pipeline: [String: [String]] = [:]
     /// Plugin name → arbitrary key/value config passed to the plugin via stdin payload.
     var plugins: [String: [String: JSONValue]] = [:]
-    /// Optional signing config retained for the `verify` command.
-    var signing: SigningConfig?
-
-    struct SigningConfig: Codable, Sendable {
-        var xmpNamespace: String?
-        var xmpPrefix: String = "piqley"
-        static let defaultXmpPrefix = "piqley"
-    }
 
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case autoDiscoverPlugins, disabledPlugins, pipeline, plugins, signing
+        case autoDiscoverPlugins, disabledPlugins, pipeline, plugins
     }
 
     init() {}
@@ -30,7 +22,6 @@ struct AppConfig: Codable, Sendable {
         disabledPlugins = try container.decodeIfPresent([String].self, forKey: .disabledPlugins) ?? []
         pipeline = try container.decodeIfPresent([String: [String]].self, forKey: .pipeline) ?? [:]
         plugins = try container.decodeIfPresent([String: [String: JSONValue]].self, forKey: .plugins) ?? [:]
-        signing = try container.decodeIfPresent(SigningConfig.self, forKey: .signing)
     }
 
     // MARK: - Persistence

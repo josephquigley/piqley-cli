@@ -4,7 +4,7 @@ import Foundation
 
 @Suite("PluginDiscovery")
 struct PluginDiscoveryTests {
-    // Create a temp plugins dir with a given set of plugin subdirs (each with a plugin.json)
+    // Create a temp plugins dir with a given set of plugin subdirs (each with a manifest.json)
     func makePluginsDir(plugins: [(name: String, hooks: [String])]) throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
@@ -23,7 +23,7 @@ struct PluginDiscoveryTests {
                 "hooks": hooksDict
             ]
             let data = try JSONSerialization.data(withJSONObject: manifest)
-            try data.write(to: pluginDir.appendingPathComponent("plugin.json"))
+            try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
         }
         return dir
     }
@@ -55,11 +55,11 @@ struct PluginDiscoveryTests {
         #expect(plugins.map(\.name) == ["ghost"])
     }
 
-    @Test("skips directories without plugin.json")
+    @Test("skips directories without manifest.json")
     func testSkipsInvalid() throws {
         let dir = try makePluginsDir(plugins: [(name: "ghost", hooks: ["publish"])])
         defer { try? FileManager.default.removeItem(at: dir) }
-        // Create a subdir without plugin.json
+        // Create a subdir without manifest.json
         let bogus = dir.appendingPathComponent("not-a-plugin")
         try FileManager.default.createDirectory(at: bogus, withIntermediateDirectories: true)
 

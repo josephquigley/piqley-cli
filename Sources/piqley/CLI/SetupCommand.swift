@@ -20,16 +20,6 @@ struct SetupCommand: AsyncParsableCommand {
                                        default: "Y")
         config.autoDiscoverPlugins = autoDiscoverInput.lowercased() != "n"
 
-        // Signing config (optional, for verify command)
-        let setupSigningInput = prompt("Configure GPG signing for the verify command? [y/N]: ",
-                                       default: "N")
-        if setupSigningInput.lowercased() == "y" {
-            var signing = AppConfig.SigningConfig()
-            signing.xmpNamespace = promptRequired("XMP namespace (e.g. https://yoursite.com/xmp/1.0/): ")
-            signing.xmpPrefix = prompt("XMP prefix [piqley]: ", default: "piqley")
-            config.signing = signing
-        }
-
         // Seed default pipeline with bundled plugins
         config.pipeline["pre-process"] = ["piqley-metadata", "piqley-resize"]
 

@@ -35,7 +35,7 @@ private func makePlugin(
         "hooks": [hook: hookDict]
     ]
     let data = try JSONSerialization.data(withJSONObject: manifest)
-    try data.write(to: tempDir.appendingPathComponent("plugin.json"))
+    try data.write(to: tempDir.appendingPathComponent("manifest.json"))
     let decoded = try JSONDecoder().decode(PluginManifest.self, from: data)
     return LoadedPlugin(name: name, directory: tempDir, manifest: decoded)
 }
@@ -147,7 +147,7 @@ struct PluginRunnerTests {
             "pluginProtocolVersion": "1",
             "hooks": ["publish": ["command": script.path, "args": [], "timeout": 1]]
         ] as [String: Any])
-        try manifestData.write(to: tempDir.appendingPathComponent("plugin.json"))
+        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "slow", directory: tempDir, manifest: manifest)
 
@@ -186,7 +186,7 @@ struct PluginRunnerTests {
                 "protocol": "json"
             ]]
         ] as [String: Any])
-        try manifestData.write(to: tempDir.appendingPathComponent("plugin.json"))
+        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "token-test", directory: tempDir, manifest: manifest)
 
@@ -221,7 +221,7 @@ struct PluginRunnerTests {
                 "batchProxy": ["sort": ["key": "filename", "order": "ascending"]] as [String: Any]
             ]]
         ] as [String: Any])
-        try manifestData.write(to: tempDir.appendingPathComponent("plugin.json"))
+        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "bad", directory: tempDir, manifest: manifest)
 

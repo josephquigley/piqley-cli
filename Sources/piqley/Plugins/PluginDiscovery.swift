@@ -12,7 +12,7 @@ struct PluginDiscovery: Sendable {
     private let logger = Logger(label: "piqley.discovery")
 
     /// Loads all plugin manifests from `pluginsDirectory`, skipping disabled plugins and
-    /// directories without a `plugin.json`.
+    /// directories without a `manifest.json`.
     func loadManifests(disabled: [String]) throws -> [LoadedPlugin] {
         guard FileManager.default.fileExists(atPath: pluginsDirectory.path) else { return [] }
 
@@ -25,7 +25,7 @@ struct PluginDiscovery: Sendable {
             guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
             let name = url.lastPathComponent
             guard !disabled.contains(name) else { return nil }
-            let manifestURL = url.appendingPathComponent("plugin.json")
+            let manifestURL = url.appendingPathComponent("manifest.json")
             guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
             let data = try Data(contentsOf: manifestURL)
             let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)

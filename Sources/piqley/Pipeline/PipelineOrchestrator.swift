@@ -112,7 +112,7 @@ struct PipelineOrchestrator: Sendable {
 
     private func loadPlugin(named name: String) throws -> LoadedPlugin? {
         let pluginDir = pluginsDirectory.appendingPathComponent(name)
-        let manifestURL = pluginDir.appendingPathComponent("plugin.json")
+        let manifestURL = pluginDir.appendingPathComponent("manifest.json")
         guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
         let data = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
