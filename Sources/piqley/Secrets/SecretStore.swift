@@ -27,26 +27,52 @@ extension SecretStore {
 
 enum SecretStoreError: Error, LocalizedError {
     case notFound(key: String)
-    case unexpectedError(status: OSStatus)
+    case unexpectedError(status: Int32)
 
     var errorDescription: String? {
         switch self {
-        case let .notFound(key): "Keychain secret not found for key: \(key)"
-        case let .unexpectedError(status): "Keychain error: \(status)"
+        case let .notFound(key):
+            #if os(macOS)
+                "Keychain secret not found for key: \(key)"
+            #else
+                "Secret not found for key: \(key)"
+            #endif
+        case let .unexpectedError(status):
+            #if os(macOS)
+                "Keychain error: \(status)"
+            #else
+                "Secret store error: \(status)"
+            #endif
         }
     }
 
     var failureReason: String? {
         switch self {
-        case .notFound: "No matching entry exists in the macOS Keychain."
-        case .unexpectedError: "The Keychain returned an unexpected status code."
+        case .notFound:
+            #if os(macOS)
+                "No matching entry exists in the macOS Keychain."
+            #else
+                "No matching entry exists in the secrets file."
+            #endif
+        case .unexpectedError:
+            #if os(macOS)
+                "The Keychain returned an unexpected status code."
+            #else
+                "The secret store encountered an unexpected error."
+            #endif
         }
     }
 
     var recoverySuggestion: String? {
         switch self {
-        case .notFound: "Run 'piqley secret set <plugin> <key>' to store the credential."
-        case .unexpectedError: "Check Keychain Access.app for permission issues."
+        case .notFound:
+            "Run 'piqley secret set <plugin> <key>' to store the credential."
+        case .unexpectedError:
+            #if os(macOS)
+                "Check Keychain Access.app for permission issues."
+            #else
+                "Check that ~/.config/piqley/secrets.json is readable."
+            #endif
         }
     }
 }

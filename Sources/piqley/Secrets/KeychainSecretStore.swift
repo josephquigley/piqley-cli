@@ -24,7 +24,7 @@ struct KeychainSecretStore: SecretStore {
             if status == errSecItemNotFound {
                 throw SecretStoreError.notFound(key: key)
             }
-            throw SecretStoreError.unexpectedError(status: status)
+            throw SecretStoreError.unexpectedError(status: Int32(status))
         }
         return value
     }
@@ -40,7 +40,7 @@ struct KeychainSecretStore: SecretStore {
         ]
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
-            throw SecretStoreError.unexpectedError(status: status)
+            throw SecretStoreError.unexpectedError(status: Int32(status))
         }
     }
 
@@ -52,7 +52,7 @@ struct KeychainSecretStore: SecretStore {
         ]
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw SecretStoreError.unexpectedError(status: status)
+            throw SecretStoreError.unexpectedError(status: Int32(status))
         }
     }
 }
