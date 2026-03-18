@@ -67,17 +67,18 @@ Plugins live in `~/.config/piqley/plugins/`. Each plugin is a subfolder containi
 - `name` — plugin slug, must match folder name
 - `pluginProtocolVersion` — protocol contract version piqley uses to determine communication shape
 - `secrets` — list of secret keys the plugin needs; piqley fetches them from Keychain under `piqley.plugins.<name>.<key>`
-- `hooks` — map of hook name to hook config
+- `hooks` — map of hook name to hook config; unknown hook names (not in the canonical five) are logged as warnings and ignored during manifest validation
 - `command` — relative (to plugin dir) or absolute path to executable
-- `args` — argument list; supports `$PIQLEY_*` token substitution
+- `args` — argument list; supports `$PIQLEY_*` token substitution via direct string replacement (not shell expansion — no `$PATH` involvement)
 - `timeout` — inactivity timeout in seconds (default: 30); resets on any stdout/stderr output
 - `protocol` — `"json"` (default) or `"pipe"`
-- `successCodes`, `warningCodes`, `criticalCodes` — exit code arrays; empty arrays default to Unix convention (0 = success, non-zero = critical)
+- `successCodes`, `warningCodes`, `criticalCodes` — exit code arrays; absent or empty arrays both default to Unix convention (0 = success, non-zero = critical); fields may be omitted from the manifest
 
 **Command resolution:**
 - Relative paths resolve against the plugin directory
 - Absolute paths used as-is
 - No `$PATH` resolution — use absolute paths for external tools
+- Piqley spawns all subprocesses directly (no shell intermediary). No shell variable expansion, globbing, or `$PATH` lookup occurs. `$PIQLEY_*` token substitution in `args` is a direct string replacement performed by piqley before spawning.
 
 ---
 
@@ -87,7 +88,7 @@ Plugins are isolated subprocesses. Images are never serialized — only paths ar
 
 ### json protocol (default)
 
-**Piqley → Plugin (stdin):** Single JSON object written at process start.
+**Piqley → Plugin (stdin):** Single JSON object written at process start. `executionLogPath` is fully expanded (tilde resolved to home directory) before being passed.
 
 ```json
 {
@@ -100,14 +101,16 @@ Plugins are isolated subprocesses. Images are never serialized — only paths ar
   "secrets": {
     "api-key": "id:secret"
   },
-  "executionLogPath": "~/.config/piqley/plugins/ghost/logs/execution.jsonl",
+  "executionLogPath": "/Users/wash/.config/piqley/plugins/ghost/logs/execution.jsonl",
   "dryRun": false
 }
 ```
 
+**`$PIQLEY_*` environment variables** are set for ALL protocol types (both `json` and `pipe`): `PIQLEY_FOLDER_PATH`, `PIQLEY_HOOK`, `PIQLEY_DRY_RUN`, `PIQLEY_EXECUTION_LOG_PATH`, `PIQLEY_SECRET_<UPPERCASE_KEY>`. This allows `json` plugins to pass context to any child processes they spawn.
+
 **Plugin → Piqley (stdout):** One JSON object per line, streamed during execution.
 
-Progress lines (optional, resets inactivity timeout):
+Progress lines (optional; each line received on stdout or stderr resets the inactivity timeout before any other evaluation):
 ```json
 {"type": "progress", "message": "Uploading photo.jpg..."}
 ```
@@ -123,16 +126,16 @@ Final result line (required, last line):
 {"type": "result", "success": true, "error": null}
 ```
 
-**Stderr:** Captured and logged by piqley. Never forwarded directly to user output.
+**Stderr:** Captured and logged by piqley. Never forwarded directly to user output. Receiving any stderr line resets the inactivity timeout.
 
-**Invalid stdout JSON:** Treated as a critical failure.
+**Invalid stdout JSON:** Treated as a critical failure. Timeout-reset evaluation always happens before JSON validity check — a malformed line resets the timeout and then triggers a critical failure.
 
 ### pipe protocol
 
 For plugins that don't conform to the piqley JSON spec. Piqley passes context via:
 
-- **Environment variables:** `PIQLEY_FOLDER_PATH`, `PIQLEY_IMAGE_PATH` (batchProxy), `PIQLEY_HOOK`, `PIQLEY_DRY_RUN`, `PIQLEY_EXECUTION_LOG_PATH`, `PIQLEY_SECRET_<UPPERCASE_KEY>`
-- **Token substitution in `args`:** `$PIQLEY_FOLDER_PATH`, `$PIQLEY_IMAGE_PATH`, `$PIQLEY_SECRET_API_KEY`, etc.
+- **Environment variables:** `PIQLEY_FOLDER_PATH`, `PIQLEY_IMAGE_PATH` (batchProxy only), `PIQLEY_HOOK`, `PIQLEY_DRY_RUN`, `PIQLEY_EXECUTION_LOG_PATH`, `PIQLEY_SECRET_<UPPERCASE_KEY>`
+- **Token substitution in `args`:** `$PIQLEY_FOLDER_PATH`, `$PIQLEY_IMAGE_PATH`, `$PIQLEY_SECRET_API_KEY`, etc. — direct string replacement, not shell expansion
 
 stdout/stderr forwarded directly to piqley's output. Exit code determines success/failure. Batch treated as atomic (all images succeed or all fail).
 
@@ -155,7 +158,9 @@ For plugins that can't handle folder batches. Declared in the hook config:
 }
 ```
 
-When `batchProxy` is present, piqley iterates images in the temp folder and invokes the plugin once per image. Sort keys: `filename` (alphabetical) or any EXIF/IPTC tag using `exif:<tag>` / `iptc:<tag>` notation. Order: `ascending` or `descending`.
+`batchProxy` is only valid with `protocol: "pipe"`. Declaring `batchProxy` on a `json`-protocol hook is a manifest validation error — `json` plugins already receive the folder path and stream per-image results themselves.
+
+When `batchProxy` is present, piqley iterates images in the temp folder **sequentially** (never in parallel) and invokes the plugin once per image. stdout/stderr from each per-image invocation is forwarded to piqley's output in order, one invocation at a time. Sort keys: `filename` (alphabetical) or any EXIF/IPTC tag using `exif:<tag>` / `iptc:<tag>` notation. Order: `ascending` or `descending`.
 
 ---
 
@@ -172,7 +177,7 @@ pre-process → post-process → publish → schedule → post-publish
 1. Load `config.json`
 2. If `autoDiscoverPlugins: true`: scan `~/.config/piqley/plugins/`, append newly discovered plugin names to relevant pipeline hook lists (non-required, end of list); skip any in `disabledPlugins`
 3. Validate all pipeline-referenced plugins exist and manifests are readable
-4. Copy all source images to temp folder (`/tmp/piqley-<uuid>/`)
+4. Copy all source images to temp folder (`/tmp/piqley-<uuid>/`). This happens on both normal runs and `--dry-run` — plugins always receive a valid `folderPath`. The `dryRun: true` field in the stdin payload tells plugins not to commit any external changes.
 
 ### Per-hook execution
 
@@ -183,7 +188,7 @@ For each plugin in the hook's pipeline list (in order):
 4. Stream stdout: log `progress` lines; collect `imageResult` lines; await `result` line (json protocol) or watch exit (pipe protocol)
 5. Inactivity timeout: kill process, treat as critical failure if no stdout/stderr received within timeout window
 6. Evaluate exit code against `successCodes`, `warningCodes`, `criticalCodes`
-7. On critical failure: add plugin to per-run blocklist; abort pipeline for current run immediately
+7. On critical failure: add plugin to per-run blocklist; abort the entire pipeline immediately (all remaining hooks and plugins for this run are skipped)
 8. On warning: log warning, continue
 
 ### Per-run blocklist
@@ -194,7 +199,7 @@ In-memory only, scoped to current run. A plugin that fails any hook is blocklist
 
 - Delete temp folder (always, success or failure)
 - If `--delete-source-images` and run succeeded: delete source image files
-- If `--delete-source-folder` and run succeeded: delete source folder recursively
+- If `--delete-source-folder` and run succeeded: delete source folder recursively; `--delete-source-folder` implies `--delete-source-images` (source images are deleted as part of folder deletion)
 - Both flags are no-ops on failure or `--dry-run`
 
 ### Deduplication
@@ -227,7 +232,7 @@ Piqley core has no cache. Each plugin is responsible for its own deduplication v
 
 ### Bundled default plugins
 
-Ship as separate binaries alongside piqley. Installed into `~/.config/piqley/plugins/` by the `setup` command.
+Ship as separate binaries alongside piqley. At install time, `setup` copies them from a path relative to the piqley executable (e.g. `../lib/piqley/plugins/`) into `~/.config/piqley/plugins/`.
 
 | Plugin | Hook | Seeded in pipeline by default |
 |---|---|---|
@@ -307,8 +312,8 @@ piqley verify <image>             # GPG signature verification (unchanged)
 piqley clear-cache                # clears all plugin execution logs
 piqley clear-cache --plugin <name> # clears one plugin's execution log
 
-piqley secret set <plugin> <key>  # prompts for value, stores in Keychain
-piqley secret delete <plugin> <key>
+piqley secret set <plugin> <key>    # prompts for value, stores in Keychain
+piqley secret delete <plugin> <key> # removes from Keychain
 ```
 
 ### Removed
@@ -329,7 +334,7 @@ Sources/piqley/
 │   ├── SetupCommand.swift          # Updated for new config + bundled plugin install
 │   ├── VerifyCommand.swift         # Unchanged
 │   ├── ClearCacheCommand.swift     # Clears plugin execution logs
-│   └── SecretCommand.swift         # piqley secret set/delete
+│   └── SecretCommand.swift         # piqley secret — ParsableCommand group with set/delete subcommands
 ├── Config/
 │   └── Config.swift                # Updated schema
 ├── Plugins/
