@@ -311,19 +311,19 @@ struct PluginRunner: Sendable {
         dryRun: Bool
     ) -> [String: String] {
         var env: [String: String] = [
-            "PIQLEY_FOLDER_PATH": folderPath.path,
-            "PIQLEY_HOOK": hook,
-            "PIQLEY_DRY_RUN": dryRun ? "1" : "0",
-            "PIQLEY_EXECUTION_LOG_PATH": executionLogPath.path,
+            PluginEnvironment.folderPath: folderPath.path,
+            PluginEnvironment.hook: hook,
+            PluginEnvironment.dryRun: dryRun ? "1" : "0",
+            PluginEnvironment.execLogPath: executionLogPath.path,
         ]
         if let imagePath {
-            env["PIQLEY_IMAGE_PATH"] = imagePath.path
+            env[PluginEnvironment.imagePath] = imagePath.path
         }
         for (key, value) in secrets {
-            env["PIQLEY_SECRET_\(key.uppercased().replacingOccurrences(of: "-", with: "_"))"] = value
+            env[PluginEnvironment.secretPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")] = value
         }
         for (key, value) in pluginConfig.values {
-            let envKey = "PIQLEY_CONFIG_" + key.uppercased().replacingOccurrences(of: "-", with: "_")
+            let envKey = PluginEnvironment.configPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")
             env[envKey] = jsonValueToString(value)
         }
         return env

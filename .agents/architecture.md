@@ -2,7 +2,7 @@
 
 ## No Magic Strings
 
-String literals used as keys, identifiers, or lookup values **must not** appear inline. Extract them into dedicated `enum` types — use `String`-backed enums when the raw value matters (e.g. environment variable names, JSON keys, file paths).
+String literals used as keys, identifiers, or lookup values **must not** appear inline. Extract them into caseless enums with `static let` constants in `Sources/piqley/Constants/`.
 
 ### What counts as a magic string
 
@@ -14,43 +14,36 @@ String literals used as keys, identifiers, or lookup values **must not** appear 
 - Secret key prefixes and namespaces (`piqley.plugins.`)
 - Pattern directive prefixes (`regex:`, `glob:`)
 
-### How to fix
+### Pattern
 
-Prefer a `String`-backed enum when values are used for serialization, environment, or filesystem lookup:
+Use **caseless enums** with `static let` constants. This avoids `.rawValue` at call sites and prevents accidental instantiation:
 
 ```swift
-enum EnvironmentKey: String {
-    case folderPath   = "PIQLEY_FOLDER_PATH"
-    case hook         = "PIQLEY_HOOK"
-    case dryRun       = "PIQLEY_DRY_RUN"
-    case execLogPath  = "PIQLEY_EXECUTION_LOG_PATH"
-    case imagePath    = "PIQLEY_IMAGE_PATH"
+enum PluginEnvironment {
+    static let folderPath = "PIQLEY_FOLDER_PATH"
+    static let hook = "PIQLEY_HOOK"
+    static let dryRun = "PIQLEY_DRY_RUN"
+    static let execLogPath = "PIQLEY_EXECUTION_LOG_PATH"
+    static let imagePath = "PIQLEY_IMAGE_PATH"
+    static let secretPrefix = "PIQLEY_SECRET_"
+    static let configPrefix = "PIQLEY_CONFIG_"
 }
 ```
 
-Use a plain enum with static properties when the values are constructed or prefixed:
+Group related constants by domain — one enum per file, not one catch-all:
 
-```swift
-enum EnvironmentPrefix {
-    static let secret = "PIQLEY_SECRET_"
-    static let config = "PIQLEY_CONFIG_"
-}
-```
-
-Group related constants by domain — not in one catch-all `Constants` file:
-
-| Domain | Enum / Type | Location |
-|--------|-------------|----------|
-| Environment variables | `EnvironmentKey`, `EnvironmentPrefix` | `Sources/piqley/Constants/EnvironmentKey.swift` |
+| Domain | Enum | Location |
+|--------|------|----------|
+| Environment variables | `PluginEnvironment` | `Sources/piqley/Constants/PluginEnvironment.swift` |
 | Filesystem paths | `PiqleyPath` | `Sources/piqley/Constants/PiqleyPath.swift` |
-| Plugin filenames & dirs | `PluginFile`, `PluginDirectory` | `Sources/piqley/Constants/PluginFile.swift` |
-| Reserved names & hooks | `ReservedName`, `HookName` | `Sources/piqley/Constants/ReservedName.swift` |
+| Plugin filenames & dirs | `PluginFile` | `Sources/piqley/Constants/PluginFile.swift` |
+| Reserved names & hooks | `ReservedName` | `Sources/piqley/Constants/ReservedName.swift` |
 | Secret namespacing | `SecretNamespace` | `Sources/piqley/Constants/SecretNamespace.swift` |
 
 ### Rules
 
 1. **Never introduce a new string key inline.** Add it to the appropriate enum first.
-2. **Prefer `enum` over `struct` with static lets** — enums without cases cannot be accidentally instantiated.
+2. **Caseless enums with `static let`** — no cases, no `.rawValue`, no instantiation.
 3. **One enum per domain** — keep them small and co-located with the code that uses them most.
 4. **If a string appears in two or more files, it must be a constant.** No exceptions.
-5. **Raw values must match the actual string exactly** — no transformations at call sites.
+5. **Avoid naming collisions with system frameworks** (e.g. don't use `EnvironmentKey` — SwiftUI owns that).

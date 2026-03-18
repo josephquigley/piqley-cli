@@ -172,11 +172,11 @@ struct PluginSetupScanner {
     private func buildSetupEnvironment(pluginConfig: PluginConfig, secrets: [String: String]) -> [String: String] {
         var env: [String: String] = [:]
         for (key, value) in pluginConfig.values {
-            let envKey = "PIQLEY_CONFIG_" + key.uppercased().replacingOccurrences(of: "-", with: "_")
+            let envKey = PluginEnvironment.configPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")
             env[envKey] = displayValue(value)
         }
         for (key, value) in secrets {
-            let envKey = "PIQLEY_SECRET_" + key.uppercased().replacingOccurrences(of: "-", with: "_")
+            let envKey = PluginEnvironment.secretPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")
             env[envKey] = value
         }
         return env
