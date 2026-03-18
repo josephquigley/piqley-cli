@@ -63,11 +63,10 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -82,11 +81,10 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -101,11 +99,10 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "post-publish", scriptURL: script, protocol: "pipe")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "post-publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -120,11 +117,10 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "post-publish", scriptURL: script, protocol: "pipe")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "post-publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -153,11 +149,10 @@ struct PluginRunnerTests {
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "slow", directory: tempDir, manifest: manifest)
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -193,11 +188,10 @@ struct PluginRunnerTests {
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "token-test", directory: tempDir, manifest: manifest)
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -229,11 +223,10 @@ struct PluginRunnerTests {
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "bad", directory: tempDir, manifest: manifest)
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let result = try await runner.run(
             hook: "publish",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -257,11 +250,10 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "pre-process", scriptURL: script, protocol: "pipe", batchProxy: true)
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
-        let runner = PluginRunner(plugin: plugin, secrets: [:])
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         _ = try await runner.run(
             hook: "pre-process",
             tempFolder: tempFolder,
-            pluginConfig: [:],
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
         )
@@ -269,5 +261,38 @@ struct PluginRunnerTests {
         let calls = (try? String(contentsOf: callLog, encoding: .utf8))?.split(separator: "\n") ?? []
         #expect(calls.count == 1)  // tempFolder has 1 image
         #expect(calls.first?.hasSuffix("test.jpg") == true)
+    }
+
+    @Test("PIQLEY_CONFIG_* env vars are set from pluginConfig values")
+    func testPluginConfigEnvVars() async throws {
+        // Script checks for PIQLEY_CONFIG_API_URL and PIQLEY_CONFIG_RETRY_COUNT env vars,
+        // outputs a result line only if they match expected values
+        let script = try makeTempScript("""
+        if [ "$PIQLEY_CONFIG_API_URL" = "https://example.com" ] && [ "$PIQLEY_CONFIG_RETRY_COUNT" = "3" ]; then
+            printf '{"type":"result","success":true,"error":null}\\n'
+            exit 0
+        else
+            printf '{"type":"result","success":false,"error":"env vars not set correctly"}\\n'
+            exit 1
+        fi
+        """)
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        var config = PluginConfig()
+        config.values = [
+            "api-url": .string("https://example.com"),
+            "retry-count": .number(3)
+        ]
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: config)
+        let result = try await runner.run(
+            hook: "publish",
+            tempFolder: tempFolder,
+            executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
+            dryRun: false
+        )
+        #expect(result == .success)
     }
 }

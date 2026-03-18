@@ -82,14 +82,14 @@ struct PipelineOrchestrator: Sendable {
                     withIntermediateDirectories: true
                 )
 
-                let pluginConfig = config.plugins[pluginName] ?? [:]
-                let runner = PluginRunner(plugin: loadedPlugin, secrets: secrets)
+                var pluginConfig = PluginConfig()
+                pluginConfig.values = config.plugins[pluginName] ?? [:]
+                let runner = PluginRunner(plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig)
 
                 logger.info("Running plugin '\(pluginName)' for hook '\(hook)'")
                 let result = try await runner.run(
                     hook: hook,
                     tempFolder: temp,
-                    pluginConfig: pluginConfig,
                     executionLogPath: execLogPath,
                     dryRun: dryRun
                 )

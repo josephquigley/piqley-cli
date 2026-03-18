@@ -5,6 +5,7 @@ import Logging
 struct PluginRunner: Sendable {
     let plugin: LoadedPlugin
     let secrets: [String: String]
+    let pluginConfig: PluginConfig
     private let logger = Logger(label: "piqley.runner")
 
     static let defaultTimeoutSeconds = 30
@@ -12,7 +13,6 @@ struct PluginRunner: Sendable {
     func run(
         hook: String,
         tempFolder: TempFolder,
-        pluginConfig: [String: JSONValue],
         executionLogPath: URL,
         dryRun: Bool
     ) async throws -> ExitCodeResult {
@@ -58,7 +58,6 @@ struct PluginRunner: Sendable {
                 environment: environment,
                 hookConfig: hookConfig,
                 folderPath: tempFolder.url,
-                pluginConfig: pluginConfig,
                 executionLogPath: executionLogPath,
                 dryRun: dryRun
             ))
@@ -82,7 +81,6 @@ struct PluginRunner: Sendable {
         let environment: [String: String]
         let hookConfig: PluginManifest.HookConfig
         let folderPath: URL
-        let pluginConfig: [String: JSONValue]
         let executionLogPath: URL
         let dryRun: Bool
     }
@@ -107,7 +105,6 @@ struct PluginRunner: Sendable {
         let payload = buildJSONPayload(
             hook: context.hook,
             folderPath: context.folderPath,
-            pluginConfig: context.pluginConfig,
             executionLogPath: context.executionLogPath,
             dryRun: context.dryRun
         )
@@ -305,20 +302,37 @@ struct PluginRunner: Sendable {
         for (key, value) in secrets {
             env["PIQLEY_SECRET_\(key.uppercased().replacingOccurrences(of: "-", with: "_"))"] = value
         }
+        for (key, value) in pluginConfig.values {
+            let envKey = "PIQLEY_CONFIG_" + key.uppercased().replacingOccurrences(of: "-", with: "_")
+            env[envKey] = jsonValueToString(value)
+        }
         return env
+    }
+
+    private func jsonValueToString(_ value: JSONValue) -> String {
+        switch value {
+        case let .string(str): str
+        case let .number(num):
+            if num.truncatingRemainder(dividingBy: 1) == 0 {
+                String(Int(num))
+            } else {
+                String(num)
+            }
+        case let .bool(flag): String(flag)
+        default: ""
+        }
     }
 
     private func buildJSONPayload(
         hook: String,
         folderPath: URL,
-        pluginConfig: [String: JSONValue],
         executionLogPath: URL,
         dryRun: Bool
     ) -> PluginInputPayload {
         PluginInputPayload(
             hook: hook,
             folderPath: folderPath.path,
-            pluginConfig: pluginConfig,
+            pluginConfig: pluginConfig.values,
             secrets: secrets,
             executionLogPath: executionLogPath.path,
             dryRun: dryRun
