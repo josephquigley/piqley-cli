@@ -59,7 +59,7 @@ With examples:
   "values": {},
   "rules": [
     {
-      "match": { "field": "EXIF:Model", "pattern": "Canon EOS R5" },
+      "match": { "field": "original:TIFF:Model", "pattern": "Canon EOS R5" },
       "emit": { "field": "tags", "values": ["Canon", "EOS R5"] }
     }
   ]
@@ -91,7 +91,7 @@ Add `PiqleyPluginSDK` as a dependency of the CLI (alongside `PiqleyCore`). Use t
 - `buildConfig { Rules { ConfigRule(...) } }` to construct the config with example rules
 - `manifest.writeValidated(to:)` to write `manifest.json` (includes validation)
 - `config.write(to:)` to write `config.json`
-- `MatchField.original(.model)`, `MatchPattern.exact(...)`, `RuleEmit.keywords(...)` for typed example rules
+- `MatchField.original(.model)`, `MatchPattern.exact(...)`, `RuleEmit.values(field:_:)` for typed example rules
 
 This requires adding `PiqleyPluginSDK` to `Package.swift` dependencies and the `piqley` target.
 
