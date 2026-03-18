@@ -83,6 +83,10 @@ Without examples:
 - Reject names with path separators, empty strings, or whitespace
 - Create intermediate directories if `~/.config/piqley/plugins/` doesn't exist
 
+## Implementation Strategy
+
+Construct `PluginManifest` and `PluginConfig` instances from PiqleyCore types and encode them via `JSONEncoder`. Use `PluginConfig.save(to:)` for config (handles directory creation and pretty-printing). Encode `PluginManifest` the same way. No raw JSON string templates.
+
 ## Implementation Location
 
 Add `InitSubcommand` to `PluginCommand.swift`, registered in the `subcommands` array alongside `SetupSubcommand`.
