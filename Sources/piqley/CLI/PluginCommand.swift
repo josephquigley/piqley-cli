@@ -104,13 +104,30 @@ struct PluginCommand: ParsableCommand {
                 name = pluginName
                 hook = .preProcess
             } else {
-                // Interactive mode — implemented later
-                // For now, require name argument in all modes
-                guard let pluginName else {
-                    throw ValidationError("Plugin name argument required (interactive mode not yet implemented)")
+                if let pluginName {
+                    name = pluginName
+                } else {
+                    print("Plugin name: ", terminator: "")
+                    guard let input = readLine(), !input.isEmpty else {
+                        throw ValidationError("Plugin name must not be empty")
+                    }
+                    name = input
                 }
-                name = pluginName
-                hook = .preProcess
+
+                print("\nWhich hook should this plugin run on?")
+                let hooks = Hook.canonicalOrder
+                for (index, hookOption) in hooks.enumerated() {
+                    print("  \(index + 1). \(hookOption.rawValue)")
+                }
+                print("Choose [\(Hook.preProcess.rawValue)]: ", terminator: "")
+                let hookInput = readLine()?.trimmingCharacters(in: .whitespaces) ?? ""
+                if hookInput.isEmpty {
+                    hook = .preProcess
+                } else if let index = Int(hookInput), (1 ... hooks.count).contains(index) {
+                    hook = hooks[index - 1]
+                } else {
+                    throw ValidationError("Invalid hook selection: \(hookInput)")
+                }
             }
 
             try Self.validatePluginName(name)
@@ -136,7 +153,11 @@ struct PluginCommand: ParsableCommand {
                 buildConfig {
                     Rules {
                         ConfigRule(
-                            match: .field(.original(.model), pattern: .exact("Canon EOS R5")),
+                            match: .field(
+                                .original(.model),
+                                pattern: .exact("Canon EOS R5"),
+                                hook: hook == .preProcess ? nil : hook
+                            ),
                             emit: .values(field: "tags", ["Canon", "EOS R5"])
                         )
                     }
