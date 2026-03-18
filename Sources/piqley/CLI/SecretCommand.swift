@@ -1,17 +1,27 @@
 import ArgumentParser
 import Foundation
 
+#if os(macOS)
+    private let secretCommandAbstract = "Manage plugin secrets in the macOS Keychain"
+    private let setCommandAbstract = "Store a plugin secret in the Keychain (prompts for value)"
+    private let deleteCommandAbstract = "Remove a plugin secret from the Keychain"
+#else
+    private let secretCommandAbstract = "Manage plugin secrets in ~/.config/piqley/secrets.json"
+    private let setCommandAbstract = "Store a plugin secret (prompts for value)"
+    private let deleteCommandAbstract = "Remove a plugin secret"
+#endif
+
 struct SecretCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "secret",
-        abstract: "Manage plugin secrets in the macOS Keychain",
+        abstract: secretCommandAbstract,
         subcommands: [SetCommand.self, DeleteCommand.self]
     )
 
     struct SetCommand: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "set",
-            abstract: "Store a plugin secret in the Keychain (prompts for value)"
+            abstract: setCommandAbstract
         )
 
         @Argument(help: "Plugin name (e.g. ghost)")
@@ -34,7 +44,7 @@ struct SecretCommand: ParsableCommand {
     struct DeleteCommand: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "delete",
-            abstract: "Remove a plugin secret from the Keychain"
+            abstract: deleteCommandAbstract
         )
 
         @Argument(help: "Plugin name (e.g. ghost)")
