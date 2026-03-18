@@ -6,7 +6,7 @@ final class ProcessLock {
     private var released = false
 
     init(path: String) throws {
-        let dir = (path as NSString).deletingLastPathComponent
+        let dir = URL(fileURLWithPath: path).deletingLastPathComponent().path
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let fileDesc = open(path, O_CREAT | O_RDWR, 0o644)
         guard fileDesc >= 0 else { throw ProcessLockError.cannotOpenLockFile(path: path) }
