@@ -46,7 +46,7 @@ struct SetupCommand: AsyncParsableCommand {
             }
         }
 
-        print("\nSetup complete. Run 'piqley secret set <plugin> <key>' to configure plugin credentials.")
+        print("\nSetup complete.")
     }
 
     // MARK: - Bundled Plugin Install
