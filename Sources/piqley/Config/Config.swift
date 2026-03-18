@@ -5,13 +5,11 @@ struct AppConfig: Codable, Sendable {
     var disabledPlugins: [String] = []
     /// Hook name → ordered plugin name list. Plugin names may include ":required" suffix (reserved for future use).
     var pipeline: [String: [String]] = [:]
-    /// Plugin name → arbitrary key/value config passed to the plugin via stdin payload.
-    var plugins: [String: [String: JSONValue]] = [:]
 
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
-        case autoDiscoverPlugins, disabledPlugins, pipeline, plugins
+        case autoDiscoverPlugins, disabledPlugins, pipeline
     }
 
     init() {}
@@ -21,7 +19,6 @@ struct AppConfig: Codable, Sendable {
         autoDiscoverPlugins = try container.decodeIfPresent(Bool.self, forKey: .autoDiscoverPlugins) ?? true
         disabledPlugins = try container.decodeIfPresent([String].self, forKey: .disabledPlugins) ?? []
         pipeline = try container.decodeIfPresent([String: [String]].self, forKey: .pipeline) ?? [:]
-        plugins = try container.decodeIfPresent([String: [String: JSONValue]].self, forKey: .plugins) ?? [:]
     }
 
     // MARK: - Persistence
