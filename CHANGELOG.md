@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- CLI: `--delete-source-contents` flag to delete source folder contents after a successful run
+- CLI: `--delete-source-folder` flag to delete the source folder after a successful run
+
+### Changed
+
+- CLI: Replaced `--delete-source-images` (which only removed image files) with `--delete-source-contents` (removes all files and subdirectories)
+
 - CLI: Swift-based command-line tool with process, setup, clear-cache, and verify subcommands
 - CLI: Version flag (--version) support
 - CLI: Comprehensive man page

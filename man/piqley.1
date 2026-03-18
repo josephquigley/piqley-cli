@@ -9,6 +9,8 @@
 .Cm process
 .Ar folder-path
 .Op Fl -dry-run
+.Op Fl -delete-source-contents
+.Op Fl -delete-source-folder
 .Op Fl -verbose-results
 .Op Fl -json-results
 .Op Fl -results-dir Ar path
@@ -68,6 +70,15 @@ Available flags:
 Preview all actions without uploading to Ghost or sending emails.
 Prints a summary of what would be scheduled, saved as draft, or skipped for
 each image.
+.It Fl -delete-source-contents
+Delete the contents of the source folder after a successful run.
+The folder itself is preserved but all files and subdirectories inside it
+are removed.
+Has no effect during a dry run.
+.It Fl -delete-source-folder
+Delete the source folder and its contents after a successful run.
+The entire directory is removed from disk.
+Has no effect during a dry run.
 .It Fl -verbose-results
 Include successfully processed images in the result output in addition to
 errors and duplicates.

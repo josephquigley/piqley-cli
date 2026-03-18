@@ -48,6 +48,8 @@ piqley process /path/to/exported/photos
 ### Process Options
 
 - `--dry-run` - Preview actions without uploading or emailing
+- `--delete-source-contents` - Delete the contents of the source folder after a successful run
+- `--delete-source-folder` - Delete the source folder and its contents after a successful run
 - `--verbose-results` - Include successful images in result output
 - `--json-results` - Write a single JSON results file instead of individual text files
 - `--results-dir <path>` - Directory to write result files to (default: input folder)

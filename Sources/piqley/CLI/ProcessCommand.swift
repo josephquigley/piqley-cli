@@ -14,10 +14,10 @@ struct ProcessCommand: AsyncParsableCommand {
     @Flag(help: "Preview without uploading or modifying anything")
     var dryRun = false
 
-    @Flag(help: "Delete source image files after a successful run")
-    var deleteSourceImages = false
+    @Flag(help: "Delete the contents of the source folder after a successful run")
+    var deleteSourceContents = false
 
-    @Flag(help: "Delete source folder after a successful run (implies --delete-source-images)")
+    @Flag(help: "Delete the source folder and its contents after a successful run")
     var deleteSourceFolder = false
 
     private var logger: Logger { Logger(label: "piqley.process") }
@@ -53,12 +53,12 @@ struct ProcessCommand: AsyncParsableCommand {
             if deleteSourceFolder {
                 logger.info("Deleting source folder: \(sourceURL.path)")
                 try FileManager.default.removeItem(at: sourceURL)
-            } else if deleteSourceImages {
-                logger.info("Deleting source images from: \(sourceURL.path)")
+            } else if deleteSourceContents {
+                logger.info("Deleting contents of source folder: \(sourceURL.path)")
                 let contents = try FileManager.default.contentsOfDirectory(
                     at: sourceURL, includingPropertiesForKeys: nil
                 )
-                for file in contents where TempFolder.imageExtensions.contains(file.pathExtension.lowercased()) {
+                for file in contents {
                     try FileManager.default.removeItem(at: file)
                 }
             }
