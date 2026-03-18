@@ -7,7 +7,15 @@
 <p align="center">
   A plugin-driven photographer workflow engine for macOS (other platforms coming soon).
 </p>
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/I3I2LL7Y1)
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Swift-6.0-orange" alt="Swift 6.0"/>
+  <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS"/>
+  <img src="https://img.shields.io/github/license/josephquigley/piqley" alt="License"/>
+</p>
+<p align="center">
+  <a href="https://ko-fi.com/I3I2LL7Y1"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"/></a>
+</p>
 ---
 
 Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, email, social media, or your own custom workflow.
