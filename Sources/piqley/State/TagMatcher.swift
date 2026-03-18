@@ -68,15 +68,15 @@ enum TagMatcherError: Error, LocalizedError {
 
 enum TagMatcherFactory {
     static func build(from entry: String) throws -> any TagMatcher {
-        if entry.hasPrefix("regex:") {
-            let pattern = String(entry.dropFirst(6))
+        if entry.hasPrefix(PatternPrefix.regex) {
+            let pattern = String(entry.dropFirst(PatternPrefix.regex.count))
             do {
                 return try RegexMatcher(pattern: pattern)
             } catch {
                 throw TagMatcherError.invalidRegex(pattern: pattern, underlying: error)
             }
-        } else if entry.hasPrefix("glob:") {
-            let pattern = String(entry.dropFirst(5))
+        } else if entry.hasPrefix(PatternPrefix.glob) {
+            let pattern = String(entry.dropFirst(PatternPrefix.glob.count))
             return GlobMatcher(pattern: pattern)
         } else {
             return ExactMatcher(pattern: entry)
