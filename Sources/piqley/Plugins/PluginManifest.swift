@@ -5,6 +5,7 @@ struct PluginManifest: Codable, Sendable {
     let pluginProtocolVersion: String
     let config: [ConfigEntry]
     let setup: SetupConfig?
+    let dependencies: [String]?
     let hooks: [String: HookConfig]
 
     init(from decoder: Decoder) throws {
@@ -13,19 +14,24 @@ struct PluginManifest: Codable, Sendable {
         pluginProtocolVersion = try container.decode(String.self, forKey: .pluginProtocolVersion)
         config = (try? container.decode([ConfigEntry].self, forKey: .config)) ?? []
         setup = try? container.decodeIfPresent(SetupConfig.self, forKey: .setup)
+        dependencies = try container.decodeIfPresent([String].self, forKey: .dependencies)
         hooks = try container.decode([String: HookConfig].self, forKey: .hooks)
     }
 
-    init(name: String, pluginProtocolVersion: String, config: [ConfigEntry] = [], setup: SetupConfig? = nil, hooks: [String: HookConfig]) {
+    init(
+        name: String, pluginProtocolVersion: String, config: [ConfigEntry] = [],
+        setup: SetupConfig? = nil, dependencies: [String]? = nil, hooks: [String: HookConfig]
+    ) {
         self.name = name
         self.pluginProtocolVersion = pluginProtocolVersion
         self.config = config
         self.setup = setup
+        self.dependencies = dependencies
         self.hooks = hooks
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name, pluginProtocolVersion, config, setup, hooks
+        case name, pluginProtocolVersion, config, setup, dependencies, hooks
     }
 
     /// Returns secret key names from config entries with `secret_key`.
