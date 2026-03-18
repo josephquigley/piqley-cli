@@ -36,6 +36,7 @@ private func makePlugin(
     ]
     let data = try JSONSerialization.data(withJSONObject: manifest)
     try data.write(to: tempDir.appendingPathComponent("manifest.json"))
+    try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
     let decoded = try JSONDecoder().decode(PluginManifest.self, from: data)
     return LoadedPlugin(name: name, directory: tempDir, manifest: decoded)
 }
@@ -148,6 +149,7 @@ struct PluginRunnerTests {
             "hooks": ["publish": ["command": script.path, "args": [], "timeout": 1]]
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+        try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "slow", directory: tempDir, manifest: manifest)
 
@@ -187,6 +189,7 @@ struct PluginRunnerTests {
             ]]
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+        try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "token-test", directory: tempDir, manifest: manifest)
 
@@ -222,6 +225,7 @@ struct PluginRunnerTests {
             ]]
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+        try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         let plugin = LoadedPlugin(name: "bad", directory: tempDir, manifest: manifest)
 

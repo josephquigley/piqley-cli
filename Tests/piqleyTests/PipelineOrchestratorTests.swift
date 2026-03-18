@@ -26,6 +26,7 @@ private func makePluginsDir(withPlugin name: String, hook: String, scriptURL: UR
     ]
     let data = try JSONSerialization.data(withJSONObject: manifest)
     try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+    try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
     return dir
 }
 
@@ -94,6 +95,7 @@ struct PipelineOrchestratorTests {
             ]
             let data = try JSONSerialization.data(withJSONObject: manifest)
             try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+            try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         }
         defer { try? FileManager.default.removeItem(at: pluginsDir) }
 
@@ -130,6 +132,7 @@ struct PipelineOrchestratorTests {
         ]
         let data = try JSONSerialization.data(withJSONObject: manifest)
         try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+        try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: pluginsDir) }
 
         let sourceDir = try makeSourceDir()

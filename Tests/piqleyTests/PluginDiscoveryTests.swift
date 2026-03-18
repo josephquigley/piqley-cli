@@ -108,4 +108,23 @@ struct PluginDiscoveryTests {
         let plugins = try discovery.loadManifests(disabled: [])
         #expect(plugins.isEmpty)
     }
+
+    @Test("creates data directory for loaded plugins")
+    func createsDataDirectory() throws {
+        let pluginsDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: pluginsDirectory) }
+
+        let pluginDir = pluginsDirectory.appendingPathComponent("test-plugin")
+        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        let manifest = #"{"name": "test-plugin", "pluginProtocolVersion": "1", "hooks": {}}"#
+        try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+
+        let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory)
+        _ = try discovery.loadManifests(disabled: [])
+
+        let dataDir = pluginDir.appendingPathComponent("data")
+        #expect(FileManager.default.fileExists(atPath: dataDir.path))
+    }
 }

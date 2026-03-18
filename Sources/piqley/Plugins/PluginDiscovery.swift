@@ -33,6 +33,8 @@ struct PluginDiscovery: Sendable {
             for unknown in manifest.unknownHooks() {
                 logger.warning("Plugin '\(name)' declares unknown hook '\(unknown)' — ignored")
             }
+            let dataDir = url.appendingPathComponent("data")
+            try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
             return LoadedPlugin(name: name, directory: url, manifest: manifest)
         }.sorted { $0.name < $1.name }
     }

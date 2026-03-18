@@ -92,6 +92,7 @@ struct PluginRunner: Sendable {
         process.executableURL = URL(fileURLWithPath: context.executable)
         process.arguments = context.args
         process.environment = context.environment
+        process.currentDirectoryURL = plugin.directory.appendingPathComponent("data")
 
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
@@ -206,6 +207,7 @@ struct PluginRunner: Sendable {
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = args
         process.environment = environment
+        process.currentDirectoryURL = plugin.directory.appendingPathComponent("data")
         // stdout/stderr forwarded to our stdout/stderr
         process.standardOutput = FileHandle.standardOutput
         process.standardError = FileHandle.standardError
