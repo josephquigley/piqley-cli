@@ -105,7 +105,7 @@ struct PluginRunner: Sendable {
         process.executableURL = URL(fileURLWithPath: context.executable)
         process.arguments = context.args
         process.environment = context.environment
-        process.currentDirectoryURL = plugin.directory.appendingPathComponent("data")
+        process.currentDirectoryURL = plugin.directory.appendingPathComponent(PluginDirectory.data)
 
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
@@ -224,7 +224,7 @@ struct PluginRunner: Sendable {
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = args
         process.environment = environment
-        process.currentDirectoryURL = plugin.directory.appendingPathComponent("data")
+        process.currentDirectoryURL = plugin.directory.appendingPathComponent(PluginDirectory.data)
         // stdout/stderr forwarded to our stdout/stderr
         process.standardOutput = FileHandle.standardOutput
         process.standardError = FileHandle.standardError
@@ -350,8 +350,8 @@ struct PluginRunner: Sendable {
         dryRun: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil
     ) -> PluginInputPayload {
-        let dataPath = plugin.directory.appendingPathComponent("data").path
-        let logPath = plugin.directory.appendingPathComponent("logs").path
+        let dataPath = plugin.directory.appendingPathComponent(PluginDirectory.data).path
+        let logPath = plugin.directory.appendingPathComponent(PluginDirectory.logs).path
         let pluginVersion = plugin.manifest.pluginVersion ?? SemanticVersion(major: 0, minor: 0, patch: 0)
         return PluginInputPayload(
             hook: hook,

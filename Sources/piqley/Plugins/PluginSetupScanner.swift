@@ -67,7 +67,7 @@ struct PluginSetupScanner {
             let environment = buildSetupEnvironment(pluginConfig: pluginConfig, secrets: secrets)
             let args = substitute(args: setup.args, environment: environment)
 
-            let dataDir = plugin.directory.appendingPathComponent("data")
+            let dataDir = plugin.directory.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
             let exitCode = try runSetupBinary(executable: executable, args: args, environment: environment, workingDirectory: dataDir)
             if exitCode == 0 {

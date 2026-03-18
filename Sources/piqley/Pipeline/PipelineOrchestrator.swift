@@ -138,7 +138,7 @@ struct PipelineOrchestrator: Sendable {
         // Resolve execution log path
         let execLogPath = pluginsDirectory
             .appendingPathComponent(ctx.pluginName)
-            .appendingPathComponent("logs/execution.jsonl")
+            .appendingPathComponent(PluginFile.executionLog)
         try FileManager.default.createDirectory(
             at: execLogPath.deletingLastPathComponent(),
             withIntermediateDirectories: true

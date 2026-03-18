@@ -19,7 +19,7 @@ struct ClearCacheCommand: ParsableCommand {
         if let pluginName = plugin {
             let logPath = pluginsDir
                 .appendingPathComponent(pluginName)
-                .appendingPathComponent("logs/execution.jsonl")
+                .appendingPathComponent(PluginFile.executionLog)
             try clearLog(at: logPath, label: pluginName)
         } else {
             // Clear all plugin execution logs
@@ -31,7 +31,7 @@ struct ClearCacheCommand: ParsableCommand {
                 at: pluginsDir, includingPropertiesForKeys: [.isDirectoryKey]
             )
             for pluginDir in contents where (try? pluginDir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                let logPath = pluginDir.appendingPathComponent("logs/execution.jsonl")
+                let logPath = pluginDir.appendingPathComponent(PluginFile.executionLog)
                 try clearLog(at: logPath, label: pluginDir.lastPathComponent)
             }
         }
