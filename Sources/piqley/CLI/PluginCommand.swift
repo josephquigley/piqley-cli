@@ -232,9 +232,9 @@ struct PluginCommand: ParsableCommand {
         static func promptForDescription(pluginName: String) -> String? {
             guard isatty(STDIN_FILENO) != 0 else { return nil }
 
-            print("Add a description? (opens \(editorName()) — press Enter to skip): ", terminator: "")
-            let answer = readLine() ?? ""
-            guard answer.lowercased() == "y" || answer.lowercased() == "yes" else { return nil }
+            print("Add a description? (opens \(editorName()); press Enter to skip) [y/N]: ", terminator: "")
+            let answer = (readLine() ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+            guard !answer.isEmpty, answer != "n", answer != "no" else { return nil }
 
             let editor = ProcessInfo.processInfo.environment["EDITOR"]
                 ?? ProcessInfo.processInfo.environment["VISUAL"]
