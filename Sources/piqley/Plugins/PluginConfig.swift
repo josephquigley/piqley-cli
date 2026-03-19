@@ -26,23 +26,18 @@ extension PluginConfig {
 
     /// Returns a new PluginConfig with the given values dictionary.
     func withValues(_ values: [String: JSONValue]) -> PluginConfig {
-        PluginConfig(values: values, isSetUp: isSetUp, rules: rules)
+        PluginConfig(values: values, isSetUp: isSetUp)
     }
 
     /// Returns a new PluginConfig with a single value updated.
     func settingValue(_ value: JSONValue, forKey key: String) -> PluginConfig {
         var newValues = values
         newValues[key] = value
-        return PluginConfig(values: newValues, isSetUp: isSetUp, rules: rules)
+        return PluginConfig(values: newValues, isSetUp: isSetUp)
     }
 
     /// Returns a new PluginConfig with isSetUp set to the given value.
     func withIsSetUp(_ isSetUp: Bool?) -> PluginConfig {
-        PluginConfig(values: values, isSetUp: isSetUp, rules: rules)
-    }
-
-    /// Returns a new PluginConfig with the given rules.
-    func withRules(_ rules: [Rule]) -> PluginConfig {
-        PluginConfig(values: values, isSetUp: isSetUp, rules: rules)
+        PluginConfig(values: values, isSetUp: isSetUp)
     }
 }
