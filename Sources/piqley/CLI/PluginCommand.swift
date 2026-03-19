@@ -8,7 +8,7 @@ struct PluginCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "plugin",
         abstract: "Manage plugins",
-        subcommands: [SetupSubcommand.self, InitSubcommand.self]
+        subcommands: [SetupSubcommand.self, InitSubcommand.self, CreateSubcommand.self]
     )
 
     struct SetupSubcommand: ParsableCommand {
