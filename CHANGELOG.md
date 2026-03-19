@@ -32,29 +32,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Dry run mode for process command
 - JSON-based configuration with file loading and saving
 - Tag blocklist with glob and regex pattern matching
-- Configurable required tags and scheduling filter tags
-- Camera model to additional Ghost tags mapping
-- Ghost API client with JWT authentication and Codable models
-- Upload deduplication via local cache and API lookup
-- Post scheduling with configurable time windows and timezone support
-- 365-day project numbering for daily photo posts
-- Lexical JSON content generation for post bodies
-- Year-prefixed slug generation and feature image support
+- Configurable required tags
 - EXIF and IPTC metadata extraction via CoreGraphics
 - Image resizing with configurable max long edge and JPEG quality
 - Opt-in EXIF metadata allowlist for privacy-safe uploads
 - GPG-based cryptographic image signing with XMP metadata embedding
 - Deterministic image hashing via `SignableContentExtractor`
 - Signature verification via verify subcommand
-- SMTP notification support for 365-day project posts
-- JSONL-based upload and email logs for idempotent processing
+- JSONL-based execution logs for idempotent processing
 - Process lock for single-instance enforcement
-- Keychain-based secret storage for API keys and SMTP credentials
+- Keychain-based secret storage for API keys and plugin credentials
 - Interactive setup command with config creation and Keychain storage
 - Homebrew formula with bottle support and GitHub Actions CI
 
 ### Changed
 
+- Removed Ghost, email, and 365-project references from CLI, docs, and config; retained `_migrate/` and `_migrated/` as plugin reference code
 - Renamed `pluginProtocolVersion` to `pluginSchemaVersion` across CLI
 - Renamed `_instructions` to `_comment` in config, sanitized identifiers
 - Renamed `PIQLEY_FOLDER_PATH` to `PIQLEY_IMAGE_FOLDER_PATH`

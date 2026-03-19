@@ -1,5 +1,5 @@
 class Piqley < Formula
-  desc "Process and publish photos to Ghost CMS"
+  desc "Plugin-driven photographer workflow engine"
   homepage "https://github.com/josephquigley/piqley"
   license "MIT"
 
@@ -33,6 +33,6 @@ class Piqley < Formula
   end
 
   test do
-    assert_match "Process and publish photos", shell_output("#{bin}/piqley --help")
+    assert_match "Plugin-driven photographer workflow engine", shell_output("#{bin}/piqley --help")
   end
 end

@@ -24,7 +24,7 @@ struct SecretCommand: ParsableCommand {
             abstract: setCommandAbstract
         )
 
-        @Argument(help: "Plugin name (e.g. ghost)")
+        @Argument(help: "Plugin name (e.g. my-uploader)")
         var plugin: String
 
         @Argument(help: "Secret key (e.g. api-key)")
@@ -47,7 +47,7 @@ struct SecretCommand: ParsableCommand {
             abstract: deleteCommandAbstract
         )
 
-        @Argument(help: "Plugin name (e.g. ghost)")
+        @Argument(help: "Plugin name (e.g. my-uploader)")
         var plugin: String
 
         @Argument(help: "Secret key (e.g. api-key)")

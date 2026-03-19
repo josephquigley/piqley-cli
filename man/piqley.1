@@ -3,7 +3,7 @@
 .Os
 .Sh NAME
 .Nm piqley
-.Nd process and publish photos to Ghost CMS
+.Nd plugin-driven photographer workflow engine
 .Sh SYNOPSIS
 .Nm
 .Cm process
@@ -43,7 +43,7 @@
 .Sh DESCRIPTION
 .Nm
 is a plugin-driven command-line tool for processing and publishing photos
-to Ghost CMS as part of a Lightroom \(-> Hazel \(-> Ghost workflow.
+as part of an automated photographer workflow.
 .Pp
 Given a folder of exported JPEG images,
 .Nm
@@ -362,17 +362,17 @@ piqley plugin init my-tagger
 .Pp
 Store a secret for a plugin:
 .Bd -literal -offset indent
-piqley secret set ghost api-key
+piqley secret set my-uploader api-key
 .Ed
 .Pp
 Run setup for a specific plugin:
 .Bd -literal -offset indent
-piqley plugin setup ghost
+piqley plugin setup my-uploader
 .Ed
 .Pp
 Clear execution logs for a specific plugin:
 .Bd -literal -offset indent
-piqley clear-cache --plugin ghost
+piqley clear-cache --plugin my-uploader
 .Ed
 .Pp
 Remove all piqley data without confirmation:

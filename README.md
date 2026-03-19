@@ -18,7 +18,7 @@
 </p>
 ---
 
-Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, email, social media, or your own custom workflow.
+Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, social media, or your own custom workflow.
 
 Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system). Mix and match first-party and custom plugins into a pipeline that fits your workflow.
 
@@ -55,7 +55,7 @@ piqley process /path/to/exported/photos
 
 ### Process Options
 
-- `--dry-run` - Preview actions without uploading or emailing
+- `--dry-run` - Preview actions without uploading
 - `--delete-source-contents` - Delete the contents of the source folder after a successful run
 - `--delete-source-folder` - Delete the source folder and its contents after a successful run
 - `--verbose-results` - Include successful images in result output

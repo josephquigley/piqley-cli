@@ -6,7 +6,7 @@ import Logging
 struct Piqley: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: AppConstants.name,
-        abstract: "Process and publish photos to Ghost CMS",
+        abstract: "Plugin-driven photographer workflow engine",
         version: AppConstants.version,
         subcommands: [
             ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self,

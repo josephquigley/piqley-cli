@@ -2,7 +2,7 @@
 
 ## Project
 
-Swift CLI tool (`piqley`) for processing photos exported from Lightroom, uploading to Ghost CMS with scheduled publishing, and emailing 365 Project photos. Invoked by macOS Hazel automation.
+Swift CLI tool (`piqley`) — a plugin-driven photographer workflow engine for processing and publishing photos. Invoked by macOS Hazel automation or any folder-watching tool.
 
 ## Design Spec
 
@@ -10,12 +10,11 @@ See [docs/superpowers/specs/2026-03-16-quigsphoto-uploader-cli-design.md](../doc
 
 ## Key Conventions
 
-- **Swift Package Manager** project with `swift-argument-parser`, `swift-log`, and a Swift SMTP package
+- **Swift Package Manager** project with `swift-argument-parser` and `swift-log`
 - **Protocol-first for platform abstractions:** `SecretStore`, `ImageProcessor`, `MetadataReader` — macOS implementations backed by system frameworks, swappable for Linux later
 - **Config at runtime:** `~/.config/piqley/config.json` is source of truth. Secrets in macOS Keychain via `SecretStore`.
-- **Two-tier dedup:** local JSONL cache first (`upload-log.jsonl`, `email-log.jsonl`), Ghost API fallback on cache miss. Caches self-heal from Ghost.
+- **Plugin pipeline:** all processing, publishing, and post-processing is handled by plugins via stdin/stdout JSON protocol or pipe protocol
 - **Atomic appends** to JSONL log files (`O_APPEND`) for concurrency safety
-- **Ghost Admin API:** JWT auth, Lexical JSON for post bodies, filter syntax for queue queries
 - **Error handling:** per-image errors are non-fatal, fatal errors exit with code 1, partial success exits with code 2
 - **Logging:** `swift-log` for structured logging throughout
 
@@ -28,6 +27,6 @@ See [architecture.md](architecture.md) for detailed guidelines. Key rules:
 ## Code Style
 
 - Keep files focused — one type/protocol per file
-- Prefer `async/await` for Ghost API and SMTP calls
+- Prefer `async/await` for async operations
 - No force unwraps in production code
 - All config values should be `Codable`
