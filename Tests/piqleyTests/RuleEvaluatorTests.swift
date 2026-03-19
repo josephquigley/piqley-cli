@@ -11,7 +11,7 @@ struct RuleEvaluatorTests {
     private func makeRule(
         field: String = "original:TIFF:Model",
         pattern: String = "Sony",
-        emit: [EmitConfig] = [EmitConfig(field: "keywords", values: ["sony"])]
+        emit: [EmitConfig] = [EmitConfig(action: nil, field: "keywords", values: ["sony"], replacements: nil, source: nil)]
     ) -> Rule {
         Rule(
             match: MatchConfig(field: field, pattern: pattern),
@@ -97,8 +97,8 @@ struct RuleEvaluatorTests {
     func multipleRulesAdditiveDeduplicated() async throws {
         let evaluator = try RuleEvaluator(
             rules: [
-                makeRule(pattern: "Sony", emit: [EmitConfig(field: "keywords", values: ["sony", "camera"])]),
-                makeRule(pattern: "glob:Sony*", emit: [EmitConfig(field: "keywords", values: ["sony", "mirrorless"])]),
+                makeRule(pattern: "Sony", emit: [EmitConfig(action: nil, field: "keywords", values: ["sony", "camera"], replacements: nil, source: nil)]),
+                makeRule(pattern: "glob:Sony*", emit: [EmitConfig(action: nil, field: "keywords", values: ["sony", "mirrorless"], replacements: nil, source: nil)]),
             ],
             logger: logger
         )
@@ -113,8 +113,8 @@ struct RuleEvaluatorTests {
     func multipleEmitFields() async throws {
         let evaluator = try RuleEvaluator(
             rules: [
-                makeRule(pattern: "Sony", emit: [EmitConfig(field: "keywords", values: ["sony"])]),
-                makeRule(pattern: "Sony", emit: [EmitConfig(field: "tags", values: ["camera-brand"])]),
+                makeRule(pattern: "Sony", emit: [EmitConfig(action: nil, field: "keywords", values: ["sony"], replacements: nil, source: nil)]),
+                makeRule(pattern: "Sony", emit: [EmitConfig(action: nil, field: "tags", values: ["camera-brand"], replacements: nil, source: nil)]),
             ],
             logger: logger
         )
@@ -177,7 +177,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "remove", field: "keywords", values: ["old-tag", "glob:auto-*"])]
+                emit: [EmitConfig(action: "remove", field: "keywords", values: ["old-tag", "glob:auto-*"], replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -193,7 +193,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "remove", field: "keywords", values: ["Old-Tag"])]
+                emit: [EmitConfig(action: "remove", field: "keywords", values: ["Old-Tag"], replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -209,7 +209,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "remove", field: "keywords", values: ["glob:*"])]
+                emit: [EmitConfig(action: "remove", field: "keywords", values: ["glob:*"], replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -227,9 +227,9 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "replace", field: "keywords", replacements: [
+                emit: [EmitConfig(action: "replace", field: "keywords", values: nil, replacements: [
                     Replacement(pattern: "regex:SONY(.+)", replacement: "Sony $1"),
-                ])]
+                ], source: nil)]
             )],
             logger: logger
         )
@@ -245,10 +245,10 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "replace", field: "keywords", replacements: [
+                emit: [EmitConfig(action: "replace", field: "keywords", values: nil, replacements: [
                     Replacement(pattern: "SONYA7R5", replacement: "Sony A7R V"),
                     Replacement(pattern: "regex:SONY(.+)", replacement: "Sony $1"),
-                ])]
+                ], source: nil)]
             )],
             logger: logger
         )
@@ -265,9 +265,9 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "replace", field: "keywords", replacements: [
+                emit: [EmitConfig(action: "replace", field: "keywords", values: nil, replacements: [
                     Replacement(pattern: "regex:SONY", replacement: "Sony"),
-                ])]
+                ], source: nil)]
             )],
             logger: logger
         )
@@ -286,7 +286,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "removeField", field: "keywords")]
+                emit: [EmitConfig(action: "removeField", field: "keywords", values: nil, replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -303,7 +303,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(action: "removeField", field: "*")]
+                emit: [EmitConfig(action: "removeField", field: "*", values: nil, replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -322,8 +322,8 @@ struct RuleEvaluatorTests {
             rules: [makeRule(
                 pattern: "Sony",
                 emit: [
-                    EmitConfig(action: "removeField", field: "keywords"),
-                    EmitConfig(field: "keywords", values: ["fresh-start"]),
+                    EmitConfig(action: "removeField", field: "keywords", values: nil, replacements: nil, source: nil),
+                    EmitConfig(action: nil, field: "keywords", values: ["fresh-start"], replacements: nil, source: nil),
                 ]
             )],
             logger: logger
@@ -340,7 +340,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(field: "keywords", values: ["sony"])]
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["sony"], replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -357,7 +357,7 @@ struct RuleEvaluatorTests {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
-                emit: [EmitConfig(field: "keywords", values: ["sony", "new"])]
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["sony", "new"], replacements: nil, source: nil)]
             )],
             logger: logger
         )
@@ -376,7 +376,7 @@ struct RuleEvaluatorTests {
             try RuleEvaluator(
                 rules: [makeRule(
                     pattern: "Sony",
-                    emit: [EmitConfig(action: "add", field: "keywords")]
+                    emit: [EmitConfig(action: "add", field: "keywords", values: nil, replacements: nil, source: nil)]
                 )],
                 logger: logger
             )
@@ -389,7 +389,7 @@ struct RuleEvaluatorTests {
             try RuleEvaluator(
                 rules: [makeRule(
                     pattern: "Sony",
-                    emit: [EmitConfig(field: "keywords")]
+                    emit: [EmitConfig(action: nil, field: "keywords", values: nil, replacements: nil, source: nil)]
                 )],
                 logger: logger
             )
@@ -402,7 +402,7 @@ struct RuleEvaluatorTests {
             try RuleEvaluator(
                 rules: [makeRule(
                     pattern: "Sony",
-                    emit: [EmitConfig(action: "replace", field: "keywords", values: ["bad"], replacements: [Replacement(pattern: "a", replacement: "b")])]
+                    emit: [EmitConfig(action: "replace", field: "keywords", values: ["bad"], replacements: [Replacement(pattern: "a", replacement: "b")], source: nil)]
                 )],
                 logger: logger
             )
@@ -415,7 +415,7 @@ struct RuleEvaluatorTests {
             try RuleEvaluator(
                 rules: [makeRule(
                     pattern: "Sony",
-                    emit: [EmitConfig(action: "removeField", field: "keywords", values: ["bad"])]
+                    emit: [EmitConfig(action: "removeField", field: "keywords", values: ["bad"], replacements: nil, source: nil)]
                 )],
                 logger: logger
             )
@@ -428,7 +428,7 @@ struct RuleEvaluatorTests {
             try RuleEvaluator(
                 rules: [makeRule(
                     pattern: "Sony",
-                    emit: [EmitConfig(action: "unknown", field: "keywords", values: ["x"])]
+                    emit: [EmitConfig(action: "unknown", field: "keywords", values: ["x"], replacements: nil, source: nil)]
                 )],
                 logger: logger
             )
@@ -441,10 +441,256 @@ struct RuleEvaluatorTests {
             try RuleEvaluator(
                 rules: [makeRule(
                     pattern: "Sony",
-                    emit: [EmitConfig(field: "", values: ["x"])]
+                    emit: [EmitConfig(action: nil, field: "", values: ["x"], replacements: nil, source: nil)]
                 )],
                 logger: logger
             )
         }
+    }
+
+    // MARK: - Clone compilation validation
+
+    @Test("clone with valid source compiles")
+    func cloneValidSourceCompiles() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.compiledRules.count == 1)
+    }
+
+    @Test("clone wildcard with valid source compiles")
+    func cloneWildcardCompiles() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "*", values: nil, replacements: nil, source: "original")]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.compiledRules.count == 1)
+    }
+
+    @Test("clone with nil source throws")
+    func cloneNilSourceThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "glob:*",
+                    emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: nil)]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("clone with empty source throws")
+    func cloneEmptySourceThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "glob:*",
+                    emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("clone with values present throws")
+    func cloneWithValuesThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "glob:*",
+                    emit: [EmitConfig(action: "clone", field: "keywords", values: ["bad"], replacements: nil, source: "original:IPTC:Keywords")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("clone with replacements present throws")
+    func cloneWithReplacementsThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "glob:*",
+                    emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: [Replacement(pattern: "a", replacement: "b")], source: "original:IPTC:Keywords")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("add with source present throws")
+    func addWithSourceThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "Sony",
+                    emit: [EmitConfig(action: "add", field: "keywords", values: ["x"], replacements: nil, source: "original:IPTC:Keywords")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("remove with source present throws")
+    func removeWithSourceThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "Sony",
+                    emit: [EmitConfig(action: "remove", field: "keywords", values: ["x"], replacements: nil, source: "original:IPTC:Keywords")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("replace with source present throws")
+    func replaceWithSourceThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "Sony",
+                    emit: [EmitConfig(action: "replace", field: "keywords", values: nil, replacements: [Replacement(pattern: "a", replacement: "b")], source: "original:field")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    @Test("removeField with source present throws")
+    func removeFieldWithSourceThrows() {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(
+                    pattern: "Sony",
+                    emit: [EmitConfig(action: "removeField", field: "keywords", values: nil, replacements: nil, source: "original:field")]
+                )],
+                logger: logger
+            )
+        }
+    }
+
+    // MARK: - Clone evaluation
+
+    @Test("clone single field from original namespace")
+    func cloneSingleField() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("nature")])]]
+        )
+        #expect(result["keywords"] == .array([.string("landscape"), .string("nature")]))
+    }
+
+    @Test("clone wildcard copies all fields from source namespace")
+    func cloneWildcardCopiesAll() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "*", values: nil, replacements: nil, source: "original")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": [
+                "TIFF:Model": .string("Sony"),
+                "IPTC:Keywords": .array([.string("landscape")]),
+            ]],
+            currentNamespace: ["existing": .string("preserved")]
+        )
+        #expect(result["TIFF:Model"] == .string("Sony"))
+        #expect(result["IPTC:Keywords"] == .array([.string("landscape")]))
+        #expect(result["existing"] == .string("preserved"))
+    }
+
+    @Test("clone overwrites existing value")
+    func cloneOverwrites() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("new-value")])]],
+            currentNamespace: ["keywords": .array([.string("old-value")])]
+        )
+        #expect(result["keywords"] == .array([.string("new-value")]))
+    }
+
+    @Test("clone from non-existent source is no-op")
+    func cloneNonExistentSourceNoop() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "Sony",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]],
+            currentNamespace: ["existing": .string("kept")]
+        )
+        // IPTC:Keywords doesn't exist in state, so no clone happens
+        #expect(result["keywords"] == nil)
+        #expect(result["existing"] == .string("kept"))
+    }
+
+    @Test("clone followed by remove")
+    func cloneThenRemove() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [
+                    EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords"),
+                    EmitConfig(action: "remove", field: "keywords", values: ["glob:auto-*"], replacements: nil, source: nil),
+                ]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("auto-focus"), .string("nature")])]]
+        )
+        #expect(result["keywords"] == .array([.string("landscape"), .string("nature")]))
+    }
+
+    @Test("clone with read: namespace")
+    func cloneReadNamespace() async throws {
+        let buffer = MetadataBuffer(preloaded: [
+            "test.jpg": ["IPTC:Keywords": .array([.string("from-file")])]
+        ])
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "read:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "read:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: [:],
+            metadataBuffer: buffer,
+            imageName: "test.jpg"
+        )
+        #expect(result["keywords"] == .array([.string("from-file")]))
     }
 }

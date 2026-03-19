@@ -7,6 +7,7 @@ enum EmitAction: Sendable {
     case remove(field: String, matchers: [any TagMatcher & Sendable])
     case replace(field: String, replacements: [(matcher: any TagMatcher & Sendable, replacement: String)])
     case removeField(field: String) // "*" means remove all fields
+    case clone(field: String, sourceNamespace: String, sourceField: String?)
 }
 
 struct CompiledRule: Sendable {
@@ -107,6 +108,9 @@ struct RuleEvaluator: Sendable {
 
         switch actionStr {
         case "add":
+            guard config.source == nil else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "add action must not have source")
+            }
             guard config.replacements == nil else {
                 throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "add action must not have replacements")
             }
@@ -116,6 +120,9 @@ struct RuleEvaluator: Sendable {
             return .add(field: config.field, values: values)
 
         case "remove":
+            guard config.source == nil else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "remove action must not have source")
+            }
             guard config.replacements == nil else {
                 throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "remove action must not have replacements")
             }
@@ -128,6 +135,9 @@ struct RuleEvaluator: Sendable {
             return .remove(field: config.field, matchers: matchers)
 
         case "replace":
+            guard config.source == nil else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "replace action must not have source")
+            }
             guard config.values == nil else {
                 throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "replace action must not have values")
             }
@@ -141,6 +151,9 @@ struct RuleEvaluator: Sendable {
             return .replace(field: config.field, replacements: compiled)
 
         case "removeField":
+            guard config.source == nil else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "removeField action must not have source")
+            }
             guard config.values == nil else {
                 throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "removeField action must not have values")
             }
@@ -148,6 +161,27 @@ struct RuleEvaluator: Sendable {
                 throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "removeField action must not have replacements")
             }
             return .removeField(field: config.field)
+
+        case "clone":
+            guard let source = config.source, !source.isEmpty else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone action requires non-empty source")
+            }
+            guard config.values == nil else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone action must not have values")
+            }
+            guard config.replacements == nil else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone action must not have replacements")
+            }
+            if config.field == "*" {
+                // Wildcard clone: source is the namespace name
+                return .clone(field: "*", sourceNamespace: source, sourceField: nil)
+            } else {
+                let (namespace, field) = splitField(source)
+                guard !namespace.isEmpty, !field.isEmpty else {
+                    throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone source must be 'namespace:field'")
+                }
+                return .clone(field: config.field, sourceNamespace: namespace, sourceField: field)
+            }
 
         default:
             throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "unknown action '\(actionStr)'")
@@ -196,6 +230,28 @@ struct RuleEvaluator: Sendable {
             if matched {
                 // Emit actions first (modify plugin namespace)
                 for action in rule.emitActions {
+                    if case let .clone(field, sourceNamespace, sourceField) = action {
+                        // Clone is handled inline because it needs access to state and metadataBuffer
+                        if sourceNamespace == "read", let buffer = metadataBuffer, let image = imageName {
+                            let fileMetadata = await buffer.load(image: image)
+                            if field == "*" {
+                                for (key, val) in fileMetadata {
+                                    working[key] = val
+                                }
+                            } else if let sourceField, let val = fileMetadata[sourceField] {
+                                working[field] = val
+                            }
+                        } else if field == "*" {
+                            if let namespaceData = state[sourceNamespace] {
+                                for (key, val) in namespaceData {
+                                    working[key] = val
+                                }
+                            }
+                        } else if let sourceField, let val = state[sourceNamespace]?[sourceField] {
+                            working[field] = val
+                        }
+                        continue
+                    }
                     Self.applyAction(action, to: &working)
                 }
 
@@ -250,6 +306,10 @@ struct RuleEvaluator: Sendable {
             } else {
                 working.removeValue(forKey: field)
             }
+
+        case .clone:
+            // Clone is handled inline in evaluate(), not via applyAction.
+            break
         }
     }
 
