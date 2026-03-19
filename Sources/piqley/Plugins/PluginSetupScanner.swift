@@ -93,7 +93,10 @@ struct PluginSetupScanner {
             } else {
                 print("[\(pluginName)] \(key): ", terminator: "")
             }
-            let input = inputSource.readLine() ?? ""
+            guard let input = inputSource.readLine() else {
+                // EOF — return default if available, otherwise empty string
+                return hasDefault ? defaultValue : .string("")
+            }
             if input.isEmpty, hasDefault {
                 return defaultValue
             }
@@ -111,7 +114,10 @@ struct PluginSetupScanner {
     private mutating func promptForSecret(pluginName: String, key: String) -> String {
         while true {
             print("[\(pluginName)] \(key) (secret): ", terminator: "")
-            let input = inputSource.readLine() ?? ""
+            guard let input = inputSource.readLine() else {
+                // EOF — return empty string to avoid infinite loop
+                return ""
+            }
             if !input.isEmpty { return input }
             print("Value is required.")
         }

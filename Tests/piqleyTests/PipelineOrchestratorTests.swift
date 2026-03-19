@@ -15,18 +15,25 @@ final class FakeSecretStore: SecretStore, @unchecked Sendable {
     func delete(key: String) throws { secrets.removeValue(forKey: key) }
 }
 
-private func makePluginsDir(withPlugin name: String, hook: String, scriptURL: URL) throws -> URL {
+private func makePluginsDir(withPlugin identifier: String, hook: String, scriptURL: URL) throws -> URL {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("piqley-orch-\(UUID().uuidString)")
-    let pluginDir = dir.appendingPathComponent(name)
+    let pluginDir = dir.appendingPathComponent(identifier)
     try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+    // Write manifest with identifier (no hooks)
     let manifest: [String: Any] = [
-        "name": name,
-        "pluginProtocolVersion": "1",
-        "hooks": [hook: ["command": scriptURL.path, "args": [], "protocol": "pipe"]]
+        "identifier": identifier,
+        "name": identifier,
+        "pluginProtocolVersion": "1"
     ]
-    let data = try JSONSerialization.data(withJSONObject: manifest)
-    try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+    let manifestData = try JSONSerialization.data(withJSONObject: manifest)
+    try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
+    // Write stage file for the hook
+    let stageConfig: [String: Any] = [
+        "binary": ["command": scriptURL.path, "args": [], "protocol": "pipe"]
+    ]
+    let stageData = try JSONSerialization.data(withJSONObject: stageConfig)
+    try stageData.write(to: pluginDir.appendingPathComponent("stage-\(hook).json"))
     try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
     return dir
 }
@@ -55,13 +62,13 @@ struct PipelineOrchestratorTests {
     func testSuccess() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
-        let pluginsDir = try makePluginsDir(withPlugin: "test-plugin", hook: "publish", scriptURL: script)
+        let pluginsDir = try makePluginsDir(withPlugin: "com.test.test-plugin", hook: "publish", scriptURL: script)
         defer { try? FileManager.default.removeItem(at: pluginsDir) }
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
         var config = AppConfig()
-        config.pipeline["publish"] = ["test-plugin"]
+        config.pipeline["publish"] = ["com.test.test-plugin"]
         config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
@@ -86,16 +93,21 @@ struct PipelineOrchestratorTests {
         let pluginsDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-orch-\(UUID().uuidString)")
 
-        for (name, script) in [("fail-plugin", failScript), ("ok-plugin", successScript)] {
-            let pluginDir = pluginsDir.appendingPathComponent(name)
+        for (identifier, script) in [("com.test.fail-plugin", failScript), ("com.test.ok-plugin", successScript)] {
+            let pluginDir = pluginsDir.appendingPathComponent(identifier)
             try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
             let manifest: [String: Any] = [
-                "name": name,
-                "pluginProtocolVersion": "1",
-                "hooks": ["publish": ["command": script.path, "args": [], "protocol": "pipe"]]
+                "identifier": identifier,
+                "name": identifier,
+                "pluginProtocolVersion": "1"
             ]
-            let data = try JSONSerialization.data(withJSONObject: manifest)
-            try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+            let manifestData = try JSONSerialization.data(withJSONObject: manifest)
+            try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
+            let stageConfig: [String: Any] = [
+                "binary": ["command": script.path, "args": [], "protocol": "pipe"]
+            ]
+            let stageData = try JSONSerialization.data(withJSONObject: stageConfig)
+            try stageData.write(to: pluginDir.appendingPathComponent("stage-publish.json"))
             try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         }
         defer { try? FileManager.default.removeItem(at: pluginsDir) }
@@ -104,7 +116,7 @@ struct PipelineOrchestratorTests {
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
         var config = AppConfig()
-        config.pipeline["publish"] = ["fail-plugin", "ok-plugin"]
+        config.pipeline["publish"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
         config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
@@ -123,16 +135,21 @@ struct PipelineOrchestratorTests {
 
         let pluginsDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-orch-\(UUID().uuidString)")
-        let pluginDir = pluginsDir.appendingPathComponent("secret-plugin")
+        let pluginDir = pluginsDir.appendingPathComponent("com.test.secret-plugin")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
         let manifest: [String: Any] = [
+            "identifier": "com.test.secret-plugin",
             "name": "secret-plugin",
             "pluginProtocolVersion": "1",
-            "config": [["secret_key": "api-key", "type": "string"]],
-            "hooks": ["publish": ["command": script.path, "args": [], "protocol": "pipe"]]
+            "config": [["secret_key": "api-key", "type": "string"]]
         ]
-        let data = try JSONSerialization.data(withJSONObject: manifest)
-        try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+        let manifestData = try JSONSerialization.data(withJSONObject: manifest)
+        try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
+        let stageConfig: [String: Any] = [
+            "binary": ["command": script.path, "args": [], "protocol": "pipe"]
+        ]
+        let stageData = try JSONSerialization.data(withJSONObject: stageConfig)
+        try stageData.write(to: pluginDir.appendingPathComponent("stage-publish.json"))
         try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: pluginsDir) }
 
@@ -140,7 +157,7 @@ struct PipelineOrchestratorTests {
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
         var config = AppConfig()
-        config.pipeline["publish"] = ["secret-plugin"]
+        config.pipeline["publish"] = ["com.test.secret-plugin"]
         config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
