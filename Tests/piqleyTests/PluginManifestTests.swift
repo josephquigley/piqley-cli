@@ -9,148 +9,53 @@ struct PluginManifestTests {
     func testFullDecode() throws {
         let json = """
         {
+          "identifier": "com.piqley.ghost",
           "name": "ghost",
           "pluginProtocolVersion": "1",
-          "config": [{"secret_key": "api-key", "type": "string"}],
-          "hooks": {
-            "publish": {
-              "command": "./bin/piqley-ghost",
-              "args": ["publish", "$PIQLEY_IMAGE_FOLDER_PATH"],
-              "timeout": 60,
-              "protocol": "json",
-              "successCodes": [0],
-              "warningCodes": [2],
-              "criticalCodes": [1]
-            }
-          }
+          "config": [{"secret_key": "api-key", "type": "string"}]
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        #expect(manifest.identifier == "com.piqley.ghost")
         #expect(manifest.name == "ghost")
         #expect(manifest.pluginProtocolVersion == "1")
         #expect(manifest.secretKeys == ["api-key"])
-        let hook = try #require(manifest.hooks["publish"])
-        #expect(hook.command == "./bin/piqley-ghost")
-        #expect(hook.args == ["publish", "$PIQLEY_IMAGE_FOLDER_PATH"])
-        #expect(hook.timeout == 60)
-        #expect(hook.pluginProtocol == .json)
-        #expect(hook.successCodes == [0])
-        #expect(hook.warningCodes == [2])
-        #expect(hook.criticalCodes == [1])
     }
 
     @Test("absent optional fields decode to nil/defaults")
     func testDefaults() throws {
         let json = """
         {
+          "identifier": "com.piqley.minimal",
           "name": "minimal",
-          "pluginProtocolVersion": "1",
-          "hooks": {
-            "publish": {
-              "command": "./bin/tool",
-              "args": []
-            }
-          }
+          "pluginProtocolVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.config.isEmpty)
         #expect(manifest.setup == nil)
-        let hook = try #require(manifest.hooks["publish"])
-        #expect(hook.timeout == nil)
-        #expect(hook.pluginProtocol == nil)
-        #expect(hook.successCodes == nil)
-        #expect(hook.batchProxy == nil)
-    }
-
-    @Test("decodes batchProxy with sort config")
-    func testBatchProxy() throws {
-        let json = """
-        {
-          "name": "single-image-tool",
-          "pluginProtocolVersion": "1",
-          "hooks": {
-            "pre-process": {
-              "command": "/usr/local/bin/tool",
-              "args": ["$PIQLEY_IMAGE_PATH"],
-              "protocol": "pipe",
-              "batchProxy": {
-                "sort": {"key": "exif:DateTimeOriginal", "order": "ascending"}
-              }
-            }
-          }
-        }
-        """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        let hook = try #require(manifest.hooks["pre-process"])
-        let proxy = try #require(hook.batchProxy)
-        let sort = try #require(proxy.sort)
-        #expect(sort.key == "exif:DateTimeOriginal")
-        #expect(sort.order == .ascending)
     }
 
     @Test("makeEvaluator uses Unix defaults when all code arrays are nil")
     func testEvaluatorFromNilCodes() throws {
-        let json = """
-        {
-          "name": "t",
-          "pluginProtocolVersion": "1",
-          "hooks": {"publish": {"command": "./t", "args": []}}
-        }
-        """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        let hook = try #require(manifest.hooks["publish"])
-        let evaluator = hook.makeEvaluator()
+        let hookConfig = HookConfig(command: "./t", args: [])
+        let evaluator = hookConfig.makeEvaluator()
         #expect(evaluator.evaluate(0) == .success)
         #expect(evaluator.evaluate(1) == .critical)
-    }
-
-    @Test("unknownHooks returns hook names not in the canonical five")
-    func testUnknownHooks() throws {
-        let json = """
-        {
-          "name": "t",
-          "pluginProtocolVersion": "1",
-          "hooks": {
-            "publish": {"command": "./t", "args": []},
-            "prepprocess": {"command": "./t", "args": []},
-            "foobar": {"command": "./t", "args": []}
-          }
-        }
-        """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        let unknown = manifest.unknownHooks().sorted()
-        #expect(unknown == ["foobar", "prepprocess"])
-        // Canonical hook is not reported as unknown
-        #expect(!unknown.contains("publish"))
-    }
-
-    @Test("manifest with unknown hooks still loads successfully")
-    func testUnknownHooksDoNotFailLoad() throws {
-        let json = """
-        {
-          "name": "t",
-          "pluginProtocolVersion": "1",
-          "hooks": {"totally-made-up-hook": {"command": "./t", "args": []}}
-        }
-        """
-        // Should not throw
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        #expect(manifest.hooks["totally-made-up-hook"] != nil)
     }
 
     @Test("decodes config array with value and secret entries")
     func testConfigArrayDecoding() throws {
         let json = """
         {
+          "identifier": "com.piqley.test-plugin",
           "name": "test-plugin",
           "pluginProtocolVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
             {"secret_key": "api-key", "type": "string"},
             {"key": "retry-count", "type": "int", "value": 3}
-          ],
-          "hooks": {"publish": {"command": "./tool", "args": []}}
+          ]
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -165,10 +70,10 @@ struct PluginManifestTests {
     func testSetupDecoding() throws {
         let json = """
         {
+          "identifier": "com.piqley.test-plugin",
           "name": "test-plugin",
           "pluginProtocolVersion": "1",
-          "setup": {"command": "./setup.sh", "args": ["--install"]},
-          "hooks": {"publish": {"command": "./tool", "args": []}}
+          "setup": {"command": "./setup.sh", "args": ["--install"]}
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -181,14 +86,14 @@ struct PluginManifestTests {
     func testSecretKeys() throws {
         let json = """
         {
+          "identifier": "com.piqley.t",
           "name": "t",
           "pluginProtocolVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
             {"secret_key": "api-key", "type": "string"},
             {"secret_key": "webhook-secret", "type": "string"}
-          ],
-          "hooks": {"publish": {"command": "./t", "args": []}}
+          ]
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -199,14 +104,14 @@ struct PluginManifestTests {
     func testValueEntries() throws {
         let json = """
         {
+          "identifier": "com.piqley.t",
           "name": "t",
           "pluginProtocolVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
             {"secret_key": "api-key", "type": "string"},
             {"key": "enabled", "type": "bool", "value": true}
-          ],
-          "hooks": {"publish": {"command": "./t", "args": []}}
+          ]
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -219,9 +124,9 @@ struct PluginManifestTests {
     func testBackwardCompat() throws {
         let json = """
         {
+          "identifier": "com.piqley.legacy",
           "name": "legacy",
-          "pluginProtocolVersion": "1",
-          "hooks": {"publish": {"command": "./tool", "args": []}}
+          "pluginProtocolVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -235,44 +140,40 @@ struct PluginManifestTests {
     func testDependencies() throws {
         let json = """
         {
+          "identifier": "com.piqley.flickr",
           "name": "flickr",
           "pluginProtocolVersion": "1",
-          "dependencies": ["hashtag", "original"],
-          "hooks": {"publish": {"command": "./tool", "args": []}}
+          "dependencies": ["hashtag", "original"]
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        #expect(manifest.dependencyNames == ["hashtag", "original"])
-    }
-
-    @Test("hook with no command decodes with nil command")
-    func testNoCommand() throws {
-        let json = """
-        {
-          "name": "rules-only",
-          "pluginProtocolVersion": "1",
-          "hooks": {
-            "pre-process": {}
-          }
-        }
-        """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        let hook = try #require(manifest.hooks["pre-process"])
-        #expect(hook.command == nil)
-        #expect(hook.args.isEmpty)
-        #expect(hook.timeout == nil)
+        #expect(manifest.dependencyIdentifiers == ["hashtag", "original"])
     }
 
     @Test("absent dependencies decodes to nil")
     func testNoDependencies() throws {
         let json = """
         {
+          "identifier": "com.piqley.simple",
           "name": "simple",
-          "pluginProtocolVersion": "1",
-          "hooks": {"publish": {"command": "./tool", "args": []}}
+          "pluginProtocolVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.dependencies == nil)
+    }
+
+    @Test("description field decodes when present")
+    func testDescriptionDecoding() throws {
+        let json = """
+        {
+          "identifier": "com.piqley.desc-test",
+          "name": "desc-test",
+          "description": "A test plugin",
+          "pluginProtocolVersion": "1"
+        }
+        """
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        #expect(manifest.description == "A test plugin")
     }
 }

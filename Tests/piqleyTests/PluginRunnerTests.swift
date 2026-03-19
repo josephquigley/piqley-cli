@@ -22,24 +22,34 @@ private func makePlugin(
     let tempDir = FileManager.default.temporaryDirectory
         .appendingPathComponent("piqley-plugin-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    var hookDict: [String: Any] = [
+
+    // Write manifest (no hooks — stage-based now)
+    let manifestJSON: [String: Any] = [
+        "identifier": name,
+        "name": name,
+        "pluginProtocolVersion": "1"
+    ]
+    let manifestData = try JSONSerialization.data(withJSONObject: manifestJSON)
+    try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+
+    // Build stage binary config
+    var binaryDict: [String: Any] = [
         "command": scriptURL.path,
         "args": [],
         "protocol": proto
     ]
     if batchProxy {
-        hookDict["batchProxy"] = ["sort": ["key": "filename", "order": "ascending"]] as [String: Any]
+        binaryDict["batchProxy"] = ["sort": ["key": "filename", "order": "ascending"]] as [String: Any]
     }
-    let manifest: [String: Any] = [
-        "name": name,
-        "pluginProtocolVersion": "1",
-        "hooks": [hook: hookDict]
-    ]
-    let data = try JSONSerialization.data(withJSONObject: manifest)
-    try data.write(to: tempDir.appendingPathComponent("manifest.json"))
+    let stageJSON: [String: Any] = ["binary": binaryDict]
+    let stageData = try JSONSerialization.data(withJSONObject: stageJSON)
+    try stageData.write(to: tempDir.appendingPathComponent("stage-\(hook).json"))
+
     try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
-    let decoded = try JSONDecoder().decode(PluginManifest.self, from: data)
-    return LoadedPlugin(name: name, directory: tempDir, manifest: decoded)
+    let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+    let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+    let stages = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
+    return LoadedPlugin(identifier: decoded.identifier, name: name, directory: tempDir, manifest: decoded, stages: stages)
 }
 
 @Suite("PluginRunner")
@@ -64,9 +74,11 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
+        let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -82,9 +94,11 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
+        let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -100,9 +114,11 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "post-publish", scriptURL: script, protocol: "pipe")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
+        let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "post-publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -118,9 +134,11 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "post-publish", scriptURL: script, protocol: "pipe")
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
+        let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "post-publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -134,25 +152,35 @@ struct PluginRunnerTests {
         let script = try makeTempScript("sleep 60")
         defer { try? FileManager.default.removeItem(at: script) }
 
-        // Build plugin with 1-second timeout
+        // Build plugin with 1-second timeout using a stage file
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-plugin-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let manifestData = try JSONSerialization.data(withJSONObject: [
+            "identifier": "slow",
             "name": "slow",
-            "pluginProtocolVersion": "1",
-            "hooks": ["publish": ["command": script.path, "args": [], "timeout": 1]]
+            "pluginProtocolVersion": "1"
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+
+        let stageData = try JSONSerialization.data(withJSONObject: [
+            "binary": ["command": script.path, "args": [], "timeout": 1]
+        ] as [String: Any])
+        try stageData.write(to: tempDir.appendingPathComponent("stage-publish.json"))
+
         try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
-        let plugin = LoadedPlugin(name: "slow", directory: tempDir, manifest: manifest)
+        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+        let stages = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
+        let plugin = LoadedPlugin(identifier: "slow", name: "slow", directory: tempDir, manifest: manifest, stages: stages)
 
+        let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -176,22 +204,32 @@ struct PluginRunnerTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let manifestData = try JSONSerialization.data(withJSONObject: [
+            "identifier": "token-test",
             "name": "token-test",
-            "pluginProtocolVersion": "1",
-            "hooks": ["publish": [
+            "pluginProtocolVersion": "1"
+        ] as [String: Any])
+        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+
+        let stageData = try JSONSerialization.data(withJSONObject: [
+            "binary": [
                 "command": script.path,
                 "args": ["$PIQLEY_IMAGE_FOLDER_PATH"],
                 "protocol": "json"
-            ]]
+            ]
         ] as [String: Any])
-        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+        try stageData.write(to: tempDir.appendingPathComponent("stage-publish.json"))
+
         try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
-        let plugin = LoadedPlugin(name: "token-test", directory: tempDir, manifest: manifest)
+        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+        let stages = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
+        let plugin = LoadedPlugin(identifier: "token-test", name: "token-test", directory: tempDir, manifest: manifest, stages: stages)
 
+        let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -210,23 +248,36 @@ struct PluginRunnerTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let manifestData = try JSONSerialization.data(withJSONObject: [
+            "identifier": "bad",
             "name": "bad",
-            "pluginProtocolVersion": "1",
-            "hooks": ["publish": [
+            "pluginProtocolVersion": "1"
+        ] as [String: Any])
+        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+
+        // batchProxy+json is invalid — PluginDiscovery.loadStages skips it
+        // So the stage will be nil, and the runner should return .critical
+        let stageData = try JSONSerialization.data(withJSONObject: [
+            "binary": [
                 "command": script.path,
                 "args": [],
                 "protocol": "json",
                 "batchProxy": ["sort": ["key": "filename", "order": "ascending"]] as [String: Any]
-            ]]
+            ]
         ] as [String: Any])
-        try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
+        try stageData.write(to: tempDir.appendingPathComponent("stage-publish.json"))
+
         try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
-        let plugin = LoadedPlugin(name: "bad", directory: tempDir, manifest: manifest)
+        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+        let stages = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
+        let plugin = LoadedPlugin(identifier: "bad", name: "bad", directory: tempDir, manifest: manifest, stages: stages)
 
+        // Stage was skipped by loadStages — hookConfig will be nil → runner returns .critical
+        let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         let (result, _) = try await runner.run(
             hook: "publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -251,9 +302,11 @@ struct PluginRunnerTests {
         let plugin = try makePlugin(name: "test", hook: "pre-process", scriptURL: script, protocol: "pipe", batchProxy: true)
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
+        let hookConfig = plugin.stages["pre-process"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
         _ = try await runner.run(
             hook: "pre-process",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false
@@ -286,9 +339,11 @@ struct PluginRunnerTests {
             "api-url": .string("https://example.com"),
             "retry-count": .number(3)
         ])
+        let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: config)
         let (result, _) = try await runner.run(
             hook: "publish",
+            hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false

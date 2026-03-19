@@ -11,7 +11,6 @@ struct RuleTests {
         let json = """
         {
             "match": {
-                "hook": "pre-process",
                 "field": "original:TIFF:Model",
                 "pattern": "regex:.*a7r.*"
             },
@@ -24,14 +23,13 @@ struct RuleTests {
         }
         """
         let rule = try JSONDecoder().decode(Rule.self, from: Data(json.utf8))
-        #expect(rule.match.hook == "pre-process")
         #expect(rule.match.field == "original:TIFF:Model")
         #expect(rule.match.pattern == "regex:.*a7r.*")
         #expect(rule.emit[0].field == "keywords")
         #expect(rule.emit[0].values == ["sony", "mirrorless"])
     }
 
-    @Test("omitted hook decodes as nil")
+    @Test("rule with only required fields decodes")
     func omittedOptionals() throws {
         let json = """
         {
@@ -48,7 +46,6 @@ struct RuleTests {
         }
         """
         let rule = try JSONDecoder().decode(Rule.self, from: Data(json.utf8))
-        #expect(rule.match.hook == nil)
         #expect(rule.emit[0].field == "keywords")
         #expect(rule.match.field == "original:IPTC:Keywords")
         #expect(rule.emit[0].values == ["nature"])
