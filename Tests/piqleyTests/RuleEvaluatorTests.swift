@@ -23,12 +23,12 @@ struct RuleEvaluatorTests {
     // MARK: - Basic matching (add action, same as before)
 
     @Test("exact match on string field")
-    func exactMatchString() throws {
+    func exactMatchString() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(pattern: "Sony")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
@@ -36,12 +36,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("glob match on string field")
-    func globMatchString() throws {
+    func globMatchString() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(pattern: "glob:Sony*")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony A7R IV")]]
         )
@@ -49,12 +49,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("regex match on string field")
-    func regexMatchString() throws {
+    func regexMatchString() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(pattern: "regex:.*a7r.*")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("ILCE-A7R4")]]
         )
@@ -62,12 +62,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("array field: element-wise matching")
-    func arrayFieldElementWise() throws {
+    func arrayFieldElementWise() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(field: "original:IPTC:Keywords", pattern: "landscape")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["IPTC:Keywords": .array([.string("portrait"), .string("landscape")])]]
         )
@@ -75,12 +75,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("array field: non-string elements skipped")
-    func arrayFieldNonStringSkipped() throws {
+    func arrayFieldNonStringSkipped() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(field: "original:tags", pattern: "landscape")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["tags": .array([.number(42), .bool(true)])]]
         )
@@ -88,12 +88,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("no match: empty output")
-    func noMatchEmptyOutput() throws {
+    func noMatchEmptyOutput() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(pattern: "Canon")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
@@ -101,7 +101,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("multiple rules: additive, deduplicated")
-    func multipleRulesAdditiveDeduplicated() throws {
+    func multipleRulesAdditiveDeduplicated() async throws {
         let evaluator = try RuleEvaluator(
             rules: [
                 makeRule(pattern: "Sony", emit: [EmitConfig(field: "keywords", values: ["sony", "camera"])]),
@@ -109,7 +109,7 @@ struct RuleEvaluatorTests {
             ],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
@@ -118,7 +118,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("multiple emit fields")
-    func multipleEmitFields() throws {
+    func multipleEmitFields() async throws {
         let evaluator = try RuleEvaluator(
             rules: [
                 makeRule(pattern: "Sony", emit: [EmitConfig(field: "keywords", values: ["sony"])]),
@@ -126,7 +126,7 @@ struct RuleEvaluatorTests {
             ],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
@@ -135,12 +135,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("hook filtering: rule for post-process skipped at pre-process")
-    func hookFiltering() throws {
+    func hookFiltering() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(hook: "post-process", pattern: "Sony")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
@@ -148,12 +148,12 @@ struct RuleEvaluatorTests {
     }
 
     @Test("hook defaulting: rule with no hook evaluates at pre-process")
-    func hookDefaulting() throws {
+    func hookDefaulting() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(hook: nil, pattern: "Sony")],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
@@ -173,7 +173,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("invalid regex skipped in non-interactive mode")
-    func invalidRegexSkippedNonInteractive() throws {
+    func invalidRegexSkippedNonInteractive() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(pattern: "regex:[invalid")],
             nonInteractive: true,
@@ -195,7 +195,7 @@ struct RuleEvaluatorTests {
     // MARK: - Remove action
 
     @Test("remove action filters matching values")
-    func removeAction() throws {
+    func removeAction() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -203,7 +203,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-tag"), .string("auto-focus"), .string("keeper")])]
@@ -212,7 +212,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("remove is case-insensitive for exact matches")
-    func removeCaseInsensitive() throws {
+    func removeCaseInsensitive() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -220,7 +220,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-tag"), .string("keeper")])]
@@ -229,7 +229,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("remove all values removes the field entirely")
-    func removeAllValuesRemovesField() throws {
+    func removeAllValuesRemovesField() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -237,7 +237,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("a"), .string("b")])]
@@ -248,7 +248,7 @@ struct RuleEvaluatorTests {
     // MARK: - Replace action
 
     @Test("replace action substitutes matching values")
-    func replaceAction() throws {
+    func replaceAction() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -258,7 +258,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5"), .string("keeper")])]
@@ -267,7 +267,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("replace first match wins")
-    func replaceFirstMatchWins() throws {
+    func replaceFirstMatchWins() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -278,7 +278,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5")])]
@@ -288,7 +288,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("replace whole-match only: partial match does not replace")
-    func replaceWholeMatchOnly() throws {
+    func replaceWholeMatchOnly() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -298,7 +298,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5")])]
@@ -310,7 +310,7 @@ struct RuleEvaluatorTests {
     // MARK: - RemoveField action
 
     @Test("removeField action removes a field")
-    func removeFieldAction() throws {
+    func removeFieldAction() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -318,7 +318,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old")]), "tags": .array([.string("kept")])]
@@ -328,7 +328,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("removeField with wildcard removes all fields")
-    func removeFieldWildcard() throws {
+    func removeFieldWildcard() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -336,7 +336,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("a")]), "tags": .array([.string("b")])]
@@ -347,7 +347,7 @@ struct RuleEvaluatorTests {
     // MARK: - Multi-action and namespace preservation
 
     @Test("multiple emit actions in one rule applied in order")
-    func multipleEmitActionsInOrder() throws {
+    func multipleEmitActionsInOrder() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -358,7 +358,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-stuff")])]
@@ -367,7 +367,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("untouched fields preserved in output")
-    func untouchedFieldsPreserved() throws {
+    func untouchedFieldsPreserved() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -375,7 +375,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["existing": .string("preserved")]
@@ -385,7 +385,7 @@ struct RuleEvaluatorTests {
     }
 
     @Test("add deduplicates against currentNamespace")
-    func addDeduplicatesAgainstExisting() throws {
+    func addDeduplicatesAgainstExisting() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 pattern: "Sony",
@@ -393,7 +393,7 @@ struct RuleEvaluatorTests {
             )],
             logger: logger
         )
-        let result = evaluator.evaluate(
+        let result = await evaluator.evaluate(
             hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("sony")])]

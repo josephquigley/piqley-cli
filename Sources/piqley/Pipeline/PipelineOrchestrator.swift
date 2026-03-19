@@ -83,7 +83,8 @@ struct PipelineOrchestrator: Sendable {
 
                 let ctx = HookContext(
                     pluginName: pluginName, hook: hook, temp: temp,
-                    stateStore: stateStore, dryRun: dryRun, nonInteractive: nonInteractive
+                    stateStore: stateStore, imageFiles: imageFiles,
+                    dryRun: dryRun, nonInteractive: nonInteractive
                 )
                 let result = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
 
@@ -107,6 +108,7 @@ struct PipelineOrchestrator: Sendable {
         let hook: String
         let temp: TempFolder
         let stateStore: StateStore
+        let imageFiles: [URL]
         let dryRun: Bool
         let nonInteractive: Bool
     }
@@ -205,14 +207,20 @@ struct PipelineOrchestrator: Sendable {
             ruleEvaluatorCache[ctx.pluginName] = evaluator
         }
 
+        let imageURLs = Dictionary(uniqueKeysWithValues: ctx.imageFiles.map {
+            ($0.lastPathComponent, $0)
+        })
+        let buffer = MetadataBuffer(imageURLs: imageURLs)
+
         var didRun = false
         for imageName in await ctx.stateStore.allImageNames {
             let resolved = await ctx.stateStore.resolve(
                 image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginName]
             )
             let currentNamespace = resolved[ctx.pluginName] ?? [:]
-            let ruleOutput = evaluator.evaluate(
-                hook: ctx.hook, state: resolved, currentNamespace: currentNamespace
+            let ruleOutput = await evaluator.evaluate(
+                hook: ctx.hook, state: resolved, currentNamespace: currentNamespace,
+                metadataBuffer: buffer, imageName: imageName
             )
             if ruleOutput != currentNamespace {
                 await ctx.stateStore.setNamespace(
@@ -221,6 +229,8 @@ struct PipelineOrchestrator: Sendable {
                 didRun = true
             }
         }
+
+        await buffer.flush()
         return didRun
     }
 

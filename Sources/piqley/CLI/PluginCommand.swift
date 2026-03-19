@@ -253,6 +253,17 @@ struct PluginCommand: ParsableCommand {
                                 .values(field: "tags", ["Piqley Emulsions, LLC"]),
                             ]
                         )
+
+                        // write keywords back to image file metadata
+                        ConfigRule(
+                            match: .field(
+                                .original(.make),
+                                pattern: .glob("*Canon*"),
+                                hook: .postProcess
+                            ),
+                            emit: [.keywords(["Canon"])],
+                            write: [.values(field: "IPTC:Keywords", ["Canon", "piqley-processed"])]
+                        )
                     }
                 }
             } else {

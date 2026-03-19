@@ -11,10 +11,11 @@ enum EmitAction: Sendable {
 
 struct CompiledRule: Sendable {
     let hook: String
-    let namespace: String
-    let field: String
+    let namespace: String // match-side namespace
+    let field: String // match-side field
     let matcher: any TagMatcher & Sendable
     let emitActions: [EmitAction]
+    let writeActions: [EmitAction]
 }
 
 enum RuleCompilationError: Error, LocalizedError {
@@ -87,12 +88,28 @@ struct RuleEvaluator: Sendable {
                 throw error
             }
 
+            // Compile write actions
+            var writeActions: [EmitAction] = []
+            do {
+                for writeConfig in rule.write {
+                    let action = try Self.compileEmitAction(writeConfig, ruleIndex: index)
+                    writeActions.append(action)
+                }
+            } catch {
+                if nonInteractive {
+                    logger.warning("\(error.localizedDescription) — skipping rule")
+                    continue
+                }
+                throw error
+            }
+
             compiled.append(CompiledRule(
                 hook: hook,
                 namespace: namespace,
                 field: field,
                 matcher: matcher,
-                emitActions: emitActions
+                emitActions: emitActions,
+                writeActions: writeActions
             ))
         }
         compiledRules = compiled
@@ -157,20 +174,28 @@ struct RuleEvaluator: Sendable {
     /// Evaluate rules for a given hook against resolved state.
     /// state is [namespace: [field: JSONValue]]
     /// currentNamespace is the plugin's current emitted state.
+    /// metadataBuffer is used to resolve read: namespace fields and apply write actions.
     /// Returns the complete updated namespace (untouched fields preserved).
     func evaluate(
         hook: String,
         state: [String: [String: JSONValue]],
-        currentNamespace: [String: JSONValue] = [:]
-    ) -> [String: JSONValue] {
+        currentNamespace: [String: JSONValue] = [:],
+        metadataBuffer: MetadataBuffer? = nil,
+        imageName: String? = nil
+    ) async -> [String: JSONValue] {
         var working = currentNamespace
 
         for rule in compiledRules where rule.hook == hook {
-            guard let namespaceData = state[rule.namespace],
-                  let value = namespaceData[rule.field]
-            else {
-                continue
+            // Resolve the match field value
+            let value: JSONValue?
+            if rule.namespace == "read", let buffer = metadataBuffer, let image = imageName {
+                let fileMetadata = await buffer.load(image: image)
+                value = fileMetadata[rule.field]
+            } else {
+                value = state[rule.namespace]?[rule.field]
             }
+
+            guard let value else { continue }
 
             let matched: Bool = switch value {
             case let .string(str):
@@ -187,8 +212,16 @@ struct RuleEvaluator: Sendable {
             }
 
             if matched {
+                // Emit actions first (modify plugin namespace)
                 for action in rule.emitActions {
                     Self.applyAction(action, to: &working)
+                }
+
+                // Write actions second (modify file metadata via buffer)
+                if let buffer = metadataBuffer, let image = imageName {
+                    for action in rule.writeActions {
+                        await buffer.applyAction(action, image: image)
+                    }
                 }
             }
         }
@@ -196,17 +229,17 @@ struct RuleEvaluator: Sendable {
         return working
     }
 
-    private static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {
+    static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {
         switch action {
         case let .add(field, values):
-            var existing = Self.extractStrings(from: working[field])
+            var existing = extractStrings(from: working[field])
             for val in values where !existing.contains(val) {
                 existing.append(val)
             }
             working[field] = .array(existing.map { .string($0) })
 
         case let .remove(field, matchers):
-            var existing = Self.extractStrings(from: working[field])
+            var existing = extractStrings(from: working[field])
             existing.removeAll { value in
                 matchers.contains { $0.matches(value) }
             }
@@ -217,7 +250,7 @@ struct RuleEvaluator: Sendable {
             }
 
         case let .replace(field, replacements):
-            var existing = Self.extractStrings(from: working[field])
+            var existing = extractStrings(from: working[field])
             existing = existing.map { value in
                 for (matcher, replacement) in replacements {
                     let result = matcher.replacing(value, with: replacement)

@@ -125,7 +125,7 @@ struct PluginInitTests {
         let configData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/config.json"))
         let config = try JSONDecoder().decode(PluginConfig.self, from: configData)
         #expect(config.values.count == 2)
-        #expect(config.rules.count == 6)
+        #expect(config.rules.count == 7)
 
         // Pre-process rules: tag from original metadata
         #expect(config.rules[0].match.field == "original:TIFF:Model")
@@ -154,6 +154,13 @@ struct PluginInitTests {
         #expect(config.rules[5].emit[0].action == "remove")
         #expect(config.rules[5].emit[0].values == ["Kodak"])
         #expect(config.rules[5].emit[1].values == ["Piqley Emulsions, LLC"])
+
+        // Post-process: write keywords to image file
+        #expect(config.rules[6].match.field == "original:TIFF:Make")
+        #expect(config.rules[6].match.pattern == "glob:*Canon*")
+        #expect(config.rules[6].write.count == 1)
+        #expect(config.rules[6].write[0].field == "IPTC:Keywords")
+        #expect(config.rules[6].write[0].values == ["Canon", "piqley-processed"])
     }
 
     @Test("rejects init when plugin directory already exists")
