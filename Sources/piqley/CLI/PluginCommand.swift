@@ -166,7 +166,7 @@ struct PluginCommand: ParsableCommand {
                     Identifier(identifier)
                     Name(resolvedDisplayName)
                     ProtocolVersion("1")
-                    try PluginVersion("0.1.0")
+                    try PluginVersion("0.0.1")
                     ConfigEntries {
                         Value("outputQuality", type: .int, default: 85)
                         Value("tagPrefix", type: .string, default: "auto")
