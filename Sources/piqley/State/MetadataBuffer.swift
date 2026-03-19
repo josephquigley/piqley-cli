@@ -56,4 +56,10 @@ actor MetadataBuffer {
         }
         dirty.removeAll()
     }
+
+    /// Clear all cached metadata. Call after a binary may have modified files on disk.
+    /// The dirty set should already be empty (flushed before binary execution).
+    func invalidateAll() {
+        metadata.removeAll()
+    }
 }
