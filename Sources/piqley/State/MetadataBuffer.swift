@@ -14,6 +14,12 @@ actor MetadataBuffer {
         self.imageURLs = imageURLs
     }
 
+    /// Testing-only initializer with pre-loaded metadata.
+    init(preloaded: [String: [String: JSONValue]]) {
+        imageURLs = [:]
+        metadata = preloaded
+    }
+
     /// Load metadata for an image. Extracts from disk on first call, returns cached on subsequent.
     func load(image: String) -> [String: JSONValue] {
         if let cached = metadata[image] {
