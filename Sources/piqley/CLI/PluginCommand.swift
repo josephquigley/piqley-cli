@@ -253,19 +253,13 @@ struct PluginCommand: ParsableCommand {
 
             print("Opening \(editor)...")
 
-            // Use /dev/tty so the editor gets the real terminal, not piped handles.
-            guard let tty = fopen("/dev/tty", "r+") else { return nil }
-            defer { fclose(tty) }
-            let ttyFd = fileno(tty)
-            let ttyInput = FileHandle(fileDescriptor: ttyFd, closeOnDealloc: false)
-            let ttyOutput = FileHandle(fileDescriptor: ttyFd, closeOnDealloc: false)
-
+            // Launch the editor via /bin/sh with explicit /dev/tty redirection.
+            // This ensures the editor gets a real terminal even under `swift run`.
+            let shellSafeEditor = editor.replacingOccurrences(of: "'", with: "'\\''")
+            let shellSafePath = tempFile.path.replacingOccurrences(of: "'", with: "'\\''")
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = [editor, tempFile.path]
-            process.standardInput = ttyInput
-            process.standardOutput = ttyOutput
-            process.standardError = ttyOutput
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", "'\(shellSafeEditor)' '\(shellSafePath)' </dev/tty >/dev/tty 2>/dev/tty"]
 
             do {
                 try process.run()
