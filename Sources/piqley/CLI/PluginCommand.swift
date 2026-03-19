@@ -252,12 +252,20 @@ struct PluginCommand: ParsableCommand {
             defer { try? FileManager.default.removeItem(at: tempFile) }
 
             print("Opening \(editor)...")
+
+            // Use /dev/tty so the editor gets the real terminal, not piped handles.
+            guard let tty = fopen("/dev/tty", "r+") else { return nil }
+            defer { fclose(tty) }
+            let ttyFd = fileno(tty)
+            let ttyInput = FileHandle(fileDescriptor: ttyFd, closeOnDealloc: false)
+            let ttyOutput = FileHandle(fileDescriptor: ttyFd, closeOnDealloc: false)
+
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.arguments = [editor, tempFile.path]
-            process.standardInput = FileHandle.standardInput
-            process.standardOutput = FileHandle.standardOutput
-            process.standardError = FileHandle.standardError
+            process.standardInput = ttyInput
+            process.standardOutput = ttyOutput
+            process.standardError = ttyOutput
 
             do {
                 try process.run()
