@@ -7,7 +7,7 @@ enum InstallError: Error, CustomStringConvertible {
     case notAPiqleyPlugin
     case missingManifest
     case invalidManifest
-    case unsupportedProtocolVersion
+    case unsupportedSchemaVersion
     case alreadyInstalled
     case extractionFailed
 
@@ -21,8 +21,8 @@ enum InstallError: Error, CustomStringConvertible {
             "Plugin archive does not contain a manifest.json."
         case .invalidManifest:
             "Plugin manifest is invalid."
-        case .unsupportedProtocolVersion:
-            "Plugin protocol version is not supported."
+        case .unsupportedSchemaVersion:
+            "Plugin schema version is not supported."
         case .alreadyInstalled:
             "Plugin is already installed. Use --force to overwrite."
         case .extractionFailed:
@@ -32,8 +32,6 @@ enum InstallError: Error, CustomStringConvertible {
 }
 
 enum PluginInstaller {
-    static let supportedProtocolVersions: Set<String> = ["1"]
-
     static func install(from zipURL: URL, to pluginsDirectory: URL, force: Bool = false) throws {
         let fileManager = FileManager.default
 
@@ -78,9 +76,9 @@ enum PluginInstaller {
             throw InstallError.invalidManifest
         }
 
-        // 4. Validate protocol version
-        guard supportedProtocolVersions.contains(manifest.pluginProtocolVersion) else {
-            throw InstallError.unsupportedProtocolVersion
+        // 4. Validate schema version
+        guard PluginManifest.supportedSchemaVersions.contains(manifest.pluginSchemaVersion) else {
+            throw InstallError.unsupportedSchemaVersion
         }
 
         // 5. Run ManifestValidator

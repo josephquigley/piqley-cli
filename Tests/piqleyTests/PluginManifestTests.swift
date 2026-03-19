@@ -11,14 +11,14 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.ghost",
           "name": "ghost",
-          "pluginProtocolVersion": "1",
+          "pluginSchemaVersion": "1",
           "config": [{"secret_key": "api-key", "type": "string"}]
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.identifier == "com.piqley.ghost")
         #expect(manifest.name == "ghost")
-        #expect(manifest.pluginProtocolVersion == "1")
+        #expect(manifest.pluginSchemaVersion == "1")
         #expect(manifest.secretKeys == ["api-key"])
     }
 
@@ -28,7 +28,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.minimal",
           "name": "minimal",
-          "pluginProtocolVersion": "1"
+          "pluginSchemaVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -50,7 +50,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.test-plugin",
           "name": "test-plugin",
-          "pluginProtocolVersion": "1",
+          "pluginSchemaVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
             {"secret_key": "api-key", "type": "string"},
@@ -72,7 +72,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.test-plugin",
           "name": "test-plugin",
-          "pluginProtocolVersion": "1",
+          "pluginSchemaVersion": "1",
           "setup": {"command": "./setup.sh", "args": ["--install"]}
         }
         """
@@ -88,7 +88,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.t",
           "name": "t",
-          "pluginProtocolVersion": "1",
+          "pluginSchemaVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
             {"secret_key": "api-key", "type": "string"},
@@ -106,7 +106,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.t",
           "name": "t",
-          "pluginProtocolVersion": "1",
+          "pluginSchemaVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
             {"secret_key": "api-key", "type": "string"},
@@ -126,7 +126,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.legacy",
           "name": "legacy",
-          "pluginProtocolVersion": "1"
+          "pluginSchemaVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -142,7 +142,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.flickr",
           "name": "flickr",
-          "pluginProtocolVersion": "1",
+          "pluginSchemaVersion": "1",
           "dependencies": ["hashtag", "original"]
         }
         """
@@ -156,7 +156,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.simple",
           "name": "simple",
-          "pluginProtocolVersion": "1"
+          "pluginSchemaVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
@@ -170,7 +170,7 @@ struct PluginManifestTests {
           "identifier": "com.piqley.desc-test",
           "name": "desc-test",
           "description": "A test plugin",
-          "pluginProtocolVersion": "1"
+          "pluginSchemaVersion": "1"
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
