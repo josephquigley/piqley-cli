@@ -30,3 +30,10 @@ repos:
         language: system
         files: CHANGELOG.md
         pass_filenames: false
+
+      - id: changelog-check
+        name: Changelog entry required
+        entry: scripts/check-changelog.sh
+        language: script
+        pass_filenames: false
+        stages: [pre-commit]

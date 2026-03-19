@@ -125,7 +125,7 @@ The [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) prov
 ### Prerequisites
 
 - macOS 13+
-- Xcode 26+ or Swift 6.2+ toolchain
+- Xcode 16+ or Swift 6.0+ toolchain
 
 ### Build and test
 
