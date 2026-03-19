@@ -77,4 +77,41 @@ struct TagMatcherTests {
             try TagMatcherFactory.build(from: "regex:[invalid")
         }
     }
+
+    // MARK: - Replacing
+
+    @Test("RegexMatcher replaces with capture groups")
+    func regexReplace() throws {
+        let matcher = try RegexMatcher(pattern: "SONY(.+)")
+        let result = matcher.replacing("SONYA7R5", with: "Sony $1")
+        #expect(result == "Sony A7R5")
+    }
+
+    @Test("RegexMatcher replace no match returns original")
+    func regexReplaceNoMatch() throws {
+        let matcher = try RegexMatcher(pattern: "SONY(.+)")
+        let result = matcher.replacing("Canon", with: "Sony $1")
+        #expect(result == "Canon")
+    }
+
+    @Test("ExactMatcher replace returns replacement on match")
+    func exactReplace() {
+        let matcher = ExactMatcher(pattern: "old")
+        let result = matcher.replacing("Old", with: "new")
+        #expect(result == "new")
+    }
+
+    @Test("ExactMatcher replace no match returns original")
+    func exactReplaceNoMatch() {
+        let matcher = ExactMatcher(pattern: "old")
+        let result = matcher.replacing("other", with: "new")
+        #expect(result == "other")
+    }
+
+    @Test("GlobMatcher replace returns replacement on match")
+    func globReplace() {
+        let matcher = GlobMatcher(pattern: "SONY*")
+        let result = matcher.replacing("SONYA7R5", with: "Sony Camera")
+        #expect(result == "Sony Camera")
+    }
 }

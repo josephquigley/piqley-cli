@@ -206,7 +206,7 @@ struct PluginCommand: ParsableCommand {
                                 pattern: .exact("Canon EOS R5"),
                                 hook: .preProcess
                             ),
-                            emit: .values(field: "tags", ["Canon", "EOS R5"])
+                            emit: [.values(field: "tags", ["Canon", "EOS R5"])]
                         )
                         ConfigRule(
                             match: .field(
@@ -214,7 +214,7 @@ struct PluginCommand: ParsableCommand {
                                 pattern: .glob("RF*"),
                                 hook: .preProcess
                             ),
-                            emit: .values(field: "tags", ["RF Mount"])
+                            emit: [.values(field: "tags", ["RF Mount"])]
                         )
                         ConfigRule(
                             match: .field(
@@ -222,7 +222,7 @@ struct PluginCommand: ParsableCommand {
                                 pattern: .regex("^(3200|6400|12800|25600)$"),
                                 hook: .preProcess
                             ),
-                            emit: .values(field: "tags", ["High ISO"])
+                            emit: [.values(field: "tags", ["High ISO"])]
                         )
                         ConfigRule(
                             match: .field(
@@ -230,7 +230,7 @@ struct PluginCommand: ParsableCommand {
                                 pattern: .regex("^(85|105|135)$"),
                                 hook: .preProcess
                             ),
-                            emit: .keywords(["Portrait"])
+                            emit: [.keywords(["Portrait"])]
                         )
                         ConfigRule(
                             match: .field(
@@ -238,17 +238,20 @@ struct PluginCommand: ParsableCommand {
                                 pattern: .glob("*Kodak*"),
                                 hook: .preProcess
                             ),
-                            emit: .values(field: "tags", ["Kodak"])
+                            emit: [.values(field: "tags", ["Kodak"])]
                         )
 
-                        // post-process: remap a pre-process tag to a new value
+                        // post-process: remove old tag and replace with new value
                         ConfigRule(
                             match: .field(
                                 .dependency(name, key: "tags"),
                                 pattern: .exact("Kodak"),
                                 hook: .postProcess
                             ),
-                            emit: .values(field: "tags", ["Piqley Emulsions, LLC"])
+                            emit: [
+                                .remove(field: "tags", ["Kodak"]),
+                                .values(field: "tags", ["Piqley Emulsions, LLC"]),
+                            ]
                         )
                     }
                 }

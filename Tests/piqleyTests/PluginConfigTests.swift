@@ -53,7 +53,7 @@ struct PluginConfigTests {
             "rules": [
                 {
                     "match": {"field": "original:TIFF:Model", "pattern": "Sony"},
-                    "emit": {"values": ["sony"]}
+                    "emit": [{"field": "keywords", "values": ["sony"]}]
                 }
             ]
         }
@@ -81,14 +81,14 @@ struct PluginConfigTests {
         let config = PluginConfig(rules: [
             Rule(
                 match: MatchConfig(hook: "pre-process", field: "original:TIFF:Model", pattern: "Sony"),
-                emit: EmitConfig(field: "keywords", values: ["sony"])
+                emit: [EmitConfig(field: "keywords", values: ["sony"])]
             )
         ])
         try config.save(to: url)
 
         let loaded = try PluginConfig.load(from: url)
         #expect(loaded.rules.count == 1)
-        #expect(loaded.rules[0].emit.values == ["sony"])
+        #expect(loaded.rules[0].emit[0].values == ["sony"])
     }
 
     @Test("loading from missing file returns empty config")

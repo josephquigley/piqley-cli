@@ -210,9 +210,12 @@ struct PipelineOrchestrator: Sendable {
             let resolved = await ctx.stateStore.resolve(
                 image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginName]
             )
-            let ruleOutput = evaluator.evaluate(hook: ctx.hook, state: resolved)
-            if !ruleOutput.isEmpty {
-                await ctx.stateStore.mergeNamespace(
+            let currentNamespace = resolved[ctx.pluginName] ?? [:]
+            let ruleOutput = evaluator.evaluate(
+                hook: ctx.hook, state: resolved, currentNamespace: currentNamespace
+            )
+            if ruleOutput != currentNamespace {
+                await ctx.stateStore.setNamespace(
                     image: imageName, plugin: ctx.pluginName, values: ruleOutput
                 )
                 didRun = true

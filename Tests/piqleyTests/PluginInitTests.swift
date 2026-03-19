@@ -131,26 +131,29 @@ struct PluginInitTests {
         #expect(config.rules[0].match.field == "original:TIFF:Model")
         #expect(config.rules[0].match.pattern == "Canon EOS R5")
         #expect(config.rules[0].match.hook == "pre-process")
-        #expect(config.rules[0].emit.values == ["Canon", "EOS R5"])
+        #expect(config.rules[0].emit[0].values == ["Canon", "EOS R5"])
 
         #expect(config.rules[1].match.field == "original:EXIF:LensModel")
         #expect(config.rules[1].match.pattern == "glob:RF*")
 
         #expect(config.rules[2].match.field == "original:EXIF:ISOSpeedRatings")
 
-        #expect(config.rules[3].emit.field == nil)
-        #expect(config.rules[3].emit.values == ["Portrait"])
+        #expect(config.rules[3].emit[0].field == "keywords")
+        #expect(config.rules[3].emit[0].values == ["Portrait"])
 
         // Pre-process: inject legacy film company tag
         #expect(config.rules[4].match.field == "original:TIFF:Make")
         #expect(config.rules[4].match.pattern == "glob:*Kodak*")
-        #expect(config.rules[4].emit.values == ["Kodak"])
+        #expect(config.rules[4].emit[0].values == ["Kodak"])
 
-        // Post-process: remap Kodak tag via self-dependency
+        // Post-process: remove old tag and add replacement via self-dependency
         #expect(config.rules[5].match.field == "example-plugin:tags")
         #expect(config.rules[5].match.pattern == "Kodak")
         #expect(config.rules[5].match.hook == "post-process")
-        #expect(config.rules[5].emit.values == ["Piqley Emulsions, LLC"])
+        #expect(config.rules[5].emit.count == 2)
+        #expect(config.rules[5].emit[0].action == "remove")
+        #expect(config.rules[5].emit[0].values == ["Kodak"])
+        #expect(config.rules[5].emit[1].values == ["Piqley Emulsions, LLC"])
     }
 
     @Test("rejects init when plugin directory already exists")

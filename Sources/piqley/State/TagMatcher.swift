@@ -3,7 +3,14 @@ import PiqleyCore
 
 protocol TagMatcher: Sendable {
     func matches(_ value: String) -> Bool
+    func replacing(_ value: String, with replacement: String) -> String
     var patternDescription: String { get }
+}
+
+extension TagMatcher {
+    func replacing(_ value: String, with replacement: String) -> String {
+        matches(value) ? replacement : value
+    }
 }
 
 struct ExactMatcher: TagMatcher {
@@ -39,6 +46,17 @@ struct RegexMatcher: TagMatcher, @unchecked Sendable {
 
     func matches(_ value: String) -> Bool {
         value.wholeMatch(of: regex) != nil
+    }
+
+    func replacing(_ value: String, with replacement: String) -> String {
+        guard let match = value.wholeMatch(of: regex) else { return value }
+        var result = replacement
+        for groupIndex in 1 ..< match.output.count {
+            if let capture = match.output[groupIndex].substring {
+                result = result.replacingOccurrences(of: "$\(groupIndex)", with: String(capture))
+            }
+        }
+        return result
     }
 }
 
