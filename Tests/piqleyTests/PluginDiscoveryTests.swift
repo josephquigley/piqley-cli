@@ -19,7 +19,7 @@ struct PluginDiscoveryTests {
             let manifest: [String: Any] = [
                 "identifier": plugin.name,
                 "name": plugin.name,
-                "pluginProtocolVersion": "1"
+                "pluginSchemaVersion": "1"
             ]
             let data = try JSONSerialization.data(withJSONObject: manifest)
             try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
@@ -126,7 +126,7 @@ struct PluginDiscoveryTests {
 
         let pluginDir = pluginsDirectory.appendingPathComponent("test-plugin")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        let manifest = #"{"identifier": "test-plugin", "name": "test-plugin", "pluginProtocolVersion": "1"}"#
+        let manifest = #"{"identifier": "test-plugin", "name": "test-plugin", "pluginSchemaVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
 
         let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory)

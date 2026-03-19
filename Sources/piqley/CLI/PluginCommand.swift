@@ -186,7 +186,7 @@ struct PluginCommand: ParsableCommand {
                     identifier: identifier,
                     name: resolvedDisplayName,
                     description: resolvedDescription,
-                    pluginProtocolVersion: "1",
+                    pluginSchemaVersion: "1",
                     pluginVersion: SemanticVersion(major: 0, minor: 0, patch: 1),
                     config: [
                         .value(key: "outputQuality", type: .int, value: .number(85)),
@@ -199,7 +199,7 @@ struct PluginCommand: ParsableCommand {
                     identifier: identifier,
                     name: resolvedDisplayName,
                     description: resolvedDescription,
-                    pluginProtocolVersion: "1"
+                    pluginSchemaVersion: "1"
                 )
             }
             let manifestComment = """

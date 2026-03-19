@@ -24,7 +24,7 @@ private func makePluginsDir(withPlugin identifier: String, hook: String, scriptU
     let manifest: [String: Any] = [
         "identifier": identifier,
         "name": identifier,
-        "pluginProtocolVersion": "1"
+        "pluginSchemaVersion": "1"
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifest)
     try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
@@ -99,7 +99,7 @@ struct PipelineOrchestratorTests {
             let manifest: [String: Any] = [
                 "identifier": identifier,
                 "name": identifier,
-                "pluginProtocolVersion": "1"
+                "pluginSchemaVersion": "1"
             ]
             let manifestData = try JSONSerialization.data(withJSONObject: manifest)
             try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
@@ -140,7 +140,7 @@ struct PipelineOrchestratorTests {
         let manifest: [String: Any] = [
             "identifier": "com.test.secret-plugin",
             "name": "secret-plugin",
-            "pluginProtocolVersion": "1",
+            "pluginSchemaVersion": "1",
             "config": [["secret_key": "api-key", "type": "string"]]
         ]
         let manifestData = try JSONSerialization.data(withJSONObject: manifest)

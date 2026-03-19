@@ -62,7 +62,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.value(key: "api-url", type: .string, value: .null)],
             setup: nil
         )
@@ -86,7 +86,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.value(key: "port", type: .int, value: .number(8080))],
             setup: nil
         )
@@ -110,7 +110,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.value(key: "api-url", type: .string, value: .null)],
             setup: nil
         )
@@ -139,7 +139,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.value(key: "api-url", type: .string, value: .null)],
             setup: nil
         )
@@ -167,7 +167,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.value(key: "count", type: .int, value: .null)],
             setup: nil
         )
@@ -192,7 +192,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.secret(secretKey: "api-token", type: .string)],
             setup: nil
         )
@@ -216,7 +216,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [.secret(secretKey: "api-token", type: .string)],
             setup: nil
         )
@@ -244,7 +244,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
-            pluginProtocolVersion: "1",
+            pluginSchemaVersion: "1",
             config: [],
             setup: SetupConfig(command: "/non/existent/binary")
         )

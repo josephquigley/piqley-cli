@@ -84,7 +84,7 @@ struct PluginInitTests {
         let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         #expect(decoded.identifier == "test-plugin")
         #expect(decoded.name == "test-plugin")
-        #expect(decoded.pluginProtocolVersion == "1")
+        #expect(decoded.pluginSchemaVersion == "1")
 
         // Non-interactive: no stage files created
         let stageFile = dir.appendingPathComponent("test-plugin/stage-pre-process.json")

@@ -22,7 +22,7 @@ struct InstallCommandTests {
             let manifest = PluginManifest(
                 identifier: name,
                 name: name,
-                pluginProtocolVersion: protocolVersion
+                pluginSchemaVersion: protocolVersion
             )
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

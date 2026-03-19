@@ -20,7 +20,7 @@ private func makePlugin(name: String, hook: String, scriptURL: URL) throws -> Lo
     let manifestJSON: [String: Any] = [
         "identifier": name,
         "name": name,
-        "pluginProtocolVersion": "1"
+        "pluginSchemaVersion": "1"
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifestJSON)
     try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
