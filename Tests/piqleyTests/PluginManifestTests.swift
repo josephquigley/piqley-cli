@@ -242,7 +242,7 @@ struct PluginManifestTests {
         }
         """
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-        #expect(manifest.dependencies == ["hashtag", "original"])
+        #expect(manifest.dependencyNames == ["hashtag", "original"])
     }
 
     @Test("hook with no command decodes with nil command")

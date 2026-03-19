@@ -10,7 +10,7 @@ struct DependencyValidatorTests {
         PluginManifest(
             name: name,
             pluginProtocolVersion: "1",
-            dependencies: dependencies,
+            dependencies: dependencies?.map { PluginDependency(name: $0) },
             hooks: [hook: HookConfig(
                 command: "./bin/tool", args: [], timeout: nil,
                 pluginProtocol: .json, successCodes: nil,

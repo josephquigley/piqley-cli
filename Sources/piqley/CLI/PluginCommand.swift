@@ -158,9 +158,6 @@ struct PluginCommand: ParsableCommand {
                         Value("tagPrefix", type: .string, default: "auto")
                         Secret("API_KEY", type: .string)
                     }
-                    Dependencies {
-                        "example-dependency"
-                    }
                     Hooks {
                         for hook in allHooks {
                             HookEntry(

@@ -152,7 +152,7 @@ struct PipelineOrchestrator: Sendable {
         let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
 
         // Evaluate declarative rules if present
-        let manifestDeps = loadedPlugin.manifest.dependencies ?? []
+        let manifestDeps = loadedPlugin.manifest.dependencyNames
         let rulesDidRun: Bool
         do {
             rulesDidRun = try await evaluateRules(

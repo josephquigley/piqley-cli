@@ -111,7 +111,7 @@ struct PluginInitTests {
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
         #expect(manifest.pluginVersion != nil)
         #expect(manifest.config.count == 3)
-        #expect(manifest.dependencies == ["example-dependency"])
+        #expect(manifest.dependencies == nil)
 
         // Verify both hooks have example command
         let preHook = manifest.hooks["pre-process"]

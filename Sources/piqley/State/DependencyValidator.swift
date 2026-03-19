@@ -30,7 +30,8 @@ enum DependencyValidator {
 
         // Validate each manifest's dependencies
         for manifest in manifests {
-            guard let deps = manifest.dependencies, !deps.isEmpty else { continue }
+            let deps = manifest.dependencyNames
+            guard !deps.isEmpty else { continue }
             guard let myPos = positionMap[manifest.name] else { continue }
 
             for dep in deps {
