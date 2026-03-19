@@ -2,6 +2,23 @@ import Foundation
 import Logging
 import PiqleyCore
 
+enum PluginDiscoveryError: Error, LocalizedError {
+    case invalidManifest(plugin: String, path: String, reasons: [String])
+    case identifierMismatch(plugin: String, path: String, directoryName: String)
+    case noStageFiles(plugin: String, path: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .invalidManifest(plugin, path, reasons):
+            "Plugin '\(plugin)' has invalid manifest: \(reasons.joined(separator: "; "))\n  at \(path)"
+        case let .identifierMismatch(plugin, path, directoryName):
+            "Plugin '\(plugin)': identifier does not match directory name '\(directoryName)'\n  at \(path)"
+        case let .noStageFiles(plugin, path):
+            "Plugin '\(plugin)' has no valid stage files\n  at \(path)"
+        }
+    }
+}
+
 struct LoadedPlugin: Sendable {
     /// The identity key (reverse TLD from manifest.identifier).
     let identifier: String
@@ -36,6 +53,33 @@ struct PluginDiscovery: Sendable {
             let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
 
             let stages = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
+
+            // Validate manifest
+            let validationErrors = ManifestValidator.validate(manifest)
+            if !validationErrors.isEmpty {
+                throw PluginDiscoveryError.invalidManifest(
+                    plugin: manifest.identifier.isEmpty ? dirName : manifest.identifier,
+                    path: url.path,
+                    reasons: validationErrors
+                )
+            }
+
+            // Verify identifier matches directory name
+            if manifest.identifier != dirName {
+                throw PluginDiscoveryError.identifierMismatch(
+                    plugin: manifest.identifier,
+                    path: url.path,
+                    directoryName: dirName
+                )
+            }
+
+            // Require at least one stage file
+            if stages.isEmpty {
+                throw PluginDiscoveryError.noStageFiles(
+                    plugin: manifest.identifier,
+                    path: url.path
+                )
+            }
 
             let dataDir = url.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
