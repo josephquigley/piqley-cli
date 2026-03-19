@@ -100,50 +100,26 @@ struct RuleEvaluator: Sendable {
     }
 
     private static func compileEmitAction(_ config: EmitConfig, ruleIndex: Int) throws -> EmitAction {
-        let actionStr = config.action ?? "add"
-
-        guard !config.field.isEmpty else {
-            throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field must be non-empty")
+        if case let .failure(error) = RuleValidator.validateEmit(config) {
+            throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: error.errorDescription ?? "invalid emit")
         }
+
+        let actionStr = config.action ?? "add"
 
         switch actionStr {
         case "add":
-            guard config.source == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "add action must not have source")
-            }
-            guard config.replacements == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "add action must not have replacements")
-            }
-            guard let values = config.values, !values.isEmpty else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "add action requires non-empty values")
-            }
+            let values = config.values!
             return .add(field: config.field, values: values)
 
         case "remove":
-            guard config.source == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "remove action must not have source")
-            }
-            guard config.replacements == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "remove action must not have replacements")
-            }
-            guard let values = config.values, !values.isEmpty else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "remove action requires non-empty values")
-            }
+            let values = config.values!
             let matchers: [any TagMatcher & Sendable] = try values.map { entry in
                 try TagMatcherFactory.build(from: entry)
             }
             return .remove(field: config.field, matchers: matchers)
 
         case "replace":
-            guard config.source == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "replace action must not have source")
-            }
-            guard config.values == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "replace action must not have values")
-            }
-            guard let replacements = config.replacements, !replacements.isEmpty else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "replace action requires non-empty replacements")
-            }
+            let replacements = config.replacements!
             let compiled: [(matcher: any TagMatcher & Sendable, replacement: String)] = try replacements.map { entry in
                 let matcher = try TagMatcherFactory.build(from: entry.pattern)
                 return (matcher: matcher, replacement: entry.replacement)
@@ -151,27 +127,10 @@ struct RuleEvaluator: Sendable {
             return .replace(field: config.field, replacements: compiled)
 
         case "removeField":
-            guard config.source == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "removeField action must not have source")
-            }
-            guard config.values == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "removeField action must not have values")
-            }
-            guard config.replacements == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "removeField action must not have replacements")
-            }
             return .removeField(field: config.field)
 
         case "clone":
-            guard let source = config.source, !source.isEmpty else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone action requires non-empty source")
-            }
-            guard config.values == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone action must not have values")
-            }
-            guard config.replacements == nil else {
-                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone action must not have replacements")
-            }
+            let source = config.source!
             if config.field == "*" {
                 // Wildcard clone: source is the namespace name
                 return .clone(field: "*", sourceNamespace: source, sourceField: nil)
@@ -184,6 +143,7 @@ struct RuleEvaluator: Sendable {
             }
 
         default:
+            // unreachable: RuleValidator.validateEmit rejects unknown actions above
             throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "unknown action '\(actionStr)'")
         }
     }
