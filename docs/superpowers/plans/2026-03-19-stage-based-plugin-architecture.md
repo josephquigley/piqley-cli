@@ -36,6 +36,10 @@
 | `swift/PiqleyPluginSDK/Builders/ManifestBuilder.swift` | Remove `Hooks`/`HookEntry` blocks |
 | `swift/PiqleyPluginSDK/Builders/StageBuilder.swift` | **New:** `buildStage` DSL with `PreRules`, `Binary`, `PostRules` |
 | `swift/PiqleyPluginSDK/Builders/MatchField.swift` | No changes needed |
+| `swift/PiqleyPluginSDK/Packager.swift` | Add stage file globbing to packaging |
+| `schemas/manifest.schema.json` | Remove `hooks` from required and properties |
+| `schemas/config.schema.json` | Remove `rules`, remove `hook` from matchConfig |
+| `schemas/stage.schema.json` | **New:** JSON Schema for `StageConfig` |
 | `swift/Tests/ConfigBuilderTests.swift` | Update for removed rules |
 | `swift/Tests/ManifestBuilderTests.swift` | Update for removed hooks |
 | `swift/Tests/StageBuilderTests.swift` | **New:** Tests for `buildStage` |
@@ -1945,7 +1949,274 @@ git commit -m "feat: update plugin init to generate stage files instead of hooks
 
 ---
 
-### Task 14: Cross-repo verification
+### Task 14: Update Packager to include stage files
+
+**Files:**
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/swift/PiqleyPluginSDK/Packager.swift`
+
+- [ ] **Step 1: Update Packager.package() to glob and copy stage files**
+
+After copying `manifest.json` and `config.json` (line 76), add stage file copying:
+
+```swift
+// Copy stage-*.json files
+let dirContents = try fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+for file in dirContents {
+    let name = file.lastPathComponent
+    if name.hasPrefix(PluginFile.stagePrefix) && name.hasSuffix(PluginFile.stageSuffix) {
+        try fm.copyItem(at: file, to: pluginDir.appendingPathComponent(name))
+    }
+}
+```
+
+- [ ] **Step 2: Run SDK tests**
+
+Run: `cd /Users/wash/Developer/tools/piqley/piqley-plugin-sdk && swift test 2>&1 | tail -20`
+
+Expected: all tests pass
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd /Users/wash/Developer/tools/piqley/piqley-plugin-sdk
+git add swift/PiqleyPluginSDK/Packager.swift
+git commit -m "feat: include stage-*.json files in .piqleyplugin archive"
+```
+
+---
+
+### Task 15: Update JSON schemas
+
+**Files:**
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/schemas/manifest.schema.json`
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/schemas/config.schema.json`
+- Create: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/schemas/stage.schema.json`
+
+- [ ] **Step 1: Update manifest.schema.json**
+
+Remove `"hooks"` from the `"required"` array (change to `["name", "pluginProtocolVersion"]`). Remove the `"hooks"` property and the `"hookConfig"` and `"batchProxyConfig"` definitions.
+
+Updated file:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://piqley.dev/schemas/manifest.schema.json",
+  "title": "Piqley Plugin Manifest",
+  "type": "object",
+  "required": ["name", "pluginProtocolVersion"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "pluginProtocolVersion": { "type": "string", "const": "1" },
+    "pluginVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "config": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/configEntry" }
+    },
+    "setup": { "$ref": "#/$defs/setupConfig" },
+    "dependencies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pluginDependency" }
+    }
+  },
+  "$defs": {
+    "configEntry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["key", "type"],
+          "properties": {
+            "key": { "type": "string" },
+            "type": { "enum": ["string", "int", "float", "bool"] },
+            "value": {}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["secret_key", "type"],
+          "properties": {
+            "secret_key": { "type": "string" },
+            "type": { "enum": ["string", "int", "float", "bool"] }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "setupConfig": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "pluginDependency": {
+      "type": "object",
+      "required": ["url", "version"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "\\.piqleyplugin$"
+        },
+        "version": {
+          "type": "object",
+          "required": ["from", "rule"],
+          "properties": {
+            "from": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+            "rule": { "enum": ["upToNextMajor", "upToNextMinor", "exact"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
+
+- [ ] **Step 2: Update config.schema.json**
+
+Remove `"rules"` property and all `$defs` (rule, matchConfig, emitConfig). These now live in `stage.schema.json`.
+
+Updated file:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://piqley.dev/schemas/config.schema.json",
+  "title": "Piqley Plugin Config",
+  "type": "object",
+  "properties": {
+    "values": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "isSetUp": { "type": "boolean" }
+  }
+}
+```
+
+- [ ] **Step 3: Create stage.schema.json**
+
+Create `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/schemas/stage.schema.json`:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://piqley.dev/schemas/stage.schema.json",
+  "title": "Piqley Plugin Stage Config",
+  "description": "Per-stage configuration file (stage-<name>.json) with optional pre-rules, binary config, and post-rules.",
+  "type": "object",
+  "properties": {
+    "preRules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    },
+    "binary": { "$ref": "#/$defs/hookConfig" },
+    "postRules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": ["match", "emit"],
+      "properties": {
+        "match": { "$ref": "#/$defs/matchConfig" },
+        "emit": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/emitConfig" }
+        },
+        "write": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/emitConfig" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "matchConfig": {
+      "type": "object",
+      "required": ["field", "pattern"],
+      "properties": {
+        "field": { "type": "string" },
+        "pattern": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "emitConfig": {
+      "type": "object",
+      "required": ["field"],
+      "properties": {
+        "action": { "type": "string" },
+        "field": { "type": "string" },
+        "values": { "type": "array", "items": { "type": "string" } },
+        "replacements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["pattern", "replacement"],
+            "properties": {
+              "pattern": { "type": "string" },
+              "replacement": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "hookConfig": {
+      "type": "object",
+      "properties": {
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "timeout": { "type": "integer", "minimum": 0 },
+        "protocol": { "enum": ["json", "pipe"] },
+        "successCodes": { "type": "array", "items": { "type": "integer" } },
+        "warningCodes": { "type": "array", "items": { "type": "integer" } },
+        "criticalCodes": { "type": "array", "items": { "type": "integer" } },
+        "batchProxy": { "$ref": "#/$defs/batchProxyConfig" }
+      },
+      "additionalProperties": false
+    },
+    "batchProxyConfig": {
+      "type": "object",
+      "properties": {
+        "sort": {
+          "type": "object",
+          "required": ["key", "order"],
+          "properties": {
+            "key": { "type": "string" },
+            "order": { "enum": ["ascending", "descending"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+```
+
+Note: `matchConfig` no longer has `"hook"` — it was removed per the spec. The `hookConfig` and `batchProxyConfig` definitions moved here from the manifest schema since they now live in stage files.
+
+- [ ] **Step 4: Commit**
+
+```bash
+cd /Users/wash/Developer/tools/piqley/piqley-plugin-sdk
+git add schemas/manifest.schema.json schemas/config.schema.json schemas/stage.schema.json
+git commit -m "feat: update schemas for stage-based architecture — add stage.schema.json"
+```
+
+---
+
+### Task 16: Cross-repo verification
 
 - [ ] **Step 1: Run PiqleyCore tests**
 
@@ -1975,5 +2246,5 @@ Expected: clean build
 
 ## Follow-up Work (out of scope for this plan)
 
-- **`stage.schema.json`**: Create JSON Schema for `StageConfig` validation. This is part of the SDK Build & Packaging spec (`2026-03-18-sdk-build-packaging-design.md`) and will be addressed in that plan alongside `manifest.schema.json` and `config.schema.json` updates.
 - **Legacy `rules` warning in config.json**: The spec says the CLI should warn if a `config.json` contains a `rules` key. Since `PluginConfig` now silently ignores the key (via `CodingKeys` not listing it), a warning can be added to `PluginConfig.load(fromIfExists:)` by checking raw JSON for a `"rules"` key before decoding. This is a polish item that can be done as a follow-up.
+- **SDK schema validation tests**: Add test-only dependency to validate builder output against the updated schema files. This is part of the SDK Build & Packaging spec scope.
