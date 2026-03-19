@@ -92,7 +92,7 @@ struct PluginInitTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let cmd = try PluginCommand.InitSubcommand.parse(["no-ex-plugin", "--no-examples"])
-        try cmd.execute(pluginsDirectory: dir)
+        try cmd.execute(pluginsDirectory: dir, descriptionPrompt: { _ in nil })
 
         // No stage files when examples are skipped
         let stageFile = dir.appendingPathComponent("no-ex-plugin/stage-pre-process.json")
@@ -105,7 +105,7 @@ struct PluginInitTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let cmd = try PluginCommand.InitSubcommand.parse(["example-plugin"])
-        try cmd.execute(pluginsDirectory: dir)
+        try cmd.execute(pluginsDirectory: dir, descriptionPrompt: { _ in nil })
 
         // Verify manifest
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/manifest.json"))
@@ -151,6 +151,45 @@ struct PluginInitTests {
 
         let postPublishStageURL = dir.appendingPathComponent("example-plugin/stage-post-publish.json")
         #expect(FileManager.default.fileExists(atPath: postPublishStageURL.path))
+    }
+
+    @Test("description from prompt is written to manifest")
+    func testDescriptionWrittenToManifest() throws {
+        let dir = try makeTempPluginsDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cmd = try PluginCommand.InitSubcommand.parse(["desc-plugin", "--no-examples"])
+        try cmd.execute(pluginsDirectory: dir, descriptionPrompt: { _ in "A cool plugin\nfor photographers." })
+
+        let manifestData = try Data(contentsOf: dir.appendingPathComponent("desc-plugin/manifest.json"))
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        #expect(manifest.description == "A cool plugin\nfor photographers.")
+    }
+
+    @Test("nil description is omitted from manifest")
+    func testNilDescriptionOmitted() throws {
+        let dir = try makeTempPluginsDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cmd = try PluginCommand.InitSubcommand.parse(["no-desc-plugin", "--no-examples"])
+        try cmd.execute(pluginsDirectory: dir, descriptionPrompt: { _ in nil })
+
+        let manifestData = try Data(contentsOf: dir.appendingPathComponent("no-desc-plugin/manifest.json"))
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        #expect(manifest.description == nil)
+    }
+
+    @Test("--description flag overrides prompt")
+    func testDescriptionFlag() throws {
+        let dir = try makeTempPluginsDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let cmd = try PluginCommand.InitSubcommand.parse(["flag-plugin", "--description", "From flag", "--non-interactive"])
+        try cmd.execute(pluginsDirectory: dir)
+
+        let manifestData = try Data(contentsOf: dir.appendingPathComponent("flag-plugin/manifest.json"))
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        #expect(manifest.description == "From flag")
     }
 
     @Test("rejects init when plugin directory already exists")

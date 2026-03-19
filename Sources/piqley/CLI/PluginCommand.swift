@@ -71,6 +71,9 @@ struct PluginCommand: ParsableCommand {
         @Argument(help: "Plugin display name (optional; derived from identifier if omitted)")
         var displayName: String?
 
+        @Option(help: "Plugin description (non-interactive; interactive mode opens $EDITOR)")
+        var description: String?
+
         @Flag(help: "Skip example rules in generated config")
         var noExamples = false
 
@@ -123,10 +126,14 @@ struct PluginCommand: ParsableCommand {
             try execute(pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory)
         }
 
-        /// Core logic, extracted for testability (injectable plugins directory).
-        func execute(pluginsDirectory: URL) throws {
+        /// Core logic, extracted for testability (injectable plugins directory and description prompt).
+        func execute(
+            pluginsDirectory: URL,
+            descriptionPrompt: (String) -> String? = Self.promptForDescription
+        ) throws {
             let identifier: String
             let resolvedDisplayName: String
+            let resolvedDescription: String?
 
             if nonInteractive {
                 guard let pluginIdentifier else {
@@ -134,9 +141,11 @@ struct PluginCommand: ParsableCommand {
                 }
                 identifier = pluginIdentifier
                 resolvedDisplayName = displayName ?? identifier
+                resolvedDescription = description
             } else if let pluginIdentifier {
                 identifier = pluginIdentifier
                 resolvedDisplayName = displayName ?? identifier
+                resolvedDescription = description ?? descriptionPrompt(resolvedDisplayName)
             } else {
                 print("Plugin identifier (e.g. com.example.myplugin): ", terminator: "")
                 guard let identifierInput = readLine(), !identifierInput.isEmpty else {
@@ -147,6 +156,7 @@ struct PluginCommand: ParsableCommand {
                 print("Display name (press Enter to use '\(identifier)'): ", terminator: "")
                 let nameInput = readLine() ?? ""
                 resolvedDisplayName = nameInput.isEmpty ? identifier : nameInput
+                resolvedDescription = description ?? descriptionPrompt(resolvedDisplayName)
             }
 
             try Self.validatePluginIdentifier(identifier)
@@ -161,24 +171,26 @@ struct PluginCommand: ParsableCommand {
 
             let includeExamples = !noExamples && !nonInteractive
 
-            let manifest: PluginManifest = if includeExamples {
-                try buildManifest {
-                    Identifier(identifier)
-                    Name(resolvedDisplayName)
-                    ProtocolVersion("1")
-                    try PluginVersion("0.0.1")
-                    ConfigEntries {
-                        Value("outputQuality", type: .int, default: 85)
-                        Value("tagPrefix", type: .string, default: "auto")
-                        Secret("API_KEY", type: .string)
-                    }
-                }
+            let manifest = if includeExamples {
+                PluginManifest(
+                    identifier: identifier,
+                    name: resolvedDisplayName,
+                    description: resolvedDescription,
+                    pluginProtocolVersion: "1",
+                    pluginVersion: SemanticVersion(major: 0, minor: 0, patch: 1),
+                    config: [
+                        .value(key: "outputQuality", type: .int, value: .number(85)),
+                        .value(key: "tagPrefix", type: .string, value: .string("auto")),
+                        .secret(secretKey: "API_KEY", type: .string),
+                    ]
+                )
             } else {
-                try buildManifest {
-                    Identifier(identifier)
-                    Name(resolvedDisplayName)
-                    ProtocolVersion("1")
-                }
+                PluginManifest(
+                    identifier: identifier,
+                    name: resolvedDisplayName,
+                    description: resolvedDescription,
+                    pluginProtocolVersion: "1"
+                )
             }
             let manifestInstructions = """
             This is your plugin's manifest. It declares the plugin's identity and \
@@ -210,6 +222,56 @@ struct PluginCommand: ParsableCommand {
             }
 
             print("Created plugin '\(identifier)' at \(pluginDir.path)")
+        }
+
+        // MARK: - Description prompt
+
+        /// Opens $EDITOR on a temp file so the user can write a multi-line description.
+        /// Returns nil if the user leaves the file empty, the editor exits with an error,
+        /// or stdin is not a terminal.
+        static func promptForDescription(pluginName: String) -> String? {
+            guard isatty(STDIN_FILENO) != 0 else { return nil }
+
+            let editor = ProcessInfo.processInfo.environment["EDITOR"]
+                ?? ProcessInfo.processInfo.environment["VISUAL"]
+                ?? "vi"
+
+            let tempFile = FileManager.default.temporaryDirectory
+                .appendingPathComponent("piqley-description-\(UUID().uuidString).txt")
+
+            let placeholder = "# Write a description for '\(pluginName)'.\n# Lines starting with # are ignored. Save and quit to continue.\n"
+            do {
+                try placeholder.write(to: tempFile, atomically: true, encoding: .utf8)
+            } catch {
+                return nil
+            }
+            defer { try? FileManager.default.removeItem(at: tempFile) }
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = [editor, tempFile.path]
+            process.standardInput = FileHandle.standardInput
+            process.standardOutput = FileHandle.standardOutput
+            process.standardError = FileHandle.standardError
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+            } catch {
+                return nil
+            }
+
+            guard process.terminationStatus == 0 else { return nil }
+
+            guard let contents = try? String(contentsOf: tempFile, encoding: .utf8) else { return nil }
+
+            let description = contents
+                .components(separatedBy: .newlines)
+                .filter { !$0.hasPrefix("#") }
+                .joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            return description.isEmpty ? nil : description
         }
 
         // MARK: - Example stage files
