@@ -1,5 +1,5 @@
 enum PluginEnvironment {
-    static let folderPath = "PIQLEY_FOLDER_PATH"
+    static let folderPath = "PIQLEY_IMAGE_FOLDER_PATH"
     static let hook = "PIQLEY_HOOK"
     static let dryRun = "PIQLEY_DRY_RUN"
     static let execLogPath = "PIQLEY_EXECUTION_LOG_PATH"

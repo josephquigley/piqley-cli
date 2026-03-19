@@ -160,7 +160,7 @@ struct PluginRunnerTests {
         #expect(result == .critical)
     }
 
-    @Test("$PIQLEY_FOLDER_PATH token is substituted in args")
+    @Test("$PIQLEY_IMAGE_FOLDER_PATH token is substituted in args")
     func testTokenSubstitution() async throws {
         // Script echoes its first argument to verify token was replaced
         let script = try makeTempScript("""
@@ -180,7 +180,7 @@ struct PluginRunnerTests {
             "pluginProtocolVersion": "1",
             "hooks": ["publish": [
                 "command": script.path,
-                "args": ["$PIQLEY_FOLDER_PATH"],
+                "args": ["$PIQLEY_IMAGE_FOLDER_PATH"],
                 "protocol": "json"
             ]]
         ] as [String: Any])

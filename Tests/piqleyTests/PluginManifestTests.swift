@@ -15,7 +15,7 @@ struct PluginManifestTests {
           "hooks": {
             "publish": {
               "command": "./bin/piqley-ghost",
-              "args": ["publish", "$PIQLEY_FOLDER_PATH"],
+              "args": ["publish", "$PIQLEY_IMAGE_FOLDER_PATH"],
               "timeout": 60,
               "protocol": "json",
               "successCodes": [0],
@@ -31,7 +31,7 @@ struct PluginManifestTests {
         #expect(manifest.secretKeys == ["api-key"])
         let hook = try #require(manifest.hooks["publish"])
         #expect(hook.command == "./bin/piqley-ghost")
-        #expect(hook.args == ["publish", "$PIQLEY_FOLDER_PATH"])
+        #expect(hook.args == ["publish", "$PIQLEY_IMAGE_FOLDER_PATH"])
         #expect(hook.timeout == 60)
         #expect(hook.pluginProtocol == .json)
         #expect(hook.successCodes == [0])
