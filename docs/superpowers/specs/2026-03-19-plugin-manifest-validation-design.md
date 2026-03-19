@@ -6,29 +6,45 @@ Plugins with unsupported protocol versions (or other invalid manifests) load and
 
 ## Design
 
+Two changes: (1) rename `pluginProtocolVersion` to `pluginSchemaVersion` across all three repos, and (2) add fail-fast validation at discovery.
+
+### Rename: `pluginProtocolVersion` → `pluginSchemaVersion`
+
+"Schema version" accurately describes what this field controls — the shape of the manifest and stage JSON files the CLI knows how to read. "Protocol" incorrectly implies a communication format.
+
+This is a mechanical rename across:
+- **PiqleyCore**: `PluginManifest` field, `CodingKeys`, init, decoder, `ManifestValidator`
+- **PiqleyPluginSDK**: `ProtocolVersion` manifest builder component, `ManifestBuilder`, schemas
+- **piqley-cli**: `PluginCommand` (init), `InstallCommand`, `PluginSetupScanner`, all tests
+
+The JSON key in manifest files changes from `"pluginProtocolVersion"` to `"pluginSchemaVersion"`. For backward compatibility during transition, the decoder should accept either key.
+
+### Validation at Discovery
+
 Fail-fast at discovery. `PluginDiscovery.loadManifests()` validates every manifest immediately after decoding. If any plugin fails validation, the method throws with an error that names the plugin, its path, and the specific problem.
 
 ### PiqleyCore Changes
 
-**`PluginManifest.swift`** — add a static constant for the supported protocol version set:
+**`PluginManifest.swift`** — rename field and add a static constant for the supported schema version set:
 
 ```swift
-public static let supportedProtocolVersions: Set<String> = ["1"]
+public let pluginSchemaVersion: String
+public static let supportedSchemaVersions: Set<String> = ["1"]
 ```
 
-This is the single source of truth for protocol compatibility across the CLI, SDK, and core.
+This is the single source of truth for schema compatibility across the CLI, SDK, and core.
 
-**`ManifestValidator.swift`** — expand `validate()` to include protocol version checking:
+**`ManifestValidator.swift`** — expand `validate()` to include schema version checking:
 
-Current checks (kept):
+Current checks (kept, with rename):
 - `identifier` must not be empty
 - `name` must not be empty
-- `pluginProtocolVersion` must not be empty
+- `pluginSchemaVersion` must not be empty
 
 New check:
-- `pluginProtocolVersion` must be in `PluginManifest.supportedProtocolVersions`
+- `pluginSchemaVersion` must be in `PluginManifest.supportedSchemaVersions`
 
-The method continues to return `[String]` (a list of error messages). The protocol version error message includes the unsupported version and the set of supported versions.
+The method continues to return `[String]` (a list of error messages). The schema version error message includes the unsupported version and the set of supported versions.
 
 ### piqley-cli Changes
 
