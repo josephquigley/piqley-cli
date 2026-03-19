@@ -57,11 +57,13 @@ The build manifest (`piqley-build-manifest.json`) does not enumerate stage files
 
 ## manifest.json
 
-The manifest drops the `hooks` field. It retains identity, config schema, dependencies, and setup:
+The manifest drops the `hooks` field and gains `identifier`, `name`, and `description`. The `identifier` (reverse TLD, e.g. `com.piqley.ghost`) replaces the old `name` as the identity key — it is used for plugin directories, pipeline entries, state namespaces, and dependency references. The `name` field becomes a human-readable display name.
 
 ```json
 {
-  "name": "my-plugin",
+  "identifier": "com.example.my-plugin",
+  "name": "My Plugin",
+  "description": "Processes images and tags them with camera metadata.",
   "pluginProtocolVersion": "1",
   "pluginVersion": "1.0.0",
   "config": [
@@ -81,11 +83,35 @@ The manifest drops the `hooks` field. It retains identity, config schema, depend
 }
 ```
 
+### Identity Model
+
+- **`identifier`** (required) — Reverse TLD string (e.g. `com.piqley.ghost`). Must be unique. Used as:
+  - Plugin directory name under `~/.config/piqley/plugins/<identifier>/`
+  - Pipeline config entries (e.g. `"pre-process": ["com.piqley.ghost"]`)
+  - State namespace key (e.g. `"com.piqley.ghost:keywords"`)
+  - Dependency references
+- **`name`** (required) — Human-readable display name (e.g. `"Ghost Publisher"`)
+- **`description`** (optional) — Short description of what the plugin does
+
 ### PiqleyCore Changes
 
 - `PluginManifest` removes the `hooks: [String: HookConfig]` field
+- `PluginManifest` gains `identifier: String`, renames the old `name` role: `name` becomes a display name, `identifier` is the identity key
+- `PluginManifest` gains `description: String?`
 - `HookConfig` remains in PiqleyCore — it is reused as the `binary` field within `StageConfig`
 - `ConfigEntry`, `SetupConfig`, and dependency types are unchanged
+
+### System-Wide Identity Key Migration
+
+All code that previously used `manifest.name` or `plugin.name` as an identity key (directory name, namespace key, pipeline entry, dependency reference) must migrate to use `identifier`. The `name` field is only for display purposes (CLI output, logs). Key touchpoints:
+
+- `LoadedPlugin.name` becomes `LoadedPlugin.identifier` (sourced from `manifest.identifier`)
+- `StateStore` namespace keys use identifier
+- `PluginDiscovery` matches directory names against `manifest.identifier`
+- `PipelineOrchestrator` uses identifier for blocklist, state store, binary execution
+- `PluginDependency` name-based references use identifier
+- `AppConfig.disabledPlugins` and `AppConfig.pipeline` entries use identifier
+- `PluginRunner` environment variables and JSON payloads use identifier for the plugin's own namespace
 
 ## config.json
 
@@ -235,7 +261,20 @@ Each stage has its own ordered list. Plugin A can run before Plugin B in `pre-pr
 
 ### ManifestBuilder
 
-Remove the `Hooks { HookEntry(...) }` block. All other components remain: `Name`, `ProtocolVersion`, `PluginVersion`, `ConfigEntries`, `Setup`, `Dependencies`.
+Remove the `Hooks { HookEntry(...) }` block. Add `Identifier` and `Description` components. All other components remain: `Name`, `ProtocolVersion`, `PluginVersion`, `ConfigEntries`, `Setup`, `Dependencies`.
+
+```swift
+let manifest = try buildManifest {
+    Identifier("com.example.my-plugin")
+    Name("My Plugin")
+    Description("Processes images and tags them with camera metadata.")
+    ProtocolVersion("1")
+    try PluginVersion("1.0.0")
+    ConfigEntries { ... }
+    Setup(command: "./bin/my-plugin")
+    Dependencies { ... }
+}
+```
 
 ### ConfigBuilder
 
@@ -303,7 +342,7 @@ This is a plan (not a spec) for future work. The relevant impacts:
 ### PiqleyCore
 
 - Decode/encode round-trip tests for `StageConfig` (all optional field combinations)
-- Verify `PluginManifest` decodes without `hooks` field
+- Verify `PluginManifest` decodes with `identifier`, `name`, `description` and without `hooks`
 - Verify `PluginConfig` decodes without `rules` field
 
 ### PiqleyPluginSDK
@@ -327,6 +366,8 @@ This is a plan (not a spec) for future work. The relevant impacts:
 ### In Scope
 
 - `StageConfig` type in PiqleyCore
+- Add `identifier`, `name` (display), `description` to `PluginManifest`
+- Migrate all identity key usage from `name` to `identifier` system-wide
 - Remove `hooks` from `PluginManifest`
 - Remove `rules` from `PluginConfig`
 - Stage file discovery in CLI
