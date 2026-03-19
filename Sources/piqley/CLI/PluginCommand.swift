@@ -261,6 +261,23 @@ struct PluginCommand: ParsableCommand {
                 """
                 try Self.writeJSON(postProcessStage, instructions: postProcessInstructions,
                                    to: pluginDir, fileName: "stage-post-process.json")
+
+                // Empty stage files for remaining stages so users can see the full list
+                let publishInstructions = """
+                Publish stage. Runs after post-process. Typically used for uploading or \
+                exporting processed images. Add preRules, a binary, or postRules as needed.
+                """
+                let emptyStage = buildStage {}
+                try Self.writeJSON(emptyStage, instructions: publishInstructions,
+                                   to: pluginDir, fileName: "stage-publish.json")
+
+                let postPublishInstructions = """
+                Post-publish stage. Runs after publish. Typically used for cleanup, \
+                notifications, or logging after images have been exported. Add preRules, \
+                a binary, or postRules as needed.
+                """
+                try Self.writeJSON(emptyStage, instructions: postPublishInstructions,
+                                   to: pluginDir, fileName: "stage-post-publish.json")
             }
 
             print("Created plugin '\(identifier)' at \(pluginDir.path)")

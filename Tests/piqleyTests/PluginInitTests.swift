@@ -144,6 +144,13 @@ struct PluginInitTests {
         let writeRule = postRules.first { !$0.write.isEmpty }
         #expect(writeRule != nil)
         #expect(writeRule?.write[0].field == "IPTC:Keywords")
+
+        // Verify empty stage files for remaining stages
+        let publishStageURL = dir.appendingPathComponent("example-plugin/stage-publish.json")
+        #expect(FileManager.default.fileExists(atPath: publishStageURL.path))
+
+        let postPublishStageURL = dir.appendingPathComponent("example-plugin/stage-post-publish.json")
+        #expect(FileManager.default.fileExists(atPath: postPublishStageURL.path))
     }
 
     @Test("rejects init when plugin directory already exists")
