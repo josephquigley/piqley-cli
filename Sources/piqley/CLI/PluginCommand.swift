@@ -255,7 +255,7 @@ struct PluginCommand: ParsableCommand {
                 """,
                 "postRules": [
                     [
-                        "_comment": "Replace 'Kodak' tag with your brand name (demonstrates remove + add)",
+                        "_comment": "Replace 'Kodak' tag with fake Piqley brand name (demonstrates remove + add)",
                         "match": ["field": "\(identifier):tags", "pattern": "Kodak"],
                         "emit": [
                             ["action": "remove", "field": "tags", "values": ["Kodak"]],
