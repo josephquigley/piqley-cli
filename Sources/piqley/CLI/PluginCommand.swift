@@ -206,81 +206,94 @@ struct PluginCommand: ParsableCommand {
             try Self.writeJSON(config, instructions: configInstructions, to: pluginDir, fileName: PluginFile.config)
 
             if includeExamples {
-                let pluginIdentifierForRules = identifier
-
-                // Pre-process stage with example rules
-                let preProcessStage = buildStage {
-                    PreRules {
-                        ConfigRule(
-                            match: .field(.original(.model), pattern: .exact("Canon EOS R5")),
-                            emit: [.values(field: "tags", ["Canon", "EOS R5"])]
-                        )
-                        ConfigRule(
-                            match: .field(.original(.lensModel), pattern: .glob("RF*")),
-                            emit: [.values(field: "tags", ["RF Mount"])]
-                        )
-                        ConfigRule(
-                            match: .field(.original(.iso), pattern: .regex("^(3200|6400|12800|25600)$")),
-                            emit: [.values(field: "tags", ["High ISO"])]
-                        )
-                        ConfigRule(
-                            match: .field(.original(.focalLength), pattern: .regex("^(85|105|135)$")),
-                            emit: [.keywords(["Portrait"])]
-                        )
-                    }
-                }
-                let preProcessInstructions = """
-                Pre-process rules run before any binary. Match against original image metadata \
-                and emit tags/keywords to your plugin's namespace. All rules in this file run \
-                during the pre-process stage.
-                """
-                try Self.writeJSON(preProcessStage, instructions: preProcessInstructions,
-                                   to: pluginDir, fileName: "stage-pre-process.json")
-
-                // Post-process stage with example rules
-                let postProcessStage = buildStage {
-                    PostRules {
-                        ConfigRule(
-                            match: .field(.dependency(pluginIdentifierForRules, key: "tags"), pattern: .exact("Kodak")),
-                            emit: [
-                                .remove(field: "tags", ["Kodak"]),
-                                .values(field: "tags", ["Piqley Emulsions, LLC"]),
-                            ]
-                        )
-                        ConfigRule(
-                            match: .field(.original(.make), pattern: .glob("*Canon*")),
-                            emit: [.keywords(["Canon"])],
-                            write: [.values(field: "IPTC:Keywords", ["Canon", "piqley-processed"])]
-                        )
-                    }
-                }
-                let postProcessInstructions = """
-                Post-process rules run after any binary. You can match against your own plugin's \
-                output from pre-process using '<plugin-identifier>:<field>' syntax. Write actions \
-                modify the image file's metadata directly.
-                """
-                try Self.writeJSON(postProcessStage, instructions: postProcessInstructions,
-                                   to: pluginDir, fileName: "stage-post-process.json")
-
-                // Empty stage files for remaining stages so users can see the full list
-                let publishInstructions = """
-                Publish stage. Runs after post-process. Typically used for uploading or \
-                exporting processed images. Add preRules, a binary, or postRules as needed.
-                """
-                let emptyStage = buildStage {}
-                try Self.writeJSON(emptyStage, instructions: publishInstructions,
-                                   to: pluginDir, fileName: "stage-publish.json")
-
-                let postPublishInstructions = """
-                Post-publish stage. Runs after publish. Typically used for cleanup, \
-                notifications, or logging after images have been exported. Add preRules, \
-                a binary, or postRules as needed.
-                """
-                try Self.writeJSON(emptyStage, instructions: postPublishInstructions,
-                                   to: pluginDir, fileName: "stage-post-publish.json")
+                try Self.writeExampleStageFiles(to: pluginDir, identifier: identifier)
             }
 
             print("Created plugin '\(identifier)' at \(pluginDir.path)")
+        }
+
+        // MARK: - Example stage files
+
+        private static func writeExampleStageFiles(to pluginDir: URL, identifier: String) throws {
+            // Pre-process stage
+            let preProcessStage: [String: Any] = [
+                "_instructions": """
+                Pre-process rules run before any binary. Match against original image \
+                metadata and emit tags/keywords to your plugin's namespace.
+                """,
+                "preRules": [
+                    [
+                        "_comment": "Tag images shot on a Canon EOS R5",
+                        "match": ["field": "original:TIFF:Model", "pattern": "Canon EOS R5"],
+                        "emit": [["field": "tags", "values": ["Canon", "EOS R5"]]],
+                    ],
+                    [
+                        "_comment": "Tag images shot with an RF-mount lens (glob pattern)",
+                        "match": ["field": "original:TIFF:LensModel", "pattern": "glob:RF*"],
+                        "emit": [["field": "tags", "values": ["RF Mount"]]],
+                    ],
+                    [
+                        "_comment": "Flag high-ISO shots (regex pattern matching specific values)",
+                        "match": ["field": "original:EXIF:ISOSpeedRatings", "pattern": "regex:^(3200|6400|12800|25600)$"],
+                        "emit": [["field": "tags", "values": ["High ISO"]]],
+                    ],
+                    [
+                        "_comment": "Add 'Portrait' keyword for classic portrait focal lengths",
+                        "match": ["field": "original:EXIF:FocalLength", "pattern": "regex:^(85|105|135)$"],
+                        "emit": [["field": "keywords", "values": ["Portrait"]]],
+                    ],
+                ],
+            ]
+            try Self.writeStageJSON(preProcessStage, to: pluginDir, fileName: "stage-pre-process.json")
+
+            // Post-process stage
+            let postProcessStage: [String: Any] = [
+                "_instructions": """
+                Post-process rules run after any binary. You can match against your own \
+                plugin's output from pre-process using '<plugin-identifier>:<field>' syntax. \
+                Write actions modify the image file's metadata directly.
+                """,
+                "postRules": [
+                    [
+                        "_comment": "Replace 'Kodak' tag with your brand name (demonstrates remove + add)",
+                        "match": ["field": "\(identifier):tags", "pattern": "Kodak"],
+                        "emit": [
+                            ["action": "remove", "field": "tags", "values": ["Kodak"]],
+                            ["field": "tags", "values": ["Piqley Emulsions, LLC"]],
+                        ],
+                    ],
+                    [
+                        "_comment": "Write IPTC keywords to the file for any Canon camera (demonstrates write actions)",
+                        "match": ["field": "original:TIFF:Make", "pattern": "glob:*Canon*"],
+                        "emit": [["field": "keywords", "values": ["Canon"]]],
+                        "write": [["field": "IPTC:Keywords", "values": ["Canon", "piqley-processed"]]],
+                    ],
+                ],
+            ]
+            try Self.writeStageJSON(postProcessStage, to: pluginDir, fileName: "stage-post-process.json")
+
+            // Empty stage files for remaining stages
+            let publishStage: [String: Any] = [
+                "_instructions": """
+                Publish stage. Runs after post-process. Typically used for uploading or \
+                exporting processed images. Add preRules, a binary, or postRules as needed.
+                """,
+            ]
+            try Self.writeStageJSON(publishStage, to: pluginDir, fileName: "stage-publish.json")
+
+            let postPublishStage: [String: Any] = [
+                "_instructions": """
+                Post-publish stage. Runs after publish. Typically used for cleanup, \
+                notifications, or logging after images have been exported. Add preRules, \
+                a binary, or postRules as needed.
+                """,
+            ]
+            try Self.writeStageJSON(postPublishStage, to: pluginDir, fileName: "stage-post-publish.json")
+        }
+
+        private static func writeStageJSON(_ dict: [String: Any], to directory: URL, fileName: String) throws {
+            let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: directory.appendingPathComponent(fileName))
         }
     }
 
