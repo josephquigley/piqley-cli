@@ -7,6 +7,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
+        .package(url: "https://github.com/migueldeicaza/TermKit.git", branch: "main"),
         .package(path: "../piqley-core"),
         .package(path: "../piqley-plugin-sdk"),
     ],
@@ -16,6 +17,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "TermKit", package: "TermKit"),
                 .product(name: "PiqleyCore", package: "piqley-core"),
                 .product(name: "PiqleyPluginSDK", package: "piqley-plugin-sdk"),
             ]
