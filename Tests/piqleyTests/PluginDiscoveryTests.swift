@@ -128,11 +128,71 @@ struct PluginDiscoveryTests {
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
         let manifest = #"{"identifier": "test-plugin", "name": "test-plugin", "pluginSchemaVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        let stage = #"{"binary": {"command": "./bin/tool"}}"#
+        try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
 
         let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory)
         _ = try discovery.loadManifests(disabled: [])
 
         let dataDir = pluginDir.appendingPathComponent("data")
         #expect(FileManager.default.fileExists(atPath: dataDir.path))
+    }
+
+    @Test("throws for unsupported schema version")
+    func testUnsupportedSchemaVersion() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let pluginDir = dir.appendingPathComponent("bad-version")
+        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        let manifest = #"{"identifier": "bad-version", "name": "BadVersion", "pluginSchemaVersion": "999"}"#
+        try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        let stage = #"{"binary": {"command": "./bin/tool"}}"#
+        try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
+
+        let discovery = PluginDiscovery(pluginsDirectory: dir)
+        #expect(throws: PluginDiscoveryError.self) {
+            try discovery.loadManifests(disabled: [])
+        }
+    }
+
+    @Test("throws for identifier/directory mismatch")
+    func testIdentifierMismatch() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let pluginDir = dir.appendingPathComponent("wrong-dir-name")
+        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        let manifest = #"{"identifier": "correct-id", "name": "Test", "pluginSchemaVersion": "1"}"#
+        try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+        let stage = #"{"binary": {"command": "./bin/tool"}}"#
+        try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
+
+        let discovery = PluginDiscovery(pluginsDirectory: dir)
+        #expect(throws: PluginDiscoveryError.self) {
+            try discovery.loadManifests(disabled: [])
+        }
+    }
+
+    @Test("throws for plugin with no stage files")
+    func testNoStageFiles() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let pluginDir = dir.appendingPathComponent("no-stages")
+        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        let manifest = #"{"identifier": "no-stages", "name": "NoStages", "pluginSchemaVersion": "1"}"#
+        try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
+
+        let discovery = PluginDiscovery(pluginsDirectory: dir)
+        #expect(throws: PluginDiscoveryError.self) {
+            try discovery.loadManifests(disabled: [])
+        }
     }
 }
