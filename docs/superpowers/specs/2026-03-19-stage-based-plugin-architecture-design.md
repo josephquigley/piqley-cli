@@ -102,6 +102,7 @@ Retains only runtime state:
 
 - `rules` field is removed — rules now live in stage files
 - `PluginConfig` in PiqleyCore drops the `rules: [Rule]` field
+- If an existing `config.json` contains a `rules` key, the CLI warns that rules should be moved to stage files (the key is ignored)
 
 ## Stage File Format
 
@@ -154,6 +155,7 @@ The existing `MatchConfig.hook` field is removed. When rules lived in `config.js
 - `MatchConfig` drops the `hook: String?` property
 - `RuleEvaluator` drops hook-based filtering — it evaluates all rules in the array unconditionally
 - The SDK's `RuleMatch` drops the `hook:` parameter from `.field(...)`
+- This supersedes the emit-actions spec's behavior that "when `MatchConfig.hook` is nil, the rule defaults to `pre-process`" — that concept no longer applies
 
 ### PiqleyCore Changes
 
