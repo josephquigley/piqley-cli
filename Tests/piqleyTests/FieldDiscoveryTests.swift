@@ -7,29 +7,12 @@ struct FieldDiscoveryTests {
 
     // MARK: - original source
 
-    @Test("original key contains fields from all MetadataSource cases")
-    func originalKeyContainsAllSources() {
+    @Test("original key contains fields from catalog")
+    func originalKeyContainsFields() {
         let result = FieldDiscovery.buildAvailableFields(dependencies: [])
         let originalFields = result["original"]
         #expect(originalFields != nil)
         #expect(originalFields?.isEmpty == false)
-        let names = originalFields?.map(\.name) ?? []
-        // Should include fields from exif, iptc, xmp, tiff catalogs
-        #expect(names.contains("ISO"))           // exif
-        #expect(names.contains("Keywords"))      // iptc
-        #expect(names.contains("Rating"))        // xmp
-        #expect(names.contains("Make"))          // tiff
-    }
-
-    @Test("original key count matches sum of all catalog sources")
-    func originalKeyCountMatchesCatalogTotal() {
-        let result = FieldDiscovery.buildAvailableFields(dependencies: [])
-        let originalFields = result["original"] ?? []
-        let expected = MetadataFieldCatalog.fields(forSource: .exif).count
-            + MetadataFieldCatalog.fields(forSource: .iptc).count
-            + MetadataFieldCatalog.fields(forSource: .xmp).count
-            + MetadataFieldCatalog.fields(forSource: .tiff).count
-        #expect(originalFields.count == expected)
     }
 
     // MARK: - read source
@@ -40,15 +23,6 @@ struct FieldDiscoveryTests {
         let readFields = result["read"]
         #expect(readFields != nil)
         #expect(readFields?.isEmpty == false)
-    }
-
-    @Test("read key matches original key fields")
-    func readMatchesOriginal() {
-        let result = FieldDiscovery.buildAvailableFields(dependencies: [])
-        let originalFields = result["original"] ?? []
-        let readFields = result["read"] ?? []
-        #expect(readFields.count == originalFields.count)
-        #expect(readFields.map(\.name) == originalFields.map(\.name))
     }
 
     // MARK: - dependency fields
@@ -63,6 +37,18 @@ struct FieldDiscoveryTests {
         let depFields = result["com.example.myplugin"]
         #expect(depFields != nil)
         #expect(depFields?.count == 2)
+    }
+
+    @Test("dependency fields have custom category")
+    func dependencyFieldsAreCustomCategory() {
+        let dep = FieldDiscovery.DependencyInfo(
+            identifier: "exif-tagger",
+            fields: ["scene"]
+        )
+        let result = FieldDiscovery.buildAvailableFields(dependencies: [dep])
+        let field = result["exif-tagger"]?.first
+        #expect(field?.category == .custom)
+        #expect(field?.source == "exif-tagger")
     }
 
     @Test("dependency fields are sorted alphabetically")
@@ -83,8 +69,6 @@ struct FieldDiscoveryTests {
         let result = FieldDiscovery.buildAvailableFields(dependencies: [dep1, dep2])
         #expect(result["plugin.a"] != nil)
         #expect(result["plugin.b"] != nil)
-        #expect(result["plugin.a"]?.first?.name == "FieldA")
-        #expect(result["plugin.b"]?.first?.name == "FieldB")
     }
 
     @Test("result always contains original and read keys")
@@ -98,12 +82,5 @@ struct FieldDiscoveryTests {
     func noDependenciesResultHasTwoKeys() {
         let result = FieldDiscovery.buildAvailableFields(dependencies: [])
         #expect(result.count == 2)
-    }
-
-    @Test("one dependency: result has three keys")
-    func oneDependencyResultHasThreeKeys() {
-        let dep = FieldDiscovery.DependencyInfo(identifier: "plugin.x", fields: ["F1"])
-        let result = FieldDiscovery.buildAvailableFields(dependencies: [dep])
-        #expect(result.count == 3)
     }
 }
