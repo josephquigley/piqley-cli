@@ -253,22 +253,13 @@ struct PluginCommand: ParsableCommand {
 
             print("Opening \(editor)...")
 
-            // Launch the editor via /bin/sh with explicit /dev/tty redirection.
-            // This ensures the editor gets a real terminal even under `swift run`.
-            let shellSafeEditor = editor.replacingOccurrences(of: "'", with: "'\\''")
-            let shellSafePath = tempFile.path.replacingOccurrences(of: "'", with: "'\\''")
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/sh")
-            process.arguments = ["-c", "'\(shellSafeEditor)' '\(shellSafePath)' </dev/tty >/dev/tty 2>/dev/tty"]
+            // Use fork/exec directly so the editor inherits a real controlling
+            // terminal. Swift's Process API interferes with TTY attachment even
+            // when /dev/tty is used — the child gets HUP because Process sets up
+            // file descriptors via posix_spawn before the shell can redirect them.
+            let exitStatus = Self.runEditor(editor, file: tempFile.path)
 
-            do {
-                try process.run()
-                process.waitUntilExit()
-            } catch {
-                return nil
-            }
-
-            guard process.terminationStatus == 0 else { return nil }
+            guard exitStatus == 0 else { return nil }
 
             guard let contents = try? String(contentsOf: tempFile, encoding: .utf8) else { return nil }
 
@@ -279,6 +270,34 @@ struct PluginCommand: ParsableCommand {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
             return description.isEmpty ? nil : description
+        }
+
+        /// Launches an editor using posix_spawn with /dev/tty for stdin/stdout/stderr.
+        /// Returns the editor's exit status, or -1 on failure.
+        private static func runEditor(_ editor: String, file: String) -> Int32 {
+            var fileActions: posix_spawn_file_actions_t?
+            posix_spawn_file_actions_init(&fileActions)
+            defer { posix_spawn_file_actions_destroy(&fileActions) }
+
+            // Redirect stdin/stdout/stderr to /dev/tty
+            posix_spawn_file_actions_addopen(&fileActions, STDIN_FILENO, "/dev/tty", O_RDWR, 0)
+            posix_spawn_file_actions_adddup2(&fileActions, STDIN_FILENO, STDOUT_FILENO)
+            posix_spawn_file_actions_adddup2(&fileActions, STDIN_FILENO, STDERR_FILENO)
+
+            let args = [editor, file]
+            let cArgs: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
+            defer { cArgs.forEach { $0.flatMap { free($0) } } }
+
+            var pid: pid_t = 0
+            let result = posix_spawnp(&pid, editor, &fileActions, nil, cArgs, environ)
+            guard result == 0 else { return -1 }
+
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            if (status & 0x7F) == 0 {
+                return (status >> 8) & 0xFF // WEXITSTATUS
+            }
+            return -1 // signaled
         }
 
         private static func editorName() -> String {
