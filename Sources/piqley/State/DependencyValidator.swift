@@ -9,43 +9,44 @@ enum DependencyValidator {
         pipeline: [String: [String]]
     ) -> String? {
         // Check for reserved name "original"
-        for manifest in manifests where manifest.name == ReservedName.original {
-            return "Plugin name 'original' is reserved and cannot be used."
+        for manifest in manifests where manifest.identifier == ReservedName.original {
+            return "Plugin identifier 'original' is reserved and cannot be used."
         }
 
-        // Build a position map: pluginName → (hookIndex, positionInHook)
+        // Build a position map: identifier → (hookIndex, positionInHook)
         let canonicalHooks = Hook.canonicalOrder.map(\.rawValue)
         var positionMap: [String: (hookIndex: Int, position: Int)] = [:]
         for (hookIndex, hookName) in canonicalHooks.enumerated() {
             let plugins = pipeline[hookName] ?? []
-            for (position, pluginName) in plugins.enumerated() {
-                let name = pluginName.split(separator: ":").first.map(String.init) ?? pluginName
+            for (position, pluginEntry) in plugins.enumerated() {
+                let identifier = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
                 // First occurrence wins (a plugin may appear in multiple hooks;
                 // use earliest for "runs before" check)
-                if positionMap[name] == nil {
-                    positionMap[name] = (hookIndex, position)
+                if positionMap[identifier] == nil {
+                    positionMap[identifier] = (hookIndex, position)
                 }
             }
         }
 
         // Validate each manifest's dependencies
         for manifest in manifests {
-            let deps = manifest.dependencyNames
+            let deps = manifest.dependencyIdentifiers
             guard !deps.isEmpty else { continue }
-            guard let myPos = positionMap[manifest.name] else { continue }
+            guard let myPos = positionMap[manifest.identifier] else { continue }
 
             for dep in deps {
                 if dep == ReservedName.original { continue }
 
                 guard let depPos = positionMap[dep] else {
-                    return "Plugin '\(manifest.name)' depends on '\(dep)' which is not in the pipeline."
+                    return "Plugin '\(manifest.identifier)' depends on '\(dep)' which is not in the pipeline."
                 }
 
                 let depRunsBefore = depPos.hookIndex < myPos.hookIndex ||
                     (depPos.hookIndex == myPos.hookIndex && depPos.position < myPos.position)
 
                 if !depRunsBefore {
-                    return "Plugin '\(manifest.name)' depends on '\(dep)' but '\(dep)' does not run before '\(manifest.name)' in the pipeline."
+                    return "Plugin '\(manifest.identifier)' depends on '\(dep)' but " +
+                        "'\(dep)' does not run before '\(manifest.identifier)' in the pipeline."
                 }
             }
         }

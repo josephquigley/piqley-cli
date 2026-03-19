@@ -3,17 +3,19 @@ import Logging
 import PiqleyCore
 
 struct LoadedPlugin: Sendable {
+    /// The identity key (reverse TLD from manifest.identifier).
+    let identifier: String
+    /// Human-readable display name (from manifest.name).
     let name: String
     let directory: URL
     let manifest: PluginManifest
+    let stages: [String: StageConfig]
 }
 
 struct PluginDiscovery: Sendable {
     let pluginsDirectory: URL
     private let logger = Logger(label: "piqley.discovery")
 
-    /// Loads all plugin manifests from `pluginsDirectory`, skipping disabled plugins and
-    /// directories without a `manifest.json`.
     func loadManifests(disabled: [String]) throws -> [LoadedPlugin] {
         guard FileManager.default.fileExists(atPath: pluginsDirectory.path) else { return [] }
 
@@ -22,38 +24,84 @@ struct PluginDiscovery: Sendable {
             includingPropertiesForKeys: [.isDirectoryKey]
         )
 
+        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+
         return try contents.compactMap { url -> LoadedPlugin? in
             guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
-            let name = url.lastPathComponent
-            guard !disabled.contains(name) else { return nil }
+            let dirName = url.lastPathComponent
+            guard !disabled.contains(dirName) else { return nil }
             let manifestURL = url.appendingPathComponent(PluginFile.manifest)
             guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
             let data = try Data(contentsOf: manifestURL)
             let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
-            // Warn about unknown hook names
-            for unknown in manifest.unknownHooks() {
-                logger.warning("Plugin '\(name)' declares unknown hook '\(unknown)' — ignored")
-            }
+
+            let stages = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
+
             let dataDir = url.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
-            return LoadedPlugin(name: name, directory: url, manifest: manifest)
-        }.sorted { $0.name < $1.name }
+            return LoadedPlugin(identifier: manifest.identifier, name: manifest.name, directory: url, manifest: manifest, stages: stages)
+        }.sorted { $0.identifier < $1.identifier }
     }
 
-    /// Appends newly discovered plugins to pipeline hook lists.
-    /// Plugins already listed (by name, ignoring any suffixes) are not duplicated.
-    /// Only adds to hooks the plugin actually declares.
+    static func loadStages(
+        from pluginDir: URL, knownHooks: Set<String>,
+        logger: Logger = Logger(label: "piqley.discovery")
+    ) -> [String: StageConfig] {
+        var stages: [String: StageConfig] = [:]
+
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: pluginDir, includingPropertiesForKeys: nil
+        ) else { return stages }
+
+        for file in files {
+            let filename = file.lastPathComponent
+            guard filename.hasPrefix(PluginFile.stagePrefix),
+                  filename.hasSuffix(PluginFile.stageSuffix) else { continue }
+
+            let stageName = String(
+                filename.dropFirst(PluginFile.stagePrefix.count)
+                    .dropLast(PluginFile.stageSuffix.count)
+            )
+
+            guard knownHooks.contains(stageName) else {
+                logger.warning("Plugin '\(pluginDir.lastPathComponent)' has unknown stage '\(stageName)' — ignored")
+                continue
+            }
+
+            do {
+                let data = try Data(contentsOf: file)
+                let config = try JSONDecoder().decode(StageConfig.self, from: data)
+                if config.isEmpty {
+                    logger.warning("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' is empty — ignored")
+                    continue
+                }
+                if let binary = config.binary, binary.batchProxy != nil {
+                    if binary.pluginProtocol == .json {
+                        logger.warning(
+                            "Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)': batchProxy is not compatible with json protocol — skipped"
+                        )
+                        continue
+                    }
+                }
+                stages[stageName] = config
+            } catch {
+                logger.warning("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' has malformed JSON — skipped")
+            }
+        }
+
+        return stages
+    }
+
     static func autoAppend(discovered: [LoadedPlugin], into pipeline: inout [String: [String]]) {
         for plugin in discovered {
             for hookName in Hook.canonicalOrder.map(\.rawValue) {
-                guard plugin.manifest.hooks[hookName] != nil else { continue }
+                guard plugin.stages[hookName] != nil else { continue }
                 var list = pipeline[hookName] ?? []
-                // Check if plugin name (without any suffix) is already listed
                 let alreadyListed = list.contains { entry in
-                    entry == plugin.name || entry.hasPrefix(plugin.name + ":")
+                    entry == plugin.identifier || entry.hasPrefix(plugin.identifier + ":")
                 }
                 guard !alreadyListed else { continue }
-                list.append(plugin.name)
+                list.append(plugin.identifier)
                 pipeline[hookName] = list
             }
         }

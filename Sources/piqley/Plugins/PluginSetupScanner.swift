@@ -40,15 +40,15 @@ struct PluginSetupScanner {
         for entry in plugin.manifest.config {
             guard case let .secret(secretKey, _) = entry else { continue }
             do {
-                _ = try secretStore.getPluginSecret(plugin: plugin.name, key: secretKey)
+                _ = try secretStore.getPluginSecret(plugin: plugin.identifier, key: secretKey)
             } catch {
                 let value = promptForSecret(pluginName: plugin.name, key: secretKey)
-                try secretStore.setPluginSecret(plugin: plugin.name, key: secretKey, value: value)
+                try secretStore.setPluginSecret(plugin: plugin.identifier, key: secretKey, value: value)
             }
         }
         if hasSecrets {
             try secretStore.setPluginSecret(
-                plugin: plugin.name,
+                plugin: plugin.identifier,
                 key: SecretNamespace.pluginProtocolVersion,
                 value: plugin.manifest.pluginProtocolVersion
             )
@@ -162,7 +162,7 @@ struct PluginSetupScanner {
     private func fetchSecrets(for plugin: LoadedPlugin) -> [String: String] {
         var result: [String: String] = [:]
         for key in plugin.manifest.secretKeys {
-            if let value = try? secretStore.getPluginSecret(plugin: plugin.name, key: key) {
+            if let value = try? secretStore.getPluginSecret(plugin: plugin.identifier, key: key) {
                 result[key] = value
             }
         }
