@@ -1,0 +1,85 @@
+<h2>Rule Editor Architecture — Three Approaches</h2>
+<p class="subtitle">How to split responsibilities between PiqleyCore and the CLI</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Thin Core — Validate &amp; Serialize Only</h3>
+      <p>PiqleyCore adds a <code>RuleBuilder</code> that validates individual fields (is this pattern syntactically valid? is this action known?) and handles stage file I/O. The CLI wizard owns <strong>all</strong> workflow logic — step ordering, field selection, action composition.</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Minimal Core changes — mostly validation helpers</li>
+            <li>CLI has full control over UX flow</li>
+            <li>Fast to ship</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>GUI must reimplement rule assembly logic</li>
+            <li>Risk of validation drift between clients</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Builder Pattern in Core — Guided Assembly</h3>
+      <p>PiqleyCore provides a <code>RuleBuilder</code> with a fluent API that enforces valid construction: <code>builder.match(field:pattern:).addEmit(...).addWrite(...).build()</code>. Core ensures you can't build an invalid rule. The CLI wizard maps user input to builder calls. A GUI would do the same.</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Invalid rules are impossible to construct</li>
+            <li>Both CLI and GUI share assembly logic</li>
+            <li>Clean API boundary — Core says what's valid, clients drive UX</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Slightly more Core surface area</li>
+            <li>Builder must be flexible enough for both clients</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Context Object in Core — Client Injects, Core Guides</h3>
+      <p>PiqleyCore provides <code>RuleEditingContext</code> — the client injects available fields, installed plugins, and existing rules. Core then exposes <strong>what's possible</strong> given that context: valid fields to match, valid patterns for a field, valid actions for an emit/write. The CLI queries the context at each wizard step.</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Core is the single source of truth for "what's valid here"</li>
+            <li>Clients stay thin — just render choices Core provides</li>
+            <li>Field discovery logic injected, not owned by Core</li>
+            <li>GUI gets the same context-aware validation for free</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Most upfront design work</li>
+            <li>Context object must model the full editing domain</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem; padding: 1.5rem; border: 1px solid var(--border); border-radius: 8px;">
+  <h3>⭐ Recommendation: C — Context Object</h3>
+  <p>This matches what we discussed: Core can't discover anything, but given injected context it can tell clients exactly what's valid at each step. The CLI wizard becomes a thin loop — ask Core "what are my options?", show them to the user, feed the choice back. A future GUI does the same thing with dropdowns instead of prompts. The upfront cost is modest since the domain is well-scoped (match → emit → write).</p>
+</div>

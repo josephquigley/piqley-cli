@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `piqley plugin rules edit <plugin-id>` — interactive TUI wizard for creating, editing, removing, and reordering declarative metadata rules
 - `FieldDiscovery` for rule editor field introspection
 - Environment template resolution for binary plugins
 - `TermKit` dependency and `PluginRulesCommand` scaffold

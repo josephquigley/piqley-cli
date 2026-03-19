@@ -1,0 +1,180 @@
+<h2>Rule Editor — Full-Screen TUI</h2>
+<p class="subtitle">Each wizard step takes over the terminal display buffer</p>
+
+<div class="section">
+  <h3>Step 1: Stage Selection</h3>
+  <div class="mockup">
+    <div class="mockup-header">piqley plugin rules edit my-camera-tags</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ Edit Rules: my-camera-tags ─────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #58a6ff;">Select a stage:</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 1 </span> pre-process  <span style="color: #8b949e;">2 rules</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 2 </span> post-process <span style="color: #8b949e;">0 rules</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰──────────────────────────────────────────── ↑↓ navigate  ⏎ select  q quit ─╯</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Step 2: Rule List (with filtering)</h3>
+  <div class="mockup">
+    <div class="mockup-header">pre-process — 47 rules</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ pre-process rules ──────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 1 </span> original:TIFF:Model <span style="color: #8b949e;">~</span> "Sony*"      <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 2 </span> original:TIFF:Model <span style="color: #8b949e;">~</span> "Canon*"     <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 3 </span> original:TIFF:Model <span style="color: #8b949e;">~</span> "Nikon*"     <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 4 </span> original:EXIF:LensModel <span style="color: #8b949e;">~</span> "*85mm*" <span style="color: #8b949e;">→ add keywords, add lens-type</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 5 </span> original:EXIF:LensModel <span style="color: #8b949e;">~</span> "*70-200*" <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 6 </span> original:EXIF:ISO <span style="color: #8b949e;">~</span> "regex:\\d{5}" <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 7 </span> exif-tagger:scene <span style="color: #8b949e;">~</span> "portrait"   <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #8b949e;">  ...</span> <span style="color: #8b949e;">40 more</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">[a]</span> Add new rule   <span style="color: #d29922;">[e]</span> Edit   <span style="color: #f85149;">[d]</span> Delete   <span style="color: #bc8cff;">[r]</span> Reorder
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰────────────── ↑↓ navigate  ⏎ select  f filter  pgup/pgdn page  q back ─╯</span></div>
+  </div>
+
+  <h3 style="margin-top: 1.5rem;">Filtering (live)</h3>
+  <div class="mockup">
+    <div class="mockup-header">pre-process — filtering: "Lens"</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ pre-process rules ──────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #d29922;">filter:</span> Lens<span style="color: #58a6ff;">▌</span>                          <span style="color: #8b949e;">3 of 47 rules</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 4 </span> original:EXIF:<b style="color: #d29922;">Lens</b>Model <span style="color: #8b949e;">~</span> "*85mm*" <span style="color: #8b949e;">→ add keywords, add lens-type</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 5 </span> original:EXIF:<b style="color: #d29922;">Lens</b>Model <span style="color: #8b949e;">~</span> "*70-200*" <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;">12 </span> exif-tagger:<b style="color: #d29922;">lens</b>-class <span style="color: #8b949e;">~</span> "prime"   <span style="color: #8b949e;">→ add keywords</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">[a]</span> Add new rule   <span style="color: #d29922;">[e]</span> Edit   <span style="color: #f85149;">[d]</span> Delete   <span style="color: #bc8cff;">[r]</span> Reorder
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰──────────────── ↑↓ navigate  ⏎ select  esc clear filter  q back ─╯</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Step 3: Match Configuration</h3>
+  <div class="mockup">
+    <div class="mockup-header">New rule — Match</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ New Rule ────────────────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #58a6ff;">Select source:</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 1 </span> original   <span style="color: #8b949e;">file metadata (available at load)</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 2 </span> read       <span style="color: #8b949e;">file metadata (loaded on demand)</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 3 </span> exif-tagger <span style="color: #8b949e;">dependency plugin</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰──────────────────────────────────────────── ↑↓ navigate  ⏎ select  q back ─╯</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Step 4: Field Selection (sorted by category)</h3>
+  <div class="mockup">
+    <div class="mockup-header">New rule — Select field from: original</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ New Rule ────────────────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Match:</span> original:<span style="color: #58a6ff;">▌</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #58a6ff;">Select field:</span>                                   <span style="color: #8b949e;">f to filter</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #d29922;">── EXIF ──</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 1 </span> EXIF:ApertureValue
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 2 </span> EXIF:DateTimeOriginal
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 3 </span> EXIF:ExposureTime
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 4 </span> EXIF:FocalLength
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 5 </span> EXIF:ISO
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 6 </span> EXIF:LensModel
+<span style="color: #8b949e;">│</span>  <span style="color: #d29922;">── IPTC ──</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 7 </span> IPTC:Keywords
+<span style="color: #8b949e;">│</span>  <span style="color: #8b949e;">  ...</span>
+<span style="color: #8b949e;">╰────────────────── ↑↓ navigate  ⏎ select  f filter  t type custom  q back ─╯</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Step 5: Emit Actions (match stays visible)</h3>
+  <div class="mockup">
+    <div class="mockup-header">New rule — Emit actions</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ New Rule ────────────────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Match:</span> original:EXIF:LensModel <span style="color: #8b949e;">~</span> "glob:*Sigma*"
+<span style="color: #8b949e;">│</span>  <span style="color: #8b949e;">───────────────────────────────────────────────</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #58a6ff;">Add emit action</span> <span style="color: #8b949e;">(modifies plugin output):</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 1 </span> add         <span style="color: #8b949e;">add values to a field</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 2 </span> remove      <span style="color: #8b949e;">remove matching values</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 3 </span> replace     <span style="color: #8b949e;">pattern-replace values</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 4 </span> removeField <span style="color: #8b949e;">delete a field entirely</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰──────────────────────────────────────────── ↑↓ navigate  ⏎ select  q back ─╯</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Step 6: Write Actions (match + emit stay visible)</h3>
+  <div class="mockup">
+    <div class="mockup-header">New rule — Write actions</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ New Rule ────────────────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Match:</span> original:EXIF:LensModel <span style="color: #8b949e;">~</span> "glob:*Sigma*"
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Emit:</span>  add → keywords ["sigma", "third-party-lens"]
+<span style="color: #8b949e;">│</span>  <span style="color: #8b949e;">───────────────────────────────────────────────</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #58a6ff;">Add write action</span> <span style="color: #8b949e;">(modifies file metadata):</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> 1 </span> add         <span style="color: #8b949e;">add values to a field</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 2 </span> remove      <span style="color: #8b949e;">remove matching values</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 3 </span> replace     <span style="color: #8b949e;">pattern-replace values</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 4 </span> removeField <span style="color: #8b949e;">delete a field entirely</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> 5 </span> <span style="color: #8b949e;">skip — no write actions</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰──────────────────────────────────────────── ↑↓ navigate  ⏎ select  q back ─╯</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Step 7: Confirm &amp; Save</h3>
+  <div class="mockup">
+    <div class="mockup-header">New rule — Confirm</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 12.5px; line-height: 1.5; color: #c9d1d9; background: #0d1117; padding: 1.2rem; white-space: pre;"><span style="color: #8b949e;">╭─ New Rule ────────────────────────────────────────────────────────────╮</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Match:</span> original:EXIF:LensModel <span style="color: #8b949e;">~</span> "glob:*Sigma*"
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Emit:</span>  add → keywords ["sigma", "third-party-lens"]
+<span style="color: #8b949e;">│</span>  <span style="color: #3fb950;">Write:</span> <span style="color: #8b949e;">(none)</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #8b949e;">───────────────────────────────────────────────</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #58a6ff;">Save this rule to pre-process (position 3 of 3)?</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>  <span style="background: #1f6feb; color: #fff; padding: 0 4px;"> s </span> Save
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> e </span> Edit <span style="color: #8b949e;">— go back and change something</span>
+<span style="color: #8b949e;">│</span>  <span style="color: #6e7681; padding: 0 4px;"> c </span> Cancel
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">│</span>
+<span style="color: #8b949e;">╰──────────────────────────────────────────────────────── s save  q cancel ─╯</span></div>
+  </div>
+</div>

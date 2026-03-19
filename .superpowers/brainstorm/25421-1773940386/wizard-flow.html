@@ -1,0 +1,115 @@
+<h2>Rule Editor Wizard — Sample CLI Interaction</h2>
+<p class="subtitle">What the user sees when running <code>piqley plugin rules edit my-plugin</code></p>
+
+<div class="mockup">
+  <div class="mockup-header">Terminal — piqley plugin rules edit my-camera-tags</div>
+  <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 1.6; color: #c9d1d9; background: #0d1117; padding: 1.5rem; white-space: pre;">
+<span style="color: #8b949e;">── Plugin: my-camera-tags ──</span>
+
+<span style="color: #58a6ff;">Select a stage:</span>
+  <span style="color: #f0f6fc;">[1]</span> pre-process <span style="color: #8b949e;">(2 existing rules)</span>
+  <span style="color: #f0f6fc;">[2]</span> post-process <span style="color: #8b949e;">(0 existing rules)</span>
+<span style="color: #58a6ff;">▸</span> 1
+
+<span style="color: #58a6ff;">pre-process rules:</span>
+  <span style="color: #f0f6fc;">[1]</span> original:TIFF:Model <span style="color: #8b949e;">matches</span> "Sony*" <span style="color: #8b949e;">→ emit add keywords ["sony"]</span>
+  <span style="color: #f0f6fc;">[2]</span> original:TIFF:Model <span style="color: #8b949e;">matches</span> "Canon*" <span style="color: #8b949e;">→ emit add keywords ["canon"]</span>
+
+<span style="color: #58a6ff;">What would you like to do?</span>
+  <span style="color: #f0f6fc;">[1]</span> Add a new rule
+  <span style="color: #f0f6fc;">[2]</span> Edit an existing rule
+  <span style="color: #f0f6fc;">[3]</span> Remove a rule
+  <span style="color: #f0f6fc;">[4]</span> Reorder rules
+<span style="color: #58a6ff;">▸</span> 1
+
+<span style="color: #58a6ff;">Where in the stage?</span>
+  <span style="color: #f0f6fc;">[1]</span> Pre-rules <span style="color: #8b949e;">(before binary)</span>
+  <span style="color: #f0f6fc;">[2]</span> Post-rules <span style="color: #8b949e;">(after binary)</span>
+<span style="color: #58a6ff;">▸</span> 1
+
+<span style="color: #8b949e;">── Match ──</span>
+
+<span style="color: #58a6ff;">Select namespace to match:</span>
+  <span style="color: #f0f6fc;">[1]</span> original <span style="color: #8b949e;">(file metadata)</span>
+  <span style="color: #f0f6fc;">[2]</span> read <span style="color: #8b949e;">(file metadata, lazy)</span>
+  <span style="color: #f0f6fc;">[3]</span> exif-tagger <span style="color: #8b949e;">(dependency)</span>
+<span style="color: #58a6ff;">▸</span> 1
+
+<span style="color: #58a6ff;">Select field:</span>
+  <span style="color: #f0f6fc;">[1]</span> TIFF:Model
+  <span style="color: #f0f6fc;">[2]</span> TIFF:Make
+  <span style="color: #f0f6fc;">[3]</span> EXIF:LensModel
+  <span style="color: #f0f6fc;">[4]</span> EXIF:FocalLength
+  <span style="color: #f0f6fc;">[5]</span> IPTC:Keywords
+  <span style="color: #8b949e;">... or type a custom field name</span>
+<span style="color: #58a6ff;">▸</span> 3
+
+<span style="color: #58a6ff;">Match pattern:</span>
+  <span style="color: #8b949e;">Prefix with glob: or regex: for advanced matching.</span>
+  <span style="color: #8b949e;">Plain text = exact match (case-insensitive).</span>
+<span style="color: #58a6ff;">▸</span> glob:*Sigma*
+
+<span style="color: #3fb950;">✓ Match: original:EXIF:LensModel matches "glob:*Sigma*"</span>
+
+<span style="color: #8b949e;">── Emit Actions ──</span>
+
+<span style="color: #58a6ff;">Add an emit action (modifies plugin namespace):</span>
+  <span style="color: #f0f6fc;">[1]</span> add <span style="color: #8b949e;">— add values to a field</span>
+  <span style="color: #f0f6fc;">[2]</span> remove <span style="color: #8b949e;">— remove matching values from a field</span>
+  <span style="color: #f0f6fc;">[3]</span> replace <span style="color: #8b949e;">— pattern-replace values in a field</span>
+  <span style="color: #f0f6fc;">[4]</span> removeField <span style="color: #8b949e;">— delete a field entirely</span>
+<span style="color: #58a6ff;">▸</span> 1
+
+<span style="color: #58a6ff;">Target field:</span> <span style="color: #58a6ff;">▸</span> keywords
+<span style="color: #58a6ff;">Values</span> <span style="color: #8b949e;">(comma-separated)</span><span style="color: #58a6ff;">:</span> <span style="color: #58a6ff;">▸</span> sigma, third-party-lens
+
+<span style="color: #3fb950;">✓ Emit: add → keywords ["sigma", "third-party-lens"]</span>
+
+<span style="color: #58a6ff;">Add another emit action?</span> <span style="color: #8b949e;">(y/N)</span> <span style="color: #58a6ff;">▸</span> n
+
+<span style="color: #8b949e;">── Write Actions ──</span>
+
+<span style="color: #58a6ff;">Add a write action (modifies file metadata):</span>
+  <span style="color: #f0f6fc;">[1]</span> add
+  <span style="color: #f0f6fc;">[2]</span> remove
+  <span style="color: #f0f6fc;">[3]</span> replace
+  <span style="color: #f0f6fc;">[4]</span> removeField
+  <span style="color: #f0f6fc;">[5]</span> Skip <span style="color: #8b949e;">— no write actions</span>
+<span style="color: #58a6ff;">▸</span> 5
+
+<span style="color: #8b949e;">── Summary ──</span>
+
+<span style="color: #f0f6fc;">New rule for pre-process (pre-rules):</span>
+  <span style="color: #58a6ff;">Match:</span>  original:EXIF:LensModel <span style="color: #8b949e;">matches</span> "glob:*Sigma*"
+  <span style="color: #58a6ff;">Emit:</span>   add → keywords ["sigma", "third-party-lens"]
+  <span style="color: #58a6ff;">Write:</span>  <span style="color: #8b949e;">(none)</span>
+
+<span style="color: #58a6ff;">Save this rule?</span> <span style="color: #8b949e;">(Y/n)</span> <span style="color: #58a6ff;">▸</span> y
+
+<span style="color: #3fb950;">✓ Rule added to my-camera-tags → pre-process (pre-rules, position 3 of 3)</span>
+<span style="color: #3fb950;">✓ Saved to stage-pre-process.json</span>
+</div>
+</div>
+
+<div class="section" style="margin-top: 2rem;">
+  <h3>How RuleBuilder drives this</h3>
+  <div style="font-family: monospace; font-size: 12px; line-height: 1.5; color: #c9d1d9; background: #161b22; padding: 1.2rem; border-radius: 8px; white-space: pre;"><span style="color: #8b949e;">// CLI builds context from runtime knowledge</span>
+<span style="color: #ff7b72;">let</span> context = RuleEditingContext(
+    availableFields: discoveredFields,  <span style="color: #8b949e;">// CLI discovers these</span>
+    pluginIdentifier: <span style="color: #a5d6ff;">"my-camera-tags"</span>,
+    stages: loadedStages               <span style="color: #8b949e;">// CLI loads from disk</span>
+)
+
+<span style="color: #8b949e;">// Wizard queries context for options at each step</span>
+<span style="color: #ff7b72;">let</span> namespaces = context.availableNamespaces()  <span style="color: #8b949e;">// → ["original", "read", "exif-tagger"]</span>
+<span style="color: #ff7b72;">let</span> fields = context.fields(in: <span style="color: #a5d6ff;">"original"</span>)     <span style="color: #8b949e;">// → [FieldInfo...]</span>
+
+<span style="color: #8b949e;">// Builder validates each step immediately</span>
+<span style="color: #ff7b72;">var</span> builder = RuleBuilder(context: context)
+builder.setMatch(field: <span style="color: #a5d6ff;">"original:EXIF:LensModel"</span>, pattern: <span style="color: #a5d6ff;">"glob:*Sigma*"</span>)  <span style="color: #8b949e;">// → .success</span>
+builder.addEmit(EmitConfig(field: <span style="color: #a5d6ff;">"keywords"</span>, values: [<span style="color: #a5d6ff;">"sigma"</span>, <span style="color: #a5d6ff;">"third-party-lens"</span>]))  <span style="color: #8b949e;">// → .success</span>
+
+<span style="color: #8b949e;">// Final build + save</span>
+<span style="color: #ff7b72;">let</span> rule = <span style="color: #ff7b72;">try</span> builder.build().get()
+<span style="color: #8b949e;">// CLI writes updated StageConfig to disk</span></div>
+</div>
