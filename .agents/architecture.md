@@ -6,7 +6,7 @@ String literals used as keys, identifiers, or lookup values **must not** appear 
 
 ### What counts as a magic string
 
-- Environment variable names (`PIQLEY_FOLDER_PATH`, `PIQLEY_HOOK`, …)
+- Environment variable names (`PIQLEY_IMAGE_FOLDER_PATH`, `PIQLEY_HOOK`, …)
 - Environment variable prefixes (`PIQLEY_SECRET_`, `PIQLEY_CONFIG_`)
 - Config and data file paths (`.config/piqley/config.json`, `manifest.json`, …)
 - Plugin directory names (`data`, `logs`)
@@ -20,7 +20,7 @@ Use **caseless enums** with `static let` constants. This avoids `.rawValue` at c
 
 ```swift
 enum PluginEnvironment {
-    static let folderPath = "PIQLEY_FOLDER_PATH"
+    static let folderPath = "PIQLEY_IMAGE_FOLDER_PATH"
     static let hook = "PIQLEY_HOOK"
     static let dryRun = "PIQLEY_DRY_RUN"
     static let execLogPath = "PIQLEY_EXECUTION_LOG_PATH"

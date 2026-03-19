@@ -355,7 +355,7 @@ struct PluginRunner: Sendable {
         let pluginVersion = plugin.manifest.pluginVersion ?? SemanticVersion(major: 0, minor: 0, patch: 0)
         return PluginInputPayload(
             hook: hook,
-            folderPath: folderPath.path,
+            imageFolderPath: folderPath.path,
             pluginConfig: pluginConfig.values,
             secrets: secrets,
             executionLogPath: executionLogPath.path,
