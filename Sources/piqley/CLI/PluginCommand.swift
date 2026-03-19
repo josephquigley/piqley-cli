@@ -65,13 +65,16 @@ struct PluginCommand: ParsableCommand {
             abstract: "Create a new declarative-only plugin"
         )
 
-        @Argument(help: "Plugin name")
-        var pluginName: String?
+        @Argument(help: "Plugin identifier (reverse-TLD, e.g. com.example.myplugin)")
+        var pluginIdentifier: String?
+
+        @Argument(help: "Plugin display name (optional; derived from identifier if omitted)")
+        var displayName: String?
 
         @Flag(help: "Skip example rules in generated config")
         var noExamples = false
 
-        @Flag(help: "Non-interactive mode (requires name argument)")
+        @Flag(help: "Non-interactive mode (requires identifier argument)")
         var nonInteractive = false
 
         /// Writes JSON data to a file, injecting an `instructionsForUse` key at the top level.
@@ -96,18 +99,23 @@ struct PluginCommand: ParsableCommand {
             try output.write(to: directory.appendingPathComponent(fileName))
         }
 
+        /// Backward-compatible alias used by CreateCommand.
         static func validatePluginName(_ name: String) throws {
-            if name.isEmpty {
-                throw ValidationError("Plugin name must not be empty")
+            try validatePluginIdentifier(name)
+        }
+
+        static func validatePluginIdentifier(_ identifier: String) throws {
+            if identifier.isEmpty {
+                throw ValidationError("Plugin identifier must not be empty")
             }
-            if name == ReservedName.original {
-                throw ValidationError("'original' is a reserved name")
+            if identifier == ReservedName.original {
+                throw ValidationError("'original' is a reserved identifier")
             }
-            if name.contains("/") || name.contains("\\") || name.contains("..") {
-                throw ValidationError("Plugin name must not contain path separators")
+            if identifier.contains("/") || identifier.contains("\\") || identifier.contains("..") {
+                throw ValidationError("Plugin identifier must not contain path separators")
             }
-            if name.contains(where: \.isWhitespace) {
-                throw ValidationError("Plugin name must not contain whitespace")
+            if identifier.contains(where: \.isWhitespace) {
+                throw ValidationError("Plugin identifier must not contain whitespace")
             }
         }
 
@@ -117,29 +125,36 @@ struct PluginCommand: ParsableCommand {
 
         /// Core logic, extracted for testability (injectable plugins directory).
         func execute(pluginsDirectory: URL) throws {
-            let name: String
+            let identifier: String
+            let resolvedDisplayName: String
 
             if nonInteractive {
-                guard let pluginName else {
-                    throw ValidationError("Non-interactive mode requires a plugin name argument")
+                guard let pluginIdentifier else {
+                    throw ValidationError("Non-interactive mode requires a plugin identifier argument")
                 }
-                name = pluginName
-            } else if let pluginName {
-                name = pluginName
+                identifier = pluginIdentifier
+                resolvedDisplayName = displayName ?? identifier
+            } else if let pluginIdentifier {
+                identifier = pluginIdentifier
+                resolvedDisplayName = displayName ?? identifier
             } else {
-                print("Plugin name: ", terminator: "")
-                guard let input = readLine(), !input.isEmpty else {
-                    throw ValidationError("Plugin name must not be empty")
+                print("Plugin identifier (e.g. com.example.myplugin): ", terminator: "")
+                guard let identifierInput = readLine(), !identifierInput.isEmpty else {
+                    throw ValidationError("Plugin identifier must not be empty")
                 }
-                name = input
+                identifier = identifierInput
+
+                print("Display name (press Enter to use '\(identifier)'): ", terminator: "")
+                let nameInput = readLine() ?? ""
+                resolvedDisplayName = nameInput.isEmpty ? identifier : nameInput
             }
 
-            try Self.validatePluginName(name)
+            try Self.validatePluginIdentifier(identifier)
 
-            let pluginDir = pluginsDirectory.appendingPathComponent(name)
+            let pluginDir = pluginsDirectory.appendingPathComponent(identifier)
 
             if FileManager.default.fileExists(atPath: pluginDir.path) {
-                throw ValidationError("Plugin '\(name)' already exists at \(pluginDir.path)")
+                throw ValidationError("Plugin '\(identifier)' already exists at \(pluginDir.path)")
             }
 
             try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
@@ -148,8 +163,8 @@ struct PluginCommand: ParsableCommand {
 
             let manifest: PluginManifest = if includeExamples {
                 try buildManifest {
-                    Identifier(name)
-                    Name(name)
+                    Identifier(identifier)
+                    Name(resolvedDisplayName)
                     ProtocolVersion("1")
                     try PluginVersion("0.1.0")
                     ConfigEntries {
@@ -160,16 +175,16 @@ struct PluginCommand: ParsableCommand {
                 }
             } else {
                 try buildManifest {
-                    Identifier(name)
-                    Name(name)
+                    Identifier(identifier)
+                    Name(resolvedDisplayName)
                     ProtocolVersion("1")
                 }
             }
             let manifestInstructions = """
-            This is your plugin's manifest. It declares the plugin's identity, \
-            configuration schema, and dependencies. Stage files (stage-<hook>.json) \
-            define pre-rules, binary execution, and post-rules for each hook. \
-            Remove any config entries you don't need.
+            This is your plugin's manifest. It declares the plugin's identity and \
+            configuration schema. The identifier (reverse-TLD) is the plugin's unique key. \
+            Stage files (stage-pre-process.json, stage-post-process.json) define \
+            declarative rules for each processing stage. Remove any config entries you don't need.
             """
             try Self.writeJSON(manifest.encode(), instructions: manifestInstructions, to: pluginDir, fileName: PluginFile.manifest)
 
@@ -186,12 +201,69 @@ struct PluginCommand: ParsableCommand {
             let configInstructions = """
             This is your plugin's runtime configuration. The 'values' section holds \
             key-value settings that your plugin reads at runtime. Declarative rules \
-            are now defined in stage files (stage-<hook>.json) as preRules and \
-            postRules sections.
+            are defined in stage files (stage-pre-process.json, stage-post-process.json).
             """
             try Self.writeJSON(config, instructions: configInstructions, to: pluginDir, fileName: PluginFile.config)
 
-            print("Created plugin '\(name)' at \(pluginDir.path)")
+            if includeExamples {
+                let pluginIdentifierForRules = identifier
+
+                // Pre-process stage with example rules
+                let preProcessStage = buildStage {
+                    PreRules {
+                        ConfigRule(
+                            match: .field(.original(.model), pattern: .exact("Canon EOS R5")),
+                            emit: [.values(field: "tags", ["Canon", "EOS R5"])]
+                        )
+                        ConfigRule(
+                            match: .field(.original(.lensModel), pattern: .glob("RF*")),
+                            emit: [.values(field: "tags", ["RF Mount"])]
+                        )
+                        ConfigRule(
+                            match: .field(.original(.iso), pattern: .regex("^(3200|6400|12800|25600)$")),
+                            emit: [.values(field: "tags", ["High ISO"])]
+                        )
+                        ConfigRule(
+                            match: .field(.original(.focalLength), pattern: .regex("^(85|105|135)$")),
+                            emit: [.keywords(["Portrait"])]
+                        )
+                    }
+                }
+                let preProcessInstructions = """
+                Pre-process rules run before any binary. Match against original image metadata \
+                and emit tags/keywords to your plugin's namespace. All rules in this file run \
+                during the pre-process stage.
+                """
+                try Self.writeJSON(preProcessStage, instructions: preProcessInstructions,
+                                   to: pluginDir, fileName: "stage-pre-process.json")
+
+                // Post-process stage with example rules
+                let postProcessStage = buildStage {
+                    PostRules {
+                        ConfigRule(
+                            match: .field(.dependency(pluginIdentifierForRules, key: "tags"), pattern: .exact("Kodak")),
+                            emit: [
+                                .remove(field: "tags", ["Kodak"]),
+                                .values(field: "tags", ["Piqley Emulsions, LLC"]),
+                            ]
+                        )
+                        ConfigRule(
+                            match: .field(.original(.make), pattern: .glob("*Canon*")),
+                            emit: [.keywords(["Canon"])],
+                            write: [.values(field: "IPTC:Keywords", ["Canon", "piqley-processed"])]
+                        )
+                    }
+                }
+                let postProcessInstructions = """
+                Post-process rules run after any binary. You can match against your own plugin's \
+                output from pre-process using '<plugin-identifier>:<field>' syntax. Write actions \
+                modify the image file's metadata directly.
+                """
+                try Self.writeJSON(postProcessStage, instructions: postProcessInstructions,
+                                   to: pluginDir, fileName: "stage-post-process.json")
+            }
+
+            print("Created plugin '\(identifier)' at \(pluginDir.path)")
         }
     }
 
