@@ -726,15 +726,20 @@ extension PluginConfig {
 }
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Commit PiqleyCore changes**
 
 ```bash
 cd /Users/wash/Developer/tools/piqley/piqley-core
 git add Sources/PiqleyCore/Config/PluginConfig.swift Sources/PiqleyCore/Constants/PluginFile.swift Tests/PiqleyCoreTests/ConfigCodingTests.swift
+git commit -m "feat: remove rules from PluginConfig, add stage file constants"
+```
+
+- [ ] **Step 8: Commit CLI changes**
+
+```bash
 cd /Users/wash/Developer/tools/piqley/piqley-cli
 git add Sources/piqley/Plugins/PluginConfig.swift
-cd /Users/wash/Developer/tools/piqley/piqley-core && git commit -m "feat: remove rules from PluginConfig, add stage file constants"
-cd /Users/wash/Developer/tools/piqley/piqley-cli && git commit -m "fix: update PluginConfig helpers for rules removal"
+git commit -m "fix: update PluginConfig helpers for rules removal"
 ```
 
 ---
@@ -1497,7 +1502,7 @@ struct PluginDiscovery: Sendable {
             let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
 
             // Discover stage files
-            let stages = loadStages(from: url, knownHooks: knownHooks)
+            let stages = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
 
             let dataDir = url.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
@@ -1506,7 +1511,8 @@ struct PluginDiscovery: Sendable {
     }
 
     /// Scans a plugin directory for `stage-*.json` files and parses them.
-    private func loadStages(from pluginDir: URL, knownHooks: Set<String>) -> [String: StageConfig] {
+    /// Static so PipelineOrchestrator can reuse it without duplicating logic.
+    static func loadStages(from pluginDir: URL, knownHooks: Set<String>, logger: Logger = Logger(label: "piqley.discovery")) -> [String: StageConfig] {
         var stages: [String: StageConfig] = [:]
 
         guard let files = try? FileManager.default.contentsOfDirectory(
@@ -1536,8 +1542,7 @@ struct PluginDiscovery: Sendable {
                     continue
                 }
                 // Validate batchProxy + json protocol incompatibility
-                if let binary = config.binary, let batchProxy = binary.batchProxy {
-                    _ = batchProxy
+                if let binary = config.binary, binary.batchProxy != nil {
                     if binary.pluginProtocol == .json {
                         logger.warning("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)': batchProxy is not compatible with json protocol — skipped")
                         continue
@@ -1736,6 +1741,8 @@ private func runPluginHook(
     return .success
 }
 ```
+
+Note: `runBinary` is an existing method already in `PipelineOrchestrator.swift` (lines 240-303). Its signature accepts a `hookConfig: HookConfig?` parameter — no changes needed. It now receives `stageConfig.binary` instead of `manifest.hooks[hookName]`.
 
 Add a new `evaluateRuleset` helper (replaces the old `evaluateRules`):
 
