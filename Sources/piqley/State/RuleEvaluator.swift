@@ -10,7 +10,6 @@ enum EmitAction: Sendable {
 }
 
 struct CompiledRule: Sendable {
-    let hook: String
     let namespace: String // match-side namespace
     let field: String // match-side field
     let matcher: any TagMatcher & Sendable
@@ -20,15 +19,12 @@ struct CompiledRule: Sendable {
 
 enum RuleCompilationError: Error, LocalizedError {
     case invalidRegex(ruleIndex: Int, pattern: String, underlying: Error)
-    case unknownHook(ruleIndex: Int, hook: String)
     case invalidEmit(ruleIndex: Int, reason: String)
 
     var errorDescription: String? {
         switch self {
         case let .invalidRegex(ruleIndex, pattern, err):
             "Rule \(ruleIndex): invalid regex '\(pattern)': \(err.localizedDescription)"
-        case let .unknownHook(ruleIndex, hook):
-            "Rule \(ruleIndex): unknown hook '\(hook)'"
         case let .invalidEmit(ruleIndex, reason):
             "Rule \(ruleIndex): invalid emit: \(reason)"
         }
@@ -43,18 +39,6 @@ struct RuleEvaluator: Sendable {
     init(rules: [Rule], nonInteractive: Bool = false, logger: Logger) throws {
         var compiled: [CompiledRule] = []
         for (index, rule) in rules.enumerated() {
-            let hook = rule.match.hook ?? Hook.preProcess.rawValue
-
-            // Validate hook
-            guard Hook.canonicalOrder.map(\.rawValue).contains(hook) else {
-                let error = RuleCompilationError.unknownHook(ruleIndex: index, hook: hook)
-                if nonInteractive {
-                    logger.warning("\(error.localizedDescription) — skipping rule")
-                    continue
-                }
-                throw error
-            }
-
             // Parse field: split on first ":"
             let (namespace, field) = Self.splitField(rule.match.field)
 
@@ -104,7 +88,6 @@ struct RuleEvaluator: Sendable {
             }
 
             compiled.append(CompiledRule(
-                hook: hook,
                 namespace: namespace,
                 field: field,
                 matcher: matcher,
@@ -177,7 +160,6 @@ struct RuleEvaluator: Sendable {
     /// metadataBuffer is used to resolve read: namespace fields and apply write actions.
     /// Returns the complete updated namespace (untouched fields preserved).
     func evaluate(
-        hook: String,
         state: [String: [String: JSONValue]],
         currentNamespace: [String: JSONValue] = [:],
         metadataBuffer: MetadataBuffer? = nil,
@@ -185,7 +167,7 @@ struct RuleEvaluator: Sendable {
     ) async -> [String: JSONValue] {
         var working = currentNamespace
 
-        for rule in compiledRules where rule.hook == hook {
+        for rule in compiledRules {
             // Resolve the match field value
             let value: JSONValue?
             if rule.namespace == "read", let buffer = metadataBuffer, let image = imageName {
