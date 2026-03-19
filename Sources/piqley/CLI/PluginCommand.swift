@@ -8,7 +8,7 @@ struct PluginCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "plugin",
         abstract: "Manage plugins",
-        subcommands: [SetupSubcommand.self, InitSubcommand.self]
+        subcommands: [SetupSubcommand.self, InitSubcommand.self, ConfigSubcommand.self]
     )
 
     struct SetupSubcommand: ParsableCommand {
@@ -267,6 +267,30 @@ struct PluginCommand: ParsableCommand {
             try Self.writeJSON(config, instructions: configInstructions, to: pluginDir, fileName: PluginFile.config)
 
             print("Created plugin '\(name)' at \(pluginDir.path)")
+        }
+    }
+
+    struct ConfigSubcommand: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "config",
+            abstract: "Open a plugin's config file in your editor"
+        )
+
+        @Argument(help: "Plugin name")
+        var pluginName: String
+
+        func run() throws {
+            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+            let configPath = pluginsDir
+                .appendingPathComponent(pluginName)
+                .appendingPathComponent(PluginFile.config)
+                .path
+
+            guard FileManager.default.fileExists(atPath: configPath) else {
+                throw ValidationError("Config file not found for plugin '\(pluginName)' at \(configPath)")
+            }
+
+            try openInEditor(configPath)
         }
     }
 }

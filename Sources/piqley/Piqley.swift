@@ -8,7 +8,11 @@ struct Piqley: AsyncParsableCommand {
         commandName: AppConstants.name,
         abstract: "Process and publish photos to Ghost CMS",
         version: AppConstants.version,
-        subcommands: [ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self, SecretCommand.self, PluginCommand.self]
+        subcommands: [
+            ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self,
+            SecretCommand.self, PluginCommand.self, ConfigCommand.self,
+            UninstallCommand.self,
+        ]
     )
 
     static func main() async {
