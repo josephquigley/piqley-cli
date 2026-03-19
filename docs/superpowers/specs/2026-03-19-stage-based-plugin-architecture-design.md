@@ -147,6 +147,14 @@ All three fields are optional. Valid combinations:
 | yes | yes | yes | Full pipeline: prepare, execute, finalize |
 | yes | — | yes | Declarative-only with distinct pre/post phases |
 
+### MatchConfig.hook Removal
+
+The existing `MatchConfig.hook` field is removed. When rules lived in `config.json`, this field told the evaluator which hook a rule applied to. In stage files, the hook is implied by the filename — a rule in `stage-publish.json` runs during `publish`. Keeping the field would create a contradiction surface (what if `stage-publish.json` contains a rule with `hook: "pre-process"`?).
+
+- `MatchConfig` drops the `hook: String?` property
+- `RuleEvaluator` drops hook-based filtering — it evaluates all rules in the array unconditionally
+- The SDK's `RuleMatch` drops the `hook:` parameter from `.field(...)`
+
 ### PiqleyCore Changes
 
 New type:
@@ -159,7 +167,7 @@ public struct StageConfig: Codable, Sendable, Equatable {
 }
 ```
 
-`Rule`, `MatchConfig`, `EmitConfig`, and `HookConfig` are unchanged — reused across pre and post rulesets and the binary config.
+`Rule`, `EmitConfig`, and `HookConfig` are unchanged — reused across pre and post rulesets and the binary config. `MatchConfig` loses its `hook` field as described above. `HookConfig` retains all existing fields including `batchProxy` — batch proxy execution is supported in stage-file binary configs.
 
 ## CLI Loading & Orchestration
 
@@ -167,20 +175,22 @@ public struct StageConfig: Codable, Sendable, Equatable {
 
 - `LoadedPlugin` gains `stages: [String: StageConfig]` (keyed by hook name, e.g. `"pre-process"`)
 - Discovery scans for `stage-*.json` files, parses each into `StageConfig`
-- Validation: warns on unknown stage names, warns on empty stage files
+- Validation: warns on unknown stage names, warns on empty stage files, warns and skips on malformed JSON (the plugin continues with its remaining valid stages)
 
 ### PipelineOrchestrator
+
+All orchestrator references to `manifest.hooks[hookName]` are replaced with `stages[hookName]` lookups. The `runPluginHook` method no longer consults the manifest for hook configuration — it reads binary config from `StageConfig.binary` and rules from `StageConfig.preRules`/`StageConfig.postRules`.
 
 Per-plugin-per-hook execution flow:
 
 1. Look up `stages[hookName]` — skip if absent
 2. Create `MetadataBuffer` for this stage execution
-3. If `preRules` present: compile & evaluate against current state, update plugin namespace
-4. Flush buffer (writes any `write` actions from pre-rules to disk)
+3. If `preRules` present: compile & evaluate against current state, update plugin namespace. Any `write` actions on matched rules are applied to the MetadataBuffer during evaluation.
+4. Flush buffer (writes pre-rules `write` actions to disk via `MetadataWriter`)
 5. If `binary` present: build payload from post-pre-rules state, run via `PluginRunner`, merge returned state
 6. Invalidate buffer cache (binary may have modified files on disk)
-7. If `postRules` present: compile & evaluate against post-binary state, update plugin namespace
-8. Flush buffer (writes any `write` actions from post-rules to disk)
+7. If `postRules` present: compile & evaluate against post-binary state, update plugin namespace. Any `write` actions on matched rules are applied to the MetadataBuffer during evaluation.
+8. Flush buffer (writes post-rules `write` actions to disk via `MetadataWriter`)
 
 ### State Availability
 
@@ -190,11 +200,11 @@ Per-plugin-per-hook execution flow:
 
 ### MetadataBuffer Cache Invalidation
 
-After the binary runs, the CLI calls `MetadataBuffer.invalidateAll()` to clear cached metadata. When post-rules access `read:` namespace fields, the buffer re-extracts from disk, reflecting any changes the binary made to the files.
+After the binary runs, the CLI calls `MetadataBuffer.invalidateAll()` to clear cached metadata. This method clears the in-memory `metadata` dictionary. The `dirty` set is already empty at this point (flushed in step 4), so it does not need to be reset. When post-rules access `read:` namespace fields, the buffer re-extracts fresh metadata from disk, reflecting any changes the binary made to the files.
 
 ### RuleEvaluator
 
-No changes needed. It already accepts a `[Rule]` array and is called once per ruleset. In the new flow it is called up to twice per stage (once for pre-rules, once for post-rules).
+The evaluator drops hook-based filtering (since `MatchConfig.hook` is removed). It evaluates all rules in the provided array unconditionally. Otherwise no changes — it already accepts a `[Rule]` array and is called once per ruleset. In the new flow it is called up to twice per stage (once for pre-rules, once for post-rules).
 
 ### PluginRunner
 
@@ -256,7 +266,7 @@ let stage = buildStage {
 }
 ```
 
-All three blocks are optional. `Binary(...)` maps to `HookConfig` fields. The builder outputs a `StageConfig` which serializes to JSON.
+All three blocks are optional. `Binary(...)` maps to `HookConfig` fields (including `batchProxy`, `successCodes`, `warningCodes`, `criticalCodes`). Since `protocol` is a reserved word in Swift, the builder uses `` `protocol` `` (backticked) or an alternative parameter name like `communicationProtocol` that maps to the `"protocol"` JSON key. The builder outputs a `StageConfig` which serializes to JSON.
 
 ### Skeleton Updates
 
@@ -278,7 +288,9 @@ All three blocks are optional. `Binary(...)` maps to `HookConfig` fields. The bu
 - `ConfigRule` in the SDK moves from `ConfigBuilder` to `StageBuilder`
 - The `RuleEvaluator` changes in that spec still apply — they just get invoked twice per stage now
 
-### Read/Write Metadata Actions (`2026-03-18-read-write-metadata-actions.md`)
+### Read/Write Metadata Actions (plan: `2026-03-18-read-write-metadata-actions.md`)
+
+This is a plan (not a spec) for future work. The relevant impacts:
 
 - `MetadataBuffer` invalidation between pre/post rules is a new requirement addressed by this spec
 - The `write` array on `Rule` is unchanged
