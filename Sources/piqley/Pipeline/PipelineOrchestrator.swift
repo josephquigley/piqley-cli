@@ -74,15 +74,16 @@ struct PipelineOrchestrator: Sendable {
         // Execute hooks in order
         for hook in Hook.canonicalOrder.map(\.rawValue) {
             for pluginEntry in pipeline[hook] ?? [] {
-                let pluginName = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
+                let pluginIdentifier = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
 
-                guard !blocklist.isBlocked(pluginName) else {
-                    logger.debug("[\(pluginName)] skipped (blocklisted)")
+                guard !blocklist.isBlocked(pluginIdentifier) else {
+                    logger.debug("[\(pluginIdentifier)] skipped (blocklisted)")
                     continue
                 }
 
                 let ctx = HookContext(
-                    pluginName: pluginName, hook: hook, temp: temp,
+                    pluginIdentifier: pluginIdentifier, pluginName: pluginIdentifier,
+                    hook: hook, temp: temp,
                     stateStore: stateStore, imageFiles: imageFiles,
                     dryRun: dryRun, nonInteractive: nonInteractive
                 )
@@ -92,7 +93,7 @@ struct PipelineOrchestrator: Sendable {
                 case .success, .warning, .skipped:
                     continue
                 case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
-                    blocklist.block(pluginName)
+                    blocklist.block(pluginIdentifier)
                     return false
                 }
             }
@@ -104,6 +105,7 @@ struct PipelineOrchestrator: Sendable {
     // MARK: - Internal Types
 
     private struct HookContext {
+        let pluginIdentifier: String
         let pluginName: String
         let hook: String
         let temp: TempFolder
@@ -124,12 +126,16 @@ struct PipelineOrchestrator: Sendable {
         _ ctx: HookContext,
         ruleEvaluatorCache: inout [String: RuleEvaluator]
     ) async throws -> HookResult {
-        guard let loadedPlugin = try loadPlugin(named: ctx.pluginName) else {
-            logger.error("Plugin '\(ctx.pluginName)' not found in \(pluginsDirectory.path)")
+        guard let loadedPlugin = try loadPlugin(named: ctx.pluginIdentifier) else {
+            logger.error("Plugin '\(ctx.pluginIdentifier)' not found in \(pluginsDirectory.path)")
             return .pluginNotFound
         }
 
-        // Fetch secrets
+        guard let stageConfig = loadedPlugin.stages[ctx.hook] else {
+            logger.debug("[\(loadedPlugin.name)] hook '\(ctx.hook)': no stage file — skipping")
+            return .skipped
+        }
+
         let secrets: [String: String]
         do {
             secrets = try fetchSecrets(for: loadedPlugin)
@@ -137,9 +143,8 @@ struct PipelineOrchestrator: Sendable {
             return .secretMissing
         }
 
-        // Resolve execution log path
         let execLogPath = pluginsDirectory
-            .appendingPathComponent(ctx.pluginName)
+            .appendingPathComponent(ctx.pluginIdentifier)
             .appendingPathComponent(PluginFile.executionLog)
         try FileManager.default.createDirectory(
             at: execLogPath.deletingLastPathComponent(),
@@ -147,90 +152,120 @@ struct PipelineOrchestrator: Sendable {
         )
 
         let pluginConfigURL = pluginsDirectory
-            .appendingPathComponent(ctx.pluginName)
+            .appendingPathComponent(ctx.pluginIdentifier)
             .appendingPathComponent(PluginFile.config)
         let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
-
-        // Evaluate declarative rules if present
-        let manifestDeps = loadedPlugin.manifest.dependencyNames
-        let rulesDidRun: Bool
-        do {
-            rulesDidRun = try await evaluateRules(
-                ctx, manifestDeps: manifestDeps,
-                pluginConfig: pluginConfig,
-                ruleEvaluatorCache: &ruleEvaluatorCache
-            )
-        } catch {
-            logger.error("[\(ctx.pluginName)] rule compilation failed: \(error.localizedDescription)")
-            return .ruleCompilationFailed
-        }
-
-        // Skip binary execution if no command is configured
-        let hookConfig = loadedPlugin.manifest.hooks[ctx.hook]
-        guard hookConfig?.command != nil else {
-            if rulesDidRun {
-                logger.info("[\(ctx.pluginName)] hook '\(ctx.hook)': rules evaluated (no binary)")
-            } else {
-                logger.debug("[\(ctx.pluginName)] hook '\(ctx.hook)': no command and no rules — skipping")
-            }
-            return .skipped
-        }
-
-        // Build state and run binary
-        return try await runBinary(
-            ctx, loadedPlugin: loadedPlugin,
-            secrets: secrets, pluginConfig: pluginConfig,
-            hookConfig: hookConfig, manifestDeps: manifestDeps,
-            rulesDidRun: rulesDidRun, execLogPath: execLogPath
-        )
-    }
-
-    // MARK: - Rule Evaluation
-
-    private func evaluateRules(
-        _ ctx: HookContext,
-        manifestDeps: [String],
-        pluginConfig: PluginConfig,
-        ruleEvaluatorCache: inout [String: RuleEvaluator]
-    ) async throws -> Bool {
-        guard !pluginConfig.rules.isEmpty else { return false }
-
-        let evaluator: RuleEvaluator
-        if let cached = ruleEvaluatorCache[ctx.pluginName] {
-            evaluator = cached
-        } else {
-            evaluator = try RuleEvaluator(
-                rules: pluginConfig.rules,
-                nonInteractive: ctx.nonInteractive,
-                logger: logger
-            )
-            ruleEvaluatorCache[ctx.pluginName] = evaluator
-        }
+        let manifestDeps = loadedPlugin.manifest.dependencyIdentifiers
 
         let imageURLs = Dictionary(uniqueKeysWithValues: ctx.imageFiles.map {
             ($0.lastPathComponent, $0)
         })
         let buffer = MetadataBuffer(imageURLs: imageURLs)
 
+        // Pre-rules
+        var preRulesDidRun = false
+        if let preRules = stageConfig.preRules, !preRules.isEmpty {
+            do {
+                preRulesDidRun = try await evaluateRuleset(
+                    rules: preRules, ctx: ctx, manifestDeps: manifestDeps,
+                    buffer: buffer, ruleEvaluatorCache: &ruleEvaluatorCache,
+                    cacheKey: "\(ctx.pluginIdentifier):pre:\(ctx.hook)"
+                )
+            } catch {
+                logger.error("[\(loadedPlugin.name)] pre-rule compilation failed: \(error.localizedDescription)")
+                return .ruleCompilationFailed
+            }
+        }
+
+        await buffer.flush()
+
+        // Binary
+        var binaryDidRun = false
+        if stageConfig.binary?.command != nil {
+            let result = try await runBinary(
+                ctx, loadedPlugin: loadedPlugin,
+                secrets: secrets, pluginConfig: pluginConfig,
+                hookConfig: stageConfig.binary, manifestDeps: manifestDeps,
+                rulesDidRun: preRulesDidRun, execLogPath: execLogPath
+            )
+            switch result {
+            case .success, .warning:
+                binaryDidRun = true
+            case .critical, .pluginNotFound, .secretMissing, .ruleCompilationFailed:
+                return result
+            case .skipped:
+                break
+            }
+        }
+
+        // Invalidate cache after binary
+        if binaryDidRun {
+            await buffer.invalidateAll()
+        }
+
+        // Post-rules
+        if let postRules = stageConfig.postRules, !postRules.isEmpty {
+            do {
+                _ = try await evaluateRuleset(
+                    rules: postRules, ctx: ctx, manifestDeps: manifestDeps,
+                    buffer: buffer, ruleEvaluatorCache: &ruleEvaluatorCache,
+                    cacheKey: "\(ctx.pluginIdentifier):post:\(ctx.hook)"
+                )
+            } catch {
+                logger.error("[\(loadedPlugin.name)] post-rule compilation failed: \(error.localizedDescription)")
+                return .ruleCompilationFailed
+            }
+        }
+
+        await buffer.flush()
+
+        if !preRulesDidRun, !binaryDidRun, (stageConfig.postRules ?? []).isEmpty {
+            return .skipped
+        }
+        return .success
+    }
+
+    // MARK: - Rule Evaluation
+
+    // swiftlint:disable:next function_parameter_count
+    private func evaluateRuleset(
+        rules: [Rule],
+        ctx: HookContext,
+        manifestDeps: [String],
+        buffer: MetadataBuffer,
+        ruleEvaluatorCache: inout [String: RuleEvaluator],
+        cacheKey: String
+    ) async throws -> Bool {
+        let evaluator: RuleEvaluator
+        if let cached = ruleEvaluatorCache[cacheKey] {
+            evaluator = cached
+        } else {
+            evaluator = try RuleEvaluator(
+                rules: rules,
+                nonInteractive: ctx.nonInteractive,
+                logger: logger
+            )
+            ruleEvaluatorCache[cacheKey] = evaluator
+        }
+
         var didRun = false
         for imageName in await ctx.stateStore.allImageNames {
             let resolved = await ctx.stateStore.resolve(
-                image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginName]
+                image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginIdentifier]
             )
-            let currentNamespace = resolved[ctx.pluginName] ?? [:]
+            let currentNamespace = resolved[ctx.pluginIdentifier] ?? [:]
             let ruleOutput = await evaluator.evaluate(
-                hook: ctx.hook, state: resolved, currentNamespace: currentNamespace,
+                state: resolved, currentNamespace: currentNamespace,
                 metadataBuffer: buffer, imageName: imageName
             )
             if ruleOutput != currentNamespace {
                 await ctx.stateStore.setNamespace(
-                    image: imageName, plugin: ctx.pluginName, values: ruleOutput
+                    image: imageName, plugin: ctx.pluginIdentifier, values: ruleOutput
                 )
                 didRun = true
             }
         }
 
-        await buffer.flush()
         return didRun
     }
 
@@ -255,13 +290,14 @@ struct PipelineOrchestrator: Sendable {
         let proto: PluginProtocol = hookConfig?.pluginProtocol ?? .json
         let pluginState = await buildStatePayload(
             proto: proto, manifestDeps: manifestDeps,
-            pluginName: ctx.pluginName, rulesDidRun: rulesDidRun,
+            pluginIdentifier: ctx.pluginIdentifier, rulesDidRun: rulesDidRun,
             stateStore: ctx.stateStore
         )
 
-        logger.info("Running plugin '\(ctx.pluginName)' for hook '\(ctx.hook)'")
+        logger.info("Running plugin '\(loadedPlugin.name)' for hook '\(ctx.hook)'")
         let (result, returnedState) = try await runner.run(
             hook: ctx.hook,
+            hookConfig: hookConfig,
             tempFolder: ctx.temp,
             executionLogPath: execLogPath,
             dryRun: ctx.dryRun,
@@ -277,11 +313,11 @@ struct PipelineOrchestrator: Sendable {
                 guard imageExists else { continue }
                 if rulesDidRun {
                     await ctx.stateStore.mergeNamespace(
-                        image: imageName, plugin: ctx.pluginName, values: values
+                        image: imageName, plugin: ctx.pluginIdentifier, values: values
                     )
                 } else {
                     await ctx.stateStore.setNamespace(
-                        image: imageName, plugin: ctx.pluginName, values: values
+                        image: imageName, plugin: ctx.pluginIdentifier, values: values
                     )
                 }
             }
@@ -289,14 +325,14 @@ struct PipelineOrchestrator: Sendable {
 
         switch result {
         case .success:
-            logger.info("[\(ctx.pluginName)] hook '\(ctx.hook)': success")
+            logger.info("[\(loadedPlugin.name)] hook '\(ctx.hook)': success")
             return .success
         case .warning:
-            logger.warning("[\(ctx.pluginName)] hook '\(ctx.hook)': completed with warnings")
+            logger.warning("[\(loadedPlugin.name)] hook '\(ctx.hook)': completed with warnings")
             return .warning
         case .critical:
             logger.error(
-                "[\(ctx.pluginName)] hook '\(ctx.hook)': critical failure — aborting pipeline"
+                "[\(loadedPlugin.name)] hook '\(ctx.hook)': critical failure — aborting pipeline"
             )
             return .critical
         }
@@ -307,14 +343,14 @@ struct PipelineOrchestrator: Sendable {
     private func buildStatePayload(
         proto: PluginProtocol,
         manifestDeps: [String],
-        pluginName: String,
+        pluginIdentifier: String,
         rulesDidRun: Bool,
         stateStore: StateStore
     ) async -> [String: [String: [String: JSONValue]]]? {
         guard proto == .json, !manifestDeps.isEmpty || rulesDidRun else { return nil }
 
         var statePayload: [String: [String: [String: JSONValue]]] = [:]
-        let allDeps = rulesDidRun ? manifestDeps + [pluginName] : manifestDeps
+        let allDeps = rulesDidRun ? manifestDeps + [pluginIdentifier] : manifestDeps
         for imageName in await stateStore.allImageNames {
             let resolved = await stateStore.resolve(
                 image: imageName, dependencies: allDeps
@@ -331,10 +367,10 @@ struct PipelineOrchestrator: Sendable {
     private func validateDependencies(pipeline: [String: [String]]) throws {
         var allManifests: [PluginManifest] = []
         for hook in Hook.canonicalOrder.map(\.rawValue) {
-            for pluginName in pipeline[hook] ?? [] {
-                let name = pluginName.split(separator: ":").first.map(String.init) ?? pluginName
-                if let loaded = try loadPlugin(named: name) {
-                    if !allManifests.contains(where: { $0.name == loaded.manifest.name }) {
+            for pluginEntry in pipeline[hook] ?? [] {
+                let identifier = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
+                if let loaded = try loadPlugin(named: identifier) {
+                    if !allManifests.contains(where: { $0.identifier == loaded.manifest.identifier }) {
                         allManifests.append(loaded.manifest)
                     }
                 }
@@ -346,13 +382,17 @@ struct PipelineOrchestrator: Sendable {
         }
     }
 
-    private func loadPlugin(named name: String) throws -> LoadedPlugin? {
-        let pluginDir = pluginsDirectory.appendingPathComponent(name)
+    private func loadPlugin(named identifier: String) throws -> LoadedPlugin? {
+        let pluginDir = pluginsDirectory.appendingPathComponent(identifier)
         let manifestURL = pluginDir.appendingPathComponent(PluginFile.manifest)
         guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
         let data = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
-        return LoadedPlugin(name: name, directory: pluginDir, manifest: manifest)
+
+        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+        let stages = PluginDiscovery.loadStages(from: pluginDir, knownHooks: knownHooks, logger: logger)
+
+        return LoadedPlugin(identifier: manifest.identifier, name: manifest.name, directory: pluginDir, manifest: manifest, stages: stages)
     }
 
     /// Fetches all declared secrets for a plugin from the secret store.
@@ -360,14 +400,12 @@ struct PipelineOrchestrator: Sendable {
         var result: [String: String] = [:]
         for key in plugin.manifest.secretKeys {
             do {
-                let value = try secretStore.getPluginSecret(plugin: plugin.name, key: key)
+                let value = try secretStore.getPluginSecret(plugin: plugin.identifier, key: key)
                 result[key] = value
             } catch {
-                logger.error(
-                    "[\(plugin.name)] required secret '\(key)' not found: \(error)"
-                )
-                logger.error("Run 'piqley secret set \(plugin.name) \(key)' to configure it.")
-                throw SecretStoreError.notFound(key: SecretNamespace.pluginKey(plugin: plugin.name, key: key))
+                logger.error("[\(plugin.name)] required secret '\(key)' not found: \(error)")
+                logger.error("Run 'piqley secret set \(plugin.identifier) \(key)' to configure it.")
+                throw SecretStoreError.notFound(key: SecretNamespace.pluginKey(plugin: plugin.identifier, key: key))
             }
         }
         return result

@@ -15,25 +15,26 @@ struct PluginRunner: Sendable {
     /// returned by the plugin (JSON protocol only, nil for pipe/batchProxy).
     func run(
         hook: String,
+        hookConfig: HookConfig?,
         tempFolder: TempFolder,
         executionLogPath: URL,
         dryRun: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil
     ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
-        guard let hookConfig = plugin.manifest.hooks[hook] else {
-            logger.error("Plugin '\(plugin.name)' has no config for hook '\(hook)'")
+        guard let hookConfig else {
+            logger.error("Plugin '\(plugin.identifier)' has no hook config for hook '\(hook)'")
             return (.critical, nil)
         }
 
         guard let command = hookConfig.command else {
-            logger.error("Plugin '\(plugin.name)' hook '\(hook)': no command specified")
+            logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': no command specified")
             return (.critical, nil)
         }
 
         let proto = hookConfig.pluginProtocol ?? .json
 
         if proto == .json, hookConfig.batchProxy != nil {
-            logger.error("Plugin '\(plugin.name)' hook '\(hook)': batchProxy is only valid with pipe protocol")
+            logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': batchProxy is only valid with pipe protocol")
             return (.critical, nil)
         }
 

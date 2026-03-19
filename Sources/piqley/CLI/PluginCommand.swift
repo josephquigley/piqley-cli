@@ -8,7 +8,7 @@ struct PluginCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "plugin",
         abstract: "Manage plugins",
-        subcommands: [SetupSubcommand.self, InitSubcommand.self, CreateSubcommand.self, ConfigSubcommand.self]
+        subcommands: [SetupSubcommand.self, InitSubcommand.self, CreateSubcommand.self, InstallSubcommand.self, ConfigSubcommand.self]
     )
 
     struct SetupSubcommand: ParsableCommand {
@@ -43,7 +43,7 @@ struct PluginCommand: ParsableCommand {
 
             let targetPlugins: [LoadedPlugin]
             if let name = pluginName {
-                guard let plugin = plugins.first(where: { $0.name == name }) else {
+                guard let plugin = plugins.first(where: { $0.identifier == name || $0.name == name }) else {
                     throw ValidationError("Plugin '\(name)' not found")
                 }
                 targetPlugins = [plugin]
@@ -146,10 +146,9 @@ struct PluginCommand: ParsableCommand {
 
             let includeExamples = !noExamples && !nonInteractive
 
-            let allHooks = Hook.canonicalOrder
-
             let manifest: PluginManifest = if includeExamples {
                 try buildManifest {
+                    Identifier(name)
                     Name(name)
                     ProtocolVersion("1")
                     try PluginVersion("0.1.0")
@@ -158,34 +157,19 @@ struct PluginCommand: ParsableCommand {
                         Value("tagPrefix", type: .string, default: "auto")
                         Secret("API_KEY", type: .string)
                     }
-                    Hooks {
-                        for hook in allHooks {
-                            HookEntry(
-                                hook,
-                                command: "echo",
-                                args: ["[\(hook.rawValue)]", "tags: Canon, EOS R5, RF Mount, High ISO, Portrait, Piqley Emulsions LLC"],
-                                timeout: 30
-                            )
-                        }
-                    }
                 }
             } else {
                 try buildManifest {
+                    Identifier(name)
                     Name(name)
                     ProtocolVersion("1")
-                    Hooks {
-                        for hook in allHooks {
-                            HookEntry(hook)
-                        }
-                    }
                 }
             }
             let manifestInstructions = """
             This is your plugin's manifest. It declares the plugin's identity, \
-            configuration schema, dependencies, and hook entries. Each hook can \
-            optionally specify a command to run; hooks without a command are \
-            declarative-only and rely on the rules in config.json. Remove any hooks \
-            or config entries you don't need.
+            configuration schema, and dependencies. Stage files (stage-<hook>.json) \
+            define pre-rules, binary execution, and post-rules for each hook. \
+            Remove any config entries you don't need.
             """
             try Self.writeJSON(manifest.encode(), instructions: manifestInstructions, to: pluginDir, fileName: PluginFile.manifest)
 
@@ -195,85 +179,15 @@ struct PluginCommand: ParsableCommand {
                         "outputQuality" => 85
                         "tagPrefix" => "auto"
                     }
-                    Rules {
-                        // pre-process: tag from original image metadata
-                        ConfigRule(
-                            match: .field(
-                                .original(.model),
-                                pattern: .exact("Canon EOS R5"),
-                                hook: .preProcess
-                            ),
-                            emit: [.values(field: "tags", ["Canon", "EOS R5"])]
-                        )
-                        ConfigRule(
-                            match: .field(
-                                .original(.lensModel),
-                                pattern: .glob("RF*"),
-                                hook: .preProcess
-                            ),
-                            emit: [.values(field: "tags", ["RF Mount"])]
-                        )
-                        ConfigRule(
-                            match: .field(
-                                .original(.iso),
-                                pattern: .regex("^(3200|6400|12800|25600)$"),
-                                hook: .preProcess
-                            ),
-                            emit: [.values(field: "tags", ["High ISO"])]
-                        )
-                        ConfigRule(
-                            match: .field(
-                                .original(.focalLength),
-                                pattern: .regex("^(85|105|135)$"),
-                                hook: .preProcess
-                            ),
-                            emit: [.keywords(["Portrait"])]
-                        )
-                        ConfigRule(
-                            match: .field(
-                                .original(.make),
-                                pattern: .glob("*Kodak*"),
-                                hook: .preProcess
-                            ),
-                            emit: [.values(field: "tags", ["Kodak"])]
-                        )
-
-                        // post-process: remove old tag and replace with new value
-                        ConfigRule(
-                            match: .field(
-                                .dependency(name, key: "tags"),
-                                pattern: .exact("Kodak"),
-                                hook: .postProcess
-                            ),
-                            emit: [
-                                .remove(field: "tags", ["Kodak"]),
-                                .values(field: "tags", ["Piqley Emulsions, LLC"]),
-                            ]
-                        )
-
-                        // write keywords back to image file metadata
-                        ConfigRule(
-                            match: .field(
-                                .original(.make),
-                                pattern: .glob("*Canon*"),
-                                hook: .postProcess
-                            ),
-                            emit: [.keywords(["Canon"])],
-                            write: [.values(field: "IPTC:Keywords", ["Canon", "piqley-processed"])]
-                        )
-                    }
                 }
             } else {
                 buildConfig {}
             }
             let configInstructions = """
             This is your plugin's runtime configuration. The 'values' section holds \
-            key-value settings that your plugin reads at runtime. The 'rules' section \
-            contains declarative metadata-matching rules: each rule matches a field \
-            (from original image metadata or a dependency's output) using exact, glob, \
-            or regex patterns, and emits tags or keywords. Rules scoped to a hook run \
-            only during that stage. A rule in post-process can match tags emitted by \
-            pre-process using '<plugin-name>:<field>' syntax.
+            key-value settings that your plugin reads at runtime. Declarative rules \
+            are now defined in stage files (stage-<hook>.json) as preRules and \
+            postRules sections.
             """
             try Self.writeJSON(config, instructions: configInstructions, to: pluginDir, fileName: PluginFile.config)
 
