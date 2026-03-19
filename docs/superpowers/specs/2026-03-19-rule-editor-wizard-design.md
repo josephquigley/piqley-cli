@@ -59,7 +59,7 @@ extension RuleEditingContext {
     /// Fields within a source, sorted: custom → EXIF → IPTC/XMP → TIFF.
     public func fields(in source: String) -> [FieldInfo]
 
-    /// The four known actions: add, remove, replace, removeField.
+    /// The five known actions: add, remove, replace, removeField, clone.
     public func validActions() -> [String]
 
     /// Stage names that have stage files for this plugin.
@@ -149,6 +149,7 @@ public enum RuleValidationError: Error, LocalizedError, Sendable {
     case invalidPattern(String, underlying: Error)
     case unknownAction(String)
     case missingValues(action: String)
+    case missingSource
     case conflictingFields(action: String)
     case noMatch
     case noActions
@@ -163,6 +164,8 @@ public enum RuleValidationError: Error, LocalizedError, Sendable {
             "Unknown action \"\(action)\"."
         case let .missingValues(action):
             "The \"\(action)\" action requires values."
+        case .missingSource:
+            "The clone action requires a source."
         case let .conflictingFields(action):
             "The \"\(action)\" action has conflicting fields — use either values or replacements, not both."
         case .noMatch:
@@ -179,12 +182,14 @@ public enum RuleValidationError: Error, LocalizedError, Sendable {
         case .invalidPattern:
             "Check the pattern syntax. Use plain text for exact match, prefix with \"glob:\" for wildcards, or \"regex:\" for regular expressions."
         case .unknownAction:
-            "Use one of: add, remove, replace, or removeField."
+            "Use one of: add, remove, replace, removeField, or clone."
         case let .missingValues(action):
             if action == "replace" {
                 return "Add at least one pattern → replacement pair."
             }
             return "Provide at least one value."
+        case .missingSource:
+            "Specify the source as \"source:field\" (e.g. \"exif-tagger:keywords\") or use \"*\" to clone all fields from a source."
         case let .conflictingFields(action):
             if action == "replace" {
                 return "The replace action uses replacements, not values."
@@ -320,7 +325,7 @@ RulesWizardApp
 │   ├── SourceSelectView    — ListView of sources with descriptions
 │   ├── FieldSelectView     — grouped ListView sorted by category + filter
 │   ├── PatternInputView    — TextField with inline validation feedback
-│   ├── EmitActionView      — action selection → detail input (field, values/replacements)
+│   ├── EmitActionView      — action selection → detail input (field, values/replacements/source)
 │   ├── WriteActionView     — same structure as emit
 │   └── ConfirmView         — full summary, save/edit/cancel
 ```
