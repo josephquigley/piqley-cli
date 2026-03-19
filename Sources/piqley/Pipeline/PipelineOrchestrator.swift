@@ -286,10 +286,14 @@ struct PipelineOrchestrator: Sendable {
             plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig
         )
 
-        // Build state payload for JSON protocol plugins with dependencies
+        // Build state payload for plugins that need it:
+        // - JSON protocol plugins with dependencies (state goes on stdin)
+        // - Any plugin with environment mappings (templates resolve against state)
         let proto: PluginProtocol = hookConfig?.pluginProtocol ?? .json
+        let hasEnvironmentMapping = hookConfig?.environment != nil
         let pluginState = await buildStatePayload(
-            proto: proto, manifestDeps: manifestDeps,
+            proto: proto, hasEnvironmentMapping: hasEnvironmentMapping,
+            manifestDeps: manifestDeps,
             pluginIdentifier: ctx.pluginIdentifier, rulesDidRun: rulesDidRun,
             stateStore: ctx.stateStore
         )
@@ -342,12 +346,14 @@ struct PipelineOrchestrator: Sendable {
 
     private func buildStatePayload(
         proto: PluginProtocol,
+        hasEnvironmentMapping: Bool = false,
         manifestDeps: [String],
         pluginIdentifier: String,
         rulesDidRun: Bool,
         stateStore: StateStore
     ) async -> [String: [String: [String: JSONValue]]]? {
-        guard proto == .json, !manifestDeps.isEmpty || rulesDidRun else { return nil }
+        let needsState = (proto == .json || hasEnvironmentMapping) && (!manifestDeps.isEmpty || rulesDidRun)
+        guard needsState else { return nil }
 
         var statePayload: [String: [String: [String: JSONValue]]] = [:]
         let allDeps = rulesDidRun ? manifestDeps + [pluginIdentifier] : manifestDeps
