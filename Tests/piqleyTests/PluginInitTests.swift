@@ -20,37 +20,47 @@ struct PluginInitTests {
         }
     }
 
-    @Test("rejects name with forward slash")
-    func testRejectsForwardSlash() {
-        #expect(throws: (any Error).self) {
-            try PluginCommand.InitSubcommand.validatePluginName("../evil")
-        }
+    @Test("sanitizes forward slashes")
+    func testSanitizesForwardSlash() throws {
+        let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("../evil")
+        #expect(result == "..evil")
     }
 
-    @Test("rejects name with backslash")
-    func testRejectsBackslash() {
-        #expect(throws: (any Error).self) {
-            try PluginCommand.InitSubcommand.validatePluginName("foo\\bar")
-        }
+    @Test("sanitizes backslashes")
+    func testSanitizesBackslash() throws {
+        let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("foo\\bar")
+        #expect(result == "foobar")
     }
 
-    @Test("rejects name with whitespace")
-    func testRejectsWhitespace() {
-        #expect(throws: (any Error).self) {
-            try PluginCommand.InitSubcommand.validatePluginName("my plugin")
-        }
+    @Test("sanitizes whitespace")
+    func testSanitizesWhitespace() throws {
+        let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("my plugin")
+        #expect(result == "myplugin")
     }
 
     @Test("rejects whitespace-only name")
     func testRejectsWhitespaceOnly() {
         #expect(throws: (any Error).self) {
-            try PluginCommand.InitSubcommand.validatePluginName("   ")
+            try PluginCommand.InitSubcommand.sanitizePluginIdentifier("   ")
         }
+    }
+
+    @Test("lowercases identifier")
+    func testLowercases() throws {
+        let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("Com.Example.MyPlugin")
+        #expect(result == "com.example.myplugin")
+    }
+
+    @Test("preserves dots, dashes, and underscores")
+    func testPreservesAllowedSymbols() throws {
+        let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("com.my-plugin_v2")
+        #expect(result == "com.my-plugin_v2")
     }
 
     @Test("accepts valid plugin name")
     func testAcceptsValidName() throws {
-        try PluginCommand.InitSubcommand.validatePluginName("my-plugin")
+        let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("my-plugin")
+        #expect(result == "my-plugin")
     }
 
     /// Creates a unique temp directory for test isolation. Caller is responsible for cleanup.

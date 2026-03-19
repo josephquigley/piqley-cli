@@ -80,23 +80,23 @@ struct PluginCommand: ParsableCommand {
         @Flag(help: "Non-interactive mode (requires identifier argument)")
         var nonInteractive = false
 
-        /// Writes JSON data to a file, injecting an `instructionsForUse` key at the top level.
-        static func writeJSON(_ encodable: any Encodable, instructions: String, to directory: URL, fileName: String) throws {
+        /// Writes JSON data to a file, injecting a `_comment` key at the top level.
+        static func writeJSON(_ encodable: any Encodable, comment: String, to directory: URL, fileName: String) throws {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(encodable)
 
             var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            dict["_instructions"] = instructions
+            dict["_comment"] = comment
             let output = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
 
             try output.write(to: directory.appendingPathComponent(fileName))
         }
 
-        /// Writes pre-encoded JSON data to a file, injecting an `_instructions` key at the top level.
-        static func writeJSON(_ data: Data, instructions: String, to directory: URL, fileName: String) throws {
+        /// Writes pre-encoded JSON data to a file, injecting a `_comment` key at the top level.
+        static func writeJSON(_ data: Data, comment: String, to directory: URL, fileName: String) throws {
             var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            dict["_instructions"] = instructions
+            dict["_comment"] = comment
             let output = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
 
             try output.write(to: directory.appendingPathComponent(fileName))
@@ -107,19 +107,28 @@ struct PluginCommand: ParsableCommand {
             try validatePluginIdentifier(name)
         }
 
-        static func validatePluginIdentifier(_ identifier: String) throws {
-            if identifier.isEmpty {
+        /// Sanitizes and validates a plugin identifier.
+        /// Lowercases the input and strips characters that aren't alphanumeric, `.`, `-`, or `_`.
+        static func sanitizePluginIdentifier(_ raw: String) throws -> String {
+            let sanitized = String(
+                raw.lowercased().unicodeScalars.filter { scalar in
+                    CharacterSet.alphanumerics.contains(scalar)
+                        || scalar == "."
+                        || scalar == "-"
+                        || scalar == "_"
+                }
+            )
+            if sanitized.isEmpty {
                 throw ValidationError("Plugin identifier must not be empty")
             }
-            if identifier == ReservedName.original {
+            if sanitized == ReservedName.original {
                 throw ValidationError("'original' is a reserved identifier")
             }
-            if identifier.contains("/") || identifier.contains("\\") || identifier.contains("..") {
-                throw ValidationError("Plugin identifier must not contain path separators")
-            }
-            if identifier.contains(where: \.isWhitespace) {
-                throw ValidationError("Plugin identifier must not contain whitespace")
-            }
+            return sanitized
+        }
+
+        static func validatePluginIdentifier(_ identifier: String) throws {
+            _ = try sanitizePluginIdentifier(identifier)
         }
 
         func run() throws {
@@ -139,11 +148,11 @@ struct PluginCommand: ParsableCommand {
                 guard let pluginIdentifier else {
                     throw ValidationError("Non-interactive mode requires a plugin identifier argument")
                 }
-                identifier = pluginIdentifier
+                identifier = try Self.sanitizePluginIdentifier(pluginIdentifier)
                 resolvedDisplayName = displayName ?? identifier
                 resolvedDescription = description
             } else if let pluginIdentifier {
-                identifier = pluginIdentifier
+                identifier = try Self.sanitizePluginIdentifier(pluginIdentifier)
                 resolvedDisplayName = displayName ?? identifier
                 resolvedDescription = description ?? descriptionPrompt(resolvedDisplayName)
             } else {
@@ -151,15 +160,16 @@ struct PluginCommand: ParsableCommand {
                 guard let identifierInput = readLine(), !identifierInput.isEmpty else {
                     throw ValidationError("Plugin identifier must not be empty")
                 }
-                identifier = identifierInput
+                identifier = try Self.sanitizePluginIdentifier(identifierInput)
+                if identifier != identifierInput {
+                    print("Sanitized to: \(identifier)")
+                }
 
                 print("Display name (press Enter to use '\(identifier)'): ", terminator: "")
                 let nameInput = readLine() ?? ""
                 resolvedDisplayName = nameInput.isEmpty ? identifier : nameInput
                 resolvedDescription = description ?? descriptionPrompt(resolvedDisplayName)
             }
-
-            try Self.validatePluginIdentifier(identifier)
 
             let pluginDir = pluginsDirectory.appendingPathComponent(identifier)
 
@@ -192,13 +202,13 @@ struct PluginCommand: ParsableCommand {
                     pluginProtocolVersion: "1"
                 )
             }
-            let manifestInstructions = """
+            let manifestComment = """
             This is your plugin's manifest. It declares the plugin's identity and \
             configuration schema. The identifier (reverse-TLD) is the plugin's unique key. \
             Stage files (stage-pre-process.json, stage-post-process.json) define \
             declarative rules for each processing stage. Remove any config entries you don't need.
             """
-            try Self.writeJSON(manifest.encode(), instructions: manifestInstructions, to: pluginDir, fileName: PluginFile.manifest)
+            try Self.writeJSON(manifest.encode(), comment: manifestComment, to: pluginDir, fileName: PluginFile.manifest)
 
             let config: PluginConfig = if includeExamples {
                 buildConfig {
@@ -210,12 +220,11 @@ struct PluginCommand: ParsableCommand {
             } else {
                 buildConfig {}
             }
-            let configInstructions = """
-            This is your plugin's runtime configuration. The 'values' section holds \
-            key-value settings that your plugin reads at runtime. Declarative rules \
-            are defined in stage files (stage-pre-process.json, stage-post-process.json).
+            let configComment = """
+            This is your plugin's runtime configuration. The 'values' section currently holds \
+            example key-value settings that your plugin could read at runtime.
             """
-            try Self.writeJSON(config, instructions: configInstructions, to: pluginDir, fileName: PluginFile.config)
+            try Self.writeJSON(config, comment: configComment, to: pluginDir, fileName: PluginFile.config)
 
             if includeExamples {
                 try Self.writeExampleStageFiles(to: pluginDir, identifier: identifier)
@@ -311,7 +320,7 @@ struct PluginCommand: ParsableCommand {
         private static func writeExampleStageFiles(to pluginDir: URL, identifier: String) throws {
             // Pre-process stage
             let preProcessStage: [String: Any] = [
-                "_instructions": """
+                "_comment": """
                 Pre-process rules run before any binary. Match against original image \
                 metadata and emit tags/keywords to your plugin's namespace.
                 """,
@@ -342,7 +351,7 @@ struct PluginCommand: ParsableCommand {
 
             // Post-process stage
             let postProcessStage: [String: Any] = [
-                "_instructions": """
+                "_comment": """
                 Post-process rules run after any binary. You can match against your own \
                 plugin's output from pre-process using '<plugin-identifier>:<field>' syntax. \
                 Write actions modify the image file's metadata directly.
@@ -368,7 +377,7 @@ struct PluginCommand: ParsableCommand {
 
             // Empty stage files for remaining stages
             let publishStage: [String: Any] = [
-                "_instructions": """
+                "_comment": """
                 Publish stage. Runs after post-process. Typically used for uploading or \
                 exporting processed images. Add preRules, a binary, or postRules as needed.
                 """,
@@ -376,7 +385,7 @@ struct PluginCommand: ParsableCommand {
             try Self.writeStageJSON(publishStage, to: pluginDir, fileName: "stage-publish.json")
 
             let postPublishStage: [String: Any] = [
-                "_instructions": """
+                "_comment": """
                 Post-publish stage. Runs after publish. Typically used for cleanup, \
                 notifications, or logging after images have been exported. Add preRules, \
                 a binary, or postRules as needed.
