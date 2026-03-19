@@ -232,6 +232,10 @@ struct PluginCommand: ParsableCommand {
         static func promptForDescription(pluginName: String) -> String? {
             guard isatty(STDIN_FILENO) != 0 else { return nil }
 
+            print("Add a description? (opens \(editorName()) — press Enter to skip): ", terminator: "")
+            let answer = readLine() ?? ""
+            guard answer.lowercased() == "y" || answer.lowercased() == "yes" else { return nil }
+
             let editor = ProcessInfo.processInfo.environment["EDITOR"]
                 ?? ProcessInfo.processInfo.environment["VISUAL"]
                 ?? "vi"
@@ -247,6 +251,7 @@ struct PluginCommand: ParsableCommand {
             }
             defer { try? FileManager.default.removeItem(at: tempFile) }
 
+            print("Opening \(editor)...")
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.arguments = [editor, tempFile.path]
@@ -272,6 +277,12 @@ struct PluginCommand: ParsableCommand {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
             return description.isEmpty ? nil : description
+        }
+
+        private static func editorName() -> String {
+            ProcessInfo.processInfo.environment["EDITOR"]
+                ?? ProcessInfo.processInfo.environment["VISUAL"]
+                ?? "vi"
         }
 
         // MARK: - Example stage files
