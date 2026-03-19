@@ -5,17 +5,14 @@ import PiqleyCore
 
 @Suite("DependencyValidator")
 struct DependencyValidatorTests {
-    // Helper to make a manifest with optional dependencies
+    // Helper to make a manifest with optional dependencies.
+    // identifier defaults to the plugin name (short form) for test simplicity.
     private func manifest(name: String, hook: String, dependencies: [String]? = nil) -> PluginManifest {
         PluginManifest(
+            identifier: name,
             name: name,
             pluginProtocolVersion: "1",
-            dependencies: dependencies?.map { PluginDependency(name: $0) },
-            hooks: [hook: HookConfig(
-                command: "./bin/tool", args: [], timeout: nil,
-                pluginProtocol: .json, successCodes: nil,
-                warningCodes: nil, criticalCodes: nil, batchProxy: nil
-            )]
+            dependencies: dependencies?.map { PluginDependency(name: $0) }
         )
     }
 

@@ -9,13 +9,12 @@ struct RuleEvaluatorTests {
     private let logger = Logger(label: "test.rule-evaluator")
 
     private func makeRule(
-        hook: String? = nil,
         field: String = "original:TIFF:Model",
         pattern: String = "Sony",
         emit: [EmitConfig] = [EmitConfig(field: "keywords", values: ["sony"])]
     ) -> Rule {
         Rule(
-            match: MatchConfig(hook: hook, field: field, pattern: pattern),
+            match: MatchConfig(field: field, pattern: pattern),
             emit: emit
         )
     }
@@ -29,7 +28,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
         #expect(result["keywords"] == .array([.string("sony")]))
@@ -42,7 +40,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony A7R IV")]]
         )
         #expect(result["keywords"] == .array([.string("sony")]))
@@ -55,7 +52,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("ILCE-A7R4")]]
         )
         #expect(result["keywords"] == .array([.string("sony")]))
@@ -68,7 +64,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["IPTC:Keywords": .array([.string("portrait"), .string("landscape")])]]
         )
         #expect(result["keywords"] == .array([.string("sony")]))
@@ -81,7 +76,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["tags": .array([.number(42), .bool(true)])]]
         )
         #expect(result.isEmpty)
@@ -94,7 +88,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
         #expect(result.isEmpty)
@@ -110,7 +103,6 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
         // First rule emits ["sony", "camera"], second adds "mirrorless" (sony already present)
@@ -127,34 +119,19 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
         #expect(result["keywords"] == .array([.string("sony")]))
         #expect(result["tags"] == .array([.string("camera-brand")]))
     }
 
-    @Test("hook filtering: rule for post-process skipped at pre-process")
-    func hookFiltering() async throws {
+    @Test("all rules evaluate regardless of stage (no hook filtering in RuleEvaluator)")
+    func noHookFiltering() async throws {
         let evaluator = try RuleEvaluator(
-            rules: [makeRule(hook: "post-process", pattern: "Sony")],
+            rules: [makeRule(pattern: "Sony")],
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]]
-        )
-        #expect(result.isEmpty)
-    }
-
-    @Test("hook defaulting: rule with no hook evaluates at pre-process")
-    func hookDefaulting() async throws {
-        let evaluator = try RuleEvaluator(
-            rules: [makeRule(hook: nil, pattern: "Sony")],
-            logger: logger
-        )
-        let result = await evaluator.evaluate(
-            hook: "pre-process",
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
         #expect(result["keywords"] == .array([.string("sony")]))
@@ -182,11 +159,12 @@ struct RuleEvaluatorTests {
         #expect(evaluator.compiledRules.isEmpty)
     }
 
-    @Test("unknown hook throws in interactive mode")
-    func unknownHookThrows() {
+    @Test("invalid glob pattern throws in interactive mode")
+    func invalidGlobThrows() {
+        // RuleEvaluator validates patterns; a bad regex should still throw
         #expect(throws: RuleCompilationError.self) {
             try RuleEvaluator(
-                rules: [makeRule(hook: "not-a-real-hook", pattern: "Sony")],
+                rules: [makeRule(pattern: "regex:[invalid")],
                 logger: logger
             )
         }
@@ -204,8 +182,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-tag"), .string("auto-focus"), .string("keeper")])]
         )
         #expect(result["keywords"] == .array([.string("keeper")]))
@@ -221,8 +198,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-tag"), .string("keeper")])]
         )
         #expect(result["keywords"] == .array([.string("keeper")]))
@@ -238,8 +214,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("a"), .string("b")])]
         )
         #expect(result["keywords"] == nil)
@@ -259,8 +234,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5"), .string("keeper")])]
         )
         #expect(result["keywords"] == .array([.string("Sony A7R5"), .string("keeper")]))
@@ -279,8 +253,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5")])]
         )
         // Exact match wins over regex
@@ -299,8 +272,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5")])]
         )
         // "SONY" doesn't whole-match "SONYA7R5", so no replacement
@@ -319,8 +291,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old")]), "tags": .array([.string("kept")])]
         )
         #expect(result["keywords"] == nil)
@@ -337,8 +308,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("a")]), "tags": .array([.string("b")])]
         )
         #expect(result.isEmpty)
@@ -359,8 +329,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-stuff")])]
         )
         #expect(result["keywords"] == .array([.string("fresh-start")]))
@@ -376,8 +345,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["existing": .string("preserved")]
         )
         #expect(result["existing"] == .string("preserved"))
@@ -394,8 +362,7 @@ struct RuleEvaluatorTests {
             logger: logger
         )
         let result = await evaluator.evaluate(
-            hook: "pre-process",
-            state: ["original": ["TIFF:Model": .string("Sony")]],
+            state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("sony")])]
         )
         #expect(result["keywords"] == .array([.string("sony"), .string("new")]))

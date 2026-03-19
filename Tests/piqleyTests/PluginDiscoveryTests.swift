@@ -5,8 +5,9 @@ import PiqleyCore
 
 @Suite("PluginDiscovery")
 struct PluginDiscoveryTests {
-    // Create a temp plugins dir with a given set of plugin subdirs (each with a manifest.json)
-    func makePluginsDir(plugins: [(name: String, hooks: [String])]) throws -> URL {
+    // Create a temp plugins dir with a given set of plugin subdirs.
+    // Each plugin gets a manifest.json and optional stage files.
+    func makePluginsDir(plugins: [(name: String, stages: [String])]) throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -14,17 +15,23 @@ struct PluginDiscoveryTests {
         for plugin in plugins {
             let pluginDir = dir.appendingPathComponent(plugin.name)
             try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-            var hooksDict: [String: Any] = [:]
-            for hook in plugin.hooks {
-                hooksDict[hook] = ["command": "./bin/tool", "args": []]
-            }
+
             let manifest: [String: Any] = [
+                "identifier": plugin.name,
                 "name": plugin.name,
-                "pluginProtocolVersion": "1",
-                "hooks": hooksDict
+                "pluginProtocolVersion": "1"
             ]
             let data = try JSONSerialization.data(withJSONObject: manifest)
             try data.write(to: pluginDir.appendingPathComponent("manifest.json"))
+
+            // Create stage files for each requested stage
+            for stageName in plugin.stages {
+                let stageConfig: [String: Any] = [
+                    "binary": ["command": "./bin/tool", "args": []]
+                ]
+                let stageData = try JSONSerialization.data(withJSONObject: stageConfig)
+                try stageData.write(to: pluginDir.appendingPathComponent("stage-\(stageName).json"))
+            }
         }
         return dir
     }
@@ -32,8 +39,8 @@ struct PluginDiscoveryTests {
     @Test("discovers plugins and loads manifests")
     func testDiscoversPlugins() throws {
         let dir = try makePluginsDir(plugins: [
-            (name: "ghost", hooks: ["publish", "schedule"]),
-            (name: "365-project", hooks: ["post-publish"])
+            (name: "ghost", stages: ["publish"]),
+            (name: "365-project", stages: ["post-publish"])
         ])
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -46,8 +53,8 @@ struct PluginDiscoveryTests {
     @Test("skips disabled plugins")
     func testDisabled() throws {
         let dir = try makePluginsDir(plugins: [
-            (name: "ghost", hooks: ["publish"]),
-            (name: "disabled-plugin", hooks: ["post-publish"])
+            (name: "ghost", stages: ["publish"]),
+            (name: "disabled-plugin", stages: ["post-publish"])
         ])
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -58,7 +65,7 @@ struct PluginDiscoveryTests {
 
     @Test("skips directories without manifest.json")
     func testSkipsInvalid() throws {
-        let dir = try makePluginsDir(plugins: [(name: "ghost", hooks: ["publish"])])
+        let dir = try makePluginsDir(plugins: [(name: "ghost", stages: ["publish"])])
         defer { try? FileManager.default.removeItem(at: dir) }
         // Create a subdir without manifest.json
         let bogus = dir.appendingPathComponent("not-a-plugin")
@@ -72,8 +79,8 @@ struct PluginDiscoveryTests {
     @Test("autoAppend adds plugins not already in pipeline lists")
     func testAutoAppend() throws {
         let dir = try makePluginsDir(plugins: [
-            (name: "ghost", hooks: ["publish"]),
-            (name: "365-project", hooks: ["post-publish"])
+            (name: "ghost", stages: ["publish"]),
+            (name: "365-project", stages: ["post-publish"])
         ])
         defer { try? FileManager.default.removeItem(at: dir) }
 
@@ -83,15 +90,15 @@ struct PluginDiscoveryTests {
         var pipeline: [String: [String]] = ["publish": ["existing-plugin"]]
         PluginDiscovery.autoAppend(discovered: plugins, into: &pipeline)
 
-        // ghost publishes — should be appended to "publish" (already has existing-plugin)
+        // ghost participates in publish — should be appended (existing-plugin already there)
         #expect(pipeline["publish"] == ["existing-plugin", "ghost"])
-        // 365-project post-publishes — new entry
+        // 365-project participates in post-publish — new entry
         #expect(pipeline["post-publish"] == ["365-project"])
     }
 
     @Test("autoAppend does not duplicate already-listed plugins")
     func testNoDuplicates() throws {
-        let dir = try makePluginsDir(plugins: [(name: "ghost", hooks: ["publish"])])
+        let dir = try makePluginsDir(plugins: [(name: "ghost", stages: ["publish"])])
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let discovery = PluginDiscovery(pluginsDirectory: dir)
@@ -119,7 +126,7 @@ struct PluginDiscoveryTests {
 
         let pluginDir = pluginsDirectory.appendingPathComponent("test-plugin")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        let manifest = #"{"name": "test-plugin", "pluginProtocolVersion": "1", "hooks": {}}"#
+        let manifest = #"{"identifier": "test-plugin", "name": "test-plugin", "pluginProtocolVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
 
         let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory)

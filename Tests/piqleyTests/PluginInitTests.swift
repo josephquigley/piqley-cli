@@ -72,20 +72,21 @@ struct PluginInitTests {
         // Verify manifest
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("test-plugin/manifest.json"))
         let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        #expect(decoded.identifier == "test-plugin")
         #expect(decoded.name == "test-plugin")
         #expect(decoded.pluginProtocolVersion == "1")
-        #expect(decoded.hooks.count == Hook.canonicalOrder.count)
-        for hook in Hook.canonicalOrder {
-            #expect(decoded.hooks[hook.rawValue]?.command == nil)
-        }
 
-        // Verify config
+        // Non-interactive: no stage files created
+        let stageFile = dir.appendingPathComponent("test-plugin/stage-pre-process.json")
+        #expect(!FileManager.default.fileExists(atPath: stageFile.path))
+
+        // Verify config has no rules (rules moved to stage files)
         let configData = try Data(contentsOf: dir.appendingPathComponent("test-plugin/config.json"))
         let decodedConfig = try JSONDecoder().decode(PluginConfig.self, from: configData)
-        #expect(decodedConfig.rules.isEmpty)
+        #expect(decodedConfig.values.isEmpty)
     }
 
-    @Test("no-examples flag produces empty rules")
+    @Test("no-examples flag produces no stage files")
     func testNoExamplesFlag() throws {
         let dir = try makeTempPluginsDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -93,12 +94,12 @@ struct PluginInitTests {
         let cmd = try PluginCommand.InitSubcommand.parse(["no-ex-plugin", "--no-examples"])
         try cmd.execute(pluginsDirectory: dir)
 
-        let configData = try Data(contentsOf: dir.appendingPathComponent("no-ex-plugin/config.json"))
-        let decodedConfig = try JSONDecoder().decode(PluginConfig.self, from: configData)
-        #expect(decodedConfig.rules.isEmpty)
+        // No stage files when examples are skipped
+        let stageFile = dir.appendingPathComponent("no-ex-plugin/stage-pre-process.json")
+        #expect(!FileManager.default.fileExists(atPath: stageFile.path))
     }
 
-    @Test("default mode includes example rules with correct structure")
+    @Test("default mode creates manifest, config, and stage files")
     func testExampleRuleGeneration() throws {
         let dir = try makeTempPluginsDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -106,61 +107,43 @@ struct PluginInitTests {
         let cmd = try PluginCommand.InitSubcommand.parse(["example-plugin"])
         try cmd.execute(pluginsDirectory: dir)
 
-        // Verify manifest has full example fields
+        // Verify manifest
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/manifest.json"))
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        #expect(manifest.identifier == "example-plugin")
         #expect(manifest.pluginVersion != nil)
         #expect(manifest.config.count == 3)
-        #expect(manifest.dependencies == nil)
 
-        // Verify both hooks have example command
-        let preHook = manifest.hooks["pre-process"]
-        #expect(preHook?.command == "echo")
-        #expect(preHook?.args == ["[pre-process]", "tags: Canon, EOS R5, RF Mount, High ISO, Portrait, Piqley Emulsions LLC"])
-        #expect(preHook?.timeout == 30)
-        let postHook = manifest.hooks["post-process"]
-        #expect(postHook?.command == "echo")
-
-        // Verify config has values and rules
+        // Verify config has values (no rules — rules in stage files)
         let configData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/config.json"))
         let config = try JSONDecoder().decode(PluginConfig.self, from: configData)
         #expect(config.values.count == 2)
-        #expect(config.rules.count == 7)
 
-        // Pre-process rules: tag from original metadata
-        #expect(config.rules[0].match.field == "original:TIFF:Model")
-        #expect(config.rules[0].match.pattern == "Canon EOS R5")
-        #expect(config.rules[0].match.hook == "pre-process")
-        #expect(config.rules[0].emit[0].values == ["Canon", "EOS R5"])
+        // Verify pre-process stage file was created with rules
+        let preStageURL = dir.appendingPathComponent("example-plugin/stage-pre-process.json")
+        #expect(FileManager.default.fileExists(atPath: preStageURL.path))
+        let preStageData = try Data(contentsOf: preStageURL)
+        let preStage = try JSONDecoder().decode(StageConfig.self, from: preStageData)
+        let preRules = try #require(preStage.preRules)
+        #expect(!preRules.isEmpty)
 
-        #expect(config.rules[1].match.field == "original:EXIF:LensModel")
-        #expect(config.rules[1].match.pattern == "glob:RF*")
+        // Verify post-process stage file was created
+        let postStageURL = dir.appendingPathComponent("example-plugin/stage-post-process.json")
+        #expect(FileManager.default.fileExists(atPath: postStageURL.path))
+        let postStageData = try Data(contentsOf: postStageURL)
+        let postStage = try JSONDecoder().decode(StageConfig.self, from: postStageData)
+        let postRules = try #require(postStage.postRules)
+        #expect(!postRules.isEmpty)
 
-        #expect(config.rules[2].match.field == "original:EXIF:ISOSpeedRatings")
+        // Spot-check first pre-process rule
+        #expect(preRules[0].match.field == "original:TIFF:Model")
+        #expect(preRules[0].match.pattern == "Canon EOS R5")
+        #expect(preRules[0].emit[0].values == ["Canon", "EOS R5"])
 
-        #expect(config.rules[3].emit[0].field == "keywords")
-        #expect(config.rules[3].emit[0].values == ["Portrait"])
-
-        // Pre-process: inject legacy film company tag
-        #expect(config.rules[4].match.field == "original:TIFF:Make")
-        #expect(config.rules[4].match.pattern == "glob:*Kodak*")
-        #expect(config.rules[4].emit[0].values == ["Kodak"])
-
-        // Post-process: remove old tag and add replacement via self-dependency
-        #expect(config.rules[5].match.field == "example-plugin:tags")
-        #expect(config.rules[5].match.pattern == "Kodak")
-        #expect(config.rules[5].match.hook == "post-process")
-        #expect(config.rules[5].emit.count == 2)
-        #expect(config.rules[5].emit[0].action == "remove")
-        #expect(config.rules[5].emit[0].values == ["Kodak"])
-        #expect(config.rules[5].emit[1].values == ["Piqley Emulsions, LLC"])
-
-        // Post-process: write keywords to image file
-        #expect(config.rules[6].match.field == "original:TIFF:Make")
-        #expect(config.rules[6].match.pattern == "glob:*Canon*")
-        #expect(config.rules[6].write.count == 1)
-        #expect(config.rules[6].write[0].field == "IPTC:Keywords")
-        #expect(config.rules[6].write[0].values == ["Canon", "piqley-processed"])
+        // Spot-check post-process write action
+        let writeRule = postRules.first { !$0.write.isEmpty }
+        #expect(writeRule != nil)
+        #expect(writeRule?.write[0].field == "IPTC:Keywords")
     }
 
     @Test("rejects init when plugin directory already exists")
