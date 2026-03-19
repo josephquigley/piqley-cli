@@ -21,8 +21,8 @@
 | `Sources/PiqleyCore/Config/Rule.swift` | Remove `hook` from `MatchConfig` |
 | `Sources/PiqleyCore/Config/PluginConfig.swift` | Remove `rules` field |
 | `Sources/PiqleyCore/Config/StageConfig.swift` | **New:** `StageConfig` struct with `preRules`, `binary`, `postRules` |
-| `Sources/PiqleyCore/Manifest/PluginManifest.swift` | Remove `hooks` field, remove `unknownHooks()` |
-| `Sources/PiqleyCore/Validation/ManifestValidator.swift` | Remove hooks-related validation |
+| `Sources/PiqleyCore/Manifest/PluginManifest.swift` | Add `identifier`, `description`; remove `hooks`, `unknownHooks()` |
+| `Sources/PiqleyCore/Validation/ManifestValidator.swift` | Remove hooks-related validation, add identifier validation |
 | `Sources/PiqleyCore/Constants/PluginFile.swift` | Add `stagePrefix` constant |
 | `Tests/PiqleyCoreTests/ConfigCodingTests.swift` | Update tests for removed fields, add `StageConfig` tests |
 | `Tests/PiqleyCoreTests/ManifestCodingTests.swift` | Update tests for hookless manifest |
@@ -33,7 +33,7 @@
 | File | Responsibility |
 |------|---------------|
 | `swift/PiqleyPluginSDK/Builders/ConfigBuilder.swift` | Remove `Rules` block, remove `ConfigRule`, keep `Values` |
-| `swift/PiqleyPluginSDK/Builders/ManifestBuilder.swift` | Remove `Hooks`/`HookEntry` blocks |
+| `swift/PiqleyPluginSDK/Builders/ManifestBuilder.swift` | Remove `Hooks`/`HookEntry`, add `Identifier`/`Description` |
 | `swift/PiqleyPluginSDK/Builders/StageBuilder.swift` | **New:** `buildStage` DSL with `PreRules`, `Binary`, `PostRules` |
 | `swift/PiqleyPluginSDK/Builders/MatchField.swift` | No changes needed |
 | `swift/PiqleyPluginSDK/Packager.swift` | Add stage file globbing to packaging |
@@ -48,13 +48,18 @@
 
 | File | Responsibility |
 |------|---------------|
-| `Sources/piqley/Plugins/PluginDiscovery.swift` | Add stage file scanning, update `LoadedPlugin`, update `autoAppend` |
+| `Sources/piqley/Plugins/PluginDiscovery.swift` | Add stage file scanning, update `LoadedPlugin` to use `identifier`, update `autoAppend` |
 | `Sources/piqley/Plugins/PluginConfig.swift` | Remove `rules:` from helper methods, delete `withRules` |
 | `Sources/piqley/State/RuleEvaluator.swift` | Remove hook filtering from `CompiledRule` and `evaluate` |
 | `Sources/piqley/State/MetadataBuffer.swift` | Add `invalidateAll()` method |
 | `Sources/piqley/Pipeline/PipelineOrchestrator.swift` | Rework to use stages with pre/post rules and buffer invalidation |
 | `Sources/piqley/CLI/PluginCommand.swift` | Update `InitSubcommand` for stage-based init |
-| `Tests/piqleyTests/PluginDiscoveryTests.swift` | Update for stage-based discovery |
+| `Sources/piqley/State/DependencyValidator.swift` | Use `identifier` instead of `name` for identity |
+| `Sources/piqley/Plugins/PluginRunner.swift` | Use `identifier` for namespace in payloads |
+| `Sources/piqley/Plugins/PluginBlocklist.swift` | Use `identifier` for blocklist keys |
+| `Sources/piqley/Plugins/PluginSetupScanner.swift` | Use `identifier` for config/secret lookups |
+| `Sources/piqley/CLI/InstallCommand.swift` | Use `identifier` for install directory |
+| `Tests/piqleyTests/PluginDiscoveryTests.swift` | Update for stage-based discovery with identifiers |
 | `Tests/piqleyTests/RuleEvaluatorTests.swift` | Remove hook filtering assertions |
 
 ---
@@ -329,7 +334,7 @@ git commit -m "feat: remove hook from MatchConfig — stage files imply the hook
 
 ---
 
-### Task 3: Remove `hooks` from `PluginManifest` and update validator
+### Task 3: Add `identifier`/`description`, remove `hooks` from `PluginManifest`, update validator
 
 **Files:**
 - Modify: `/Users/wash/Developer/tools/piqley/piqley-core/Sources/PiqleyCore/Manifest/PluginManifest.swift`
@@ -341,13 +346,15 @@ git commit -m "feat: remove hook from MatchConfig — stage files imply the hook
 
 Remove all `hooks` references. Update tests:
 
-`decodeFullManifest` — remove `"hooks"` from JSON, remove the `#expect(manifest.hooks["pre-process"] != nil)` line:
+`decodeFullManifest` — add `identifier`, `description`; remove `hooks`:
 
 ```swift
 @Test func decodeFullManifest() throws {
     let json = """
     {
+        "identifier": "com.test.my-plugin",
         "name": "MyPlugin",
+        "description": "A test plugin.",
         "pluginProtocolVersion": "1.0",
         "pluginVersion": "2.3.1",
         "config": [
@@ -359,28 +366,33 @@ Remove all `hooks` references. Update tests:
     }
     """
     let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+    #expect(manifest.identifier == "com.test.my-plugin")
     #expect(manifest.name == "MyPlugin")
+    #expect(manifest.description == "A test plugin.")
     #expect(manifest.pluginProtocolVersion == "1.0")
     #expect(manifest.pluginVersion == SemanticVersion(major: 2, minor: 3, patch: 1))
     #expect(manifest.config.count == 2)
     #expect(manifest.setup?.command == "setup.sh")
     #expect(manifest.dependencies?.count == 1)
-    #expect(manifest.dependencyNames == ["other-plugin"])
+    #expect(manifest.dependencyIdentifiers == ["other-plugin"])
 }
 ```
 
-`decodeMinimalManifest` — remove hooks:
+`decodeMinimalManifest` — add identifier, remove hooks:
 
 ```swift
 @Test func decodeMinimalManifest() throws {
     let json = """
     {
+        "identifier": "com.test.minimal",
         "name": "MinimalPlugin",
         "pluginProtocolVersion": "1.0"
     }
     """
     let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+    #expect(manifest.identifier == "com.test.minimal")
     #expect(manifest.name == "MinimalPlugin")
+    #expect(manifest.description == nil)
     #expect(manifest.pluginProtocolVersion == "1.0")
     #expect(manifest.pluginVersion == nil)
     #expect(manifest.config.isEmpty)
@@ -389,15 +401,16 @@ Remove all `hooks` references. Update tests:
 }
 ```
 
-`secretKeys` and `valueEntries` — remove `"hooks": {}` from JSON.
+`secretKeys` and `valueEntries` — add `"identifier"` and remove `"hooks": {}` from JSON.
 
 Remove the `unknownHooks` test entirely.
 
-`manifestEncodeRoundTrip` — remove `hooks:` from init:
+`manifestEncodeRoundTrip` — add identifier, remove hooks:
 
 ```swift
 @Test func manifestEncodeRoundTrip() throws {
     let original = PluginManifest(
+        identifier: "com.test.roundtrip",
         name: "TestPlugin",
         pluginProtocolVersion: "1.0",
         pluginVersion: SemanticVersion(major: 1, minor: 0, patch: 0),
@@ -405,26 +418,11 @@ Remove the `unknownHooks` test entirely.
     )
     let data = try JSONEncoder().encode(original)
     let decoded = try JSONDecoder().decode(PluginManifest.self, from: data)
+    #expect(decoded.identifier == original.identifier)
     #expect(decoded.name == original.name)
     #expect(decoded.pluginProtocolVersion == original.pluginProtocolVersion)
     #expect(decoded.pluginVersion == original.pluginVersion)
     #expect(decoded.config.count == original.config.count)
-}
-```
-
-Add a test that JSON with `hooks` decodes without error (silently ignored):
-
-```swift
-@Test func decodeManifestIgnoresLegacyHooks() throws {
-    let json = """
-    {
-        "name": "LegacyPlugin",
-        "pluginProtocolVersion": "1.0",
-        "hooks": {"pre-process": {"command": "run"}}
-    }
-    """
-    let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
-    #expect(manifest.name == "LegacyPlugin")
 }
 ```
 
@@ -449,7 +447,12 @@ Updated file:
 ```swift
 /// The manifest for a piqley plugin, describing its metadata, configuration, and dependencies.
 public struct PluginManifest: Codable, Sendable, Equatable {
+    /// Reverse TLD identifier (e.g. "com.piqley.ghost"). Used as the identity key system-wide.
+    public let identifier: String
+    /// Human-readable display name.
     public let name: String
+    /// Short description of what the plugin does.
+    public let description: String?
     public let pluginProtocolVersion: String
     public let pluginVersion: SemanticVersion?
     public let config: [ConfigEntry]
@@ -457,14 +460,18 @@ public struct PluginManifest: Codable, Sendable, Equatable {
     public let dependencies: [PluginDependency]?
 
     public init(
+        identifier: String,
         name: String,
+        description: String? = nil,
         pluginProtocolVersion: String,
         pluginVersion: SemanticVersion? = nil,
         config: [ConfigEntry] = [],
         setup: SetupConfig? = nil,
         dependencies: [PluginDependency]? = nil
     ) {
+        self.identifier = identifier
         self.name = name
+        self.description = description
         self.pluginProtocolVersion = pluginProtocolVersion
         self.pluginVersion = pluginVersion
         self.config = config
@@ -473,17 +480,16 @@ public struct PluginManifest: Codable, Sendable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name
-        case pluginProtocolVersion
-        case pluginVersion
-        case config
-        case setup
-        case dependencies
+        case identifier, name, description
+        case pluginProtocolVersion, pluginVersion
+        case config, setup, dependencies
     }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        identifier = try container.decode(String.self, forKey: .identifier)
         name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
         pluginProtocolVersion = try container.decode(String.self, forKey: .pluginProtocolVersion)
         pluginVersion = try container.decodeIfPresent(SemanticVersion.self, forKey: .pluginVersion)
         config = try container.decodeIfPresent([ConfigEntry].self, forKey: .config) ?? []
@@ -497,8 +503,8 @@ public struct PluginManifest: Codable, Sendable, Equatable {
         }
     }
 
-    /// The dependency identifiers as plain strings (for backward-compatible pipeline resolution).
-    public var dependencyNames: [String] {
+    /// The dependency identifiers as plain strings.
+    public var dependencyIdentifiers: [String] {
         dependencies?.map(\.identifier) ?? []
     }
 
@@ -522,6 +528,8 @@ public struct PluginManifest: Codable, Sendable, Equatable {
 }
 ```
 
+Note: `dependencyNames` is renamed to `dependencyIdentifiers` for clarity.
+
 - [ ] **Step 4: Update ManifestValidator**
 
 In `/Users/wash/Developer/tools/piqley/piqley-core/Sources/PiqleyCore/Validation/ManifestValidator.swift`, remove hooks-related validation:
@@ -534,6 +542,10 @@ public enum ManifestValidator {
     /// An empty array means the manifest is valid.
     public static func validate(_ manifest: PluginManifest) -> [String] {
         var errors: [String] = []
+
+        if manifest.identifier.isEmpty {
+            errors.append("Plugin identifier must not be empty.")
+        }
 
         if manifest.name.isEmpty {
             errors.append("Plugin name must not be empty.")
@@ -748,7 +760,7 @@ git commit -m "fix: update PluginConfig helpers for rules removal"
 
 ---
 
-### Task 5: Update ManifestBuilder in PiqleyPluginSDK
+### Task 5: Update ManifestBuilder — remove Hooks, add Identifier/Description
 
 **Files:**
 - Modify: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/swift/PiqleyPluginSDK/Builders/ManifestBuilder.swift`
@@ -756,15 +768,18 @@ git commit -m "fix: update PluginConfig helpers for rules removal"
 
 - [ ] **Step 1: Update ManifestBuilderTests**
 
-Remove all `Hooks {}` blocks from test manifests. Remove the hooks-related tests. Update tests:
+Remove all `Hooks {}` blocks from test manifests. Remove the hooks-related tests. Add `Identifier` and `Description` to all tests. Update tests:
 
 ```swift
 @Test func buildMinimalManifest() throws {
     let manifest = try buildManifest {
-        Name("my-plugin")
+        Identifier("com.test.my-plugin")
+        Name("My Plugin")
         ProtocolVersion("1.0")
     }
-    #expect(manifest.name == "my-plugin")
+    #expect(manifest.identifier == "com.test.my-plugin")
+    #expect(manifest.name == "My Plugin")
+    #expect(manifest.description == nil)
     #expect(manifest.pluginProtocolVersion == "1.0")
     #expect(manifest.config.isEmpty)
     #expect(manifest.setup == nil)
@@ -773,7 +788,9 @@ Remove all `Hooks {}` blocks from test manifests. Remove the hooks-related tests
 
 @Test func buildFullManifest() throws {
     let manifest = try buildManifest {
-        Name("full-plugin")
+        Identifier("com.test.full-plugin")
+        Name("Full Plugin")
+        Description("A full-featured test plugin.")
         ProtocolVersion("2.0")
         try PluginVersion("1.2.3")
         ConfigEntries {
@@ -787,13 +804,15 @@ Remove all `Hooks {}` blocks from test manifests. Remove the hooks-related tests
         }
     }
 
-    #expect(manifest.name == "full-plugin")
+    #expect(manifest.identifier == "com.test.full-plugin")
+    #expect(manifest.name == "Full Plugin")
+    #expect(manifest.description == "A full-featured test plugin.")
     #expect(manifest.pluginProtocolVersion == "2.0")
     #expect(manifest.pluginVersion == SemanticVersion(major: 1, minor: 2, patch: 3))
     #expect(manifest.config.count == 2)
     #expect(manifest.setup?.command == "setup.sh")
     #expect(manifest.setup?.args == ["--verbose"])
-    #expect(manifest.dependencyNames == ["original", "hashtag"])
+    #expect(manifest.dependencyIdentifiers == ["original", "hashtag"])
 }
 ```
 
@@ -842,10 +861,27 @@ In `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/swift/PiqleyPluginSDK/B
 
 Remove the entire `// MARK: - Hooks` section (lines 108-155): `Hooks`, `HookEntry`, `HookEntryBuilder`.
 
-In `buildManifest`, remove:
-- `var hooks: [String: HookConfig] = [:]` (line 183)
-- The `Hooks` handling block (lines 192-196)
-- `hooks: hooks` from the `PluginManifest` init (line 218)
+Add new components:
+
+```swift
+public struct Identifier: ManifestComponent {
+    let value: String
+    public init(_ value: String) { self.value = value }
+}
+
+public struct Description: ManifestComponent {
+    let value: String
+    public init(_ value: String) { self.value = value }
+}
+```
+
+In `buildManifest`:
+- Remove `var hooks: [String: HookConfig] = [:]` and hooks handling
+- Add `var identifier: String? = nil` and `var description: String? = nil`
+- Handle the new components in the for loop
+- Add identifier validation (must not be empty)
+- Update the `PluginManifest` init to use `identifier: identifier!`, `description: description`
+- Remove `hooks:` from the init call
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1474,6 +1510,9 @@ import Logging
 import PiqleyCore
 
 struct LoadedPlugin: Sendable {
+    /// The identity key (reverse TLD from manifest.identifier).
+    let identifier: String
+    /// Human-readable display name (from manifest.name).
     let name: String
     let directory: URL
     let manifest: PluginManifest
@@ -1510,8 +1549,8 @@ struct PluginDiscovery: Sendable {
 
             let dataDir = url.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
-            return LoadedPlugin(name: name, directory: url, manifest: manifest, stages: stages)
-        }.sorted { $0.name < $1.name }
+            return LoadedPlugin(identifier: manifest.identifier, name: manifest.name, directory: url, manifest: manifest, stages: stages)
+        }.sorted { $0.identifier < $1.identifier }
     }
 
     /// Scans a plugin directory for `stage-*.json` files and parses them.
@@ -1570,10 +1609,10 @@ struct PluginDiscovery: Sendable {
                 guard plugin.stages[hookName] != nil else { continue }
                 var list = pipeline[hookName] ?? []
                 let alreadyListed = list.contains { entry in
-                    entry == plugin.name || entry.hasPrefix(plugin.name + ":")
+                    entry == plugin.identifier || entry.hasPrefix(plugin.identifier + ":")
                 }
                 guard !alreadyListed else { continue }
-                list.append(plugin.name)
+                list.append(plugin.identifier)
                 pipeline[hookName] = list
             }
         }
@@ -1824,7 +1863,87 @@ git commit -m "feat: rework PipelineOrchestrator for stage-based execution with 
 
 ---
 
-### Task 13: Update `piqley plugin init` for stage-based output
+### Task 13: Migrate CLI identity key from `name` to `identifier`
+
+**Files:**
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/Pipeline/PipelineOrchestrator.swift`
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/Plugins/PluginRunner.swift`
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/Plugins/PluginBlocklist.swift`
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/Plugins/PluginSetupScanner.swift`
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/State/DependencyValidator.swift`
+- Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/CLI/InstallCommand.swift`
+
+This is a mechanical find-and-replace task. The `identifier` field on `PluginManifest` is now the identity key. All code that previously used `manifest.name` or `plugin.name` or `loadedPlugin.name` as a lookup key, directory name, namespace key, or pipeline entry must use `identifier` instead. `name` is only for display (logs, print statements).
+
+- [ ] **Step 1: Update `LoadedPlugin`**
+
+In `PluginDiscovery.swift` (already modified in Task 11), `LoadedPlugin` should expose `identifier` sourced from the manifest:
+
+```swift
+struct LoadedPlugin: Sendable {
+    /// The identity key (reverse TLD from manifest.identifier).
+    let identifier: String
+    /// Human-readable display name (from manifest.name).
+    let name: String
+    let directory: URL
+    let manifest: PluginManifest
+    let stages: [String: StageConfig]
+}
+```
+
+Update `loadManifests` to populate `identifier: manifest.identifier, name: manifest.name`.
+
+- [ ] **Step 2: Rename `dependencyNames` to `dependencyIdentifiers` throughout**
+
+Search for `dependencyNames` in the CLI and replace with `dependencyIdentifiers`. Key files: `PipelineOrchestrator.swift`, `DependencyValidator.swift`.
+
+- [ ] **Step 3: Update PipelineOrchestrator**
+
+All `ctx.pluginName` references that serve as identity keys (state store namespace, blocklist, rule evaluator cache key, exec log path) → use `identifier`. Rename `HookContext.pluginName` to `HookContext.pluginIdentifier`. Keep `name` available for log messages.
+
+- [ ] **Step 4: Update PluginRunner**
+
+The `PluginRunner` uses `plugin.name` for environment variables (`PIQLEY_SECRET_*`, `PIQLEY_CONFIG_*`) and the JSON payload namespace. Update to use `plugin.identifier`.
+
+- [ ] **Step 5: Update PluginBlocklist**
+
+Uses plugin name strings as blocklist keys. Update to use identifier.
+
+- [ ] **Step 6: Update PluginSetupScanner**
+
+Uses plugin name for config file paths and secret store lookups. Update to use identifier.
+
+- [ ] **Step 7: Update DependencyValidator**
+
+Uses manifest names to build dependency graphs. Update to use `manifest.identifier`.
+
+- [ ] **Step 8: Update InstallCommand**
+
+`PluginInstaller.install` uses `manifest.name` for the install directory. Update to use `manifest.identifier`.
+
+- [ ] **Step 9: Update autoAppend in PluginDiscovery**
+
+Currently matches by `plugin.name`. Update to match by `plugin.identifier`.
+
+- [ ] **Step 10: Run full CLI test suite**
+
+Run: `cd /Users/wash/Developer/tools/piqley/piqley-cli && swift test 2>&1 | tail -30`
+
+Fix any remaining compilation errors from the identity migration.
+
+Expected: all tests pass
+
+- [ ] **Step 11: Commit**
+
+```bash
+cd /Users/wash/Developer/tools/piqley/piqley-cli
+git add -A
+git commit -m "feat: migrate plugin identity key from name to identifier (reverse TLD)"
+```
+
+---
+
+### Task 14: Update `piqley plugin init` for stage-based output
 
 **Files:**
 - Modify: `/Users/wash/Developer/tools/piqley/piqley-cli/Sources/piqley/CLI/PluginCommand.swift`
@@ -1839,11 +1958,15 @@ Replace the manifest and config generation to:
 
 Key changes:
 
+The init command needs to prompt for both identifier and display name (or accept them as arguments). Update the argument parsing and prompts accordingly.
+
 Manifest:
 ```swift
 let manifest: PluginManifest = if includeExamples {
     try buildManifest {
-        Name(name)
+        Identifier(pluginIdentifier)
+        Name(displayName)
+        Description("A piqley plugin.")
         ProtocolVersion("1")
         try PluginVersion("0.1.0")
         ConfigEntries {
@@ -1854,11 +1977,14 @@ let manifest: PluginManifest = if includeExamples {
     }
 } else {
     try buildManifest {
-        Name(name)
+        Identifier(pluginIdentifier)
+        Name(displayName)
         ProtocolVersion("1")
     }
 }
 ```
+
+The plugin directory should use the identifier: `pluginsDirectory.appendingPathComponent(pluginIdentifier)`.
 
 Config (no rules):
 ```swift
@@ -1949,7 +2075,7 @@ git commit -m "feat: update plugin init to generate stage files instead of hooks
 
 ---
 
-### Task 14: Update Packager to include stage files
+### Task 15: Update Packager to include stage files
 
 **Files:**
 - Modify: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/swift/PiqleyPluginSDK/Packager.swift`
@@ -1985,7 +2111,7 @@ git commit -m "feat: include stage-*.json files in .piqleyplugin archive"
 
 ---
 
-### Task 15: Update JSON schemas
+### Task 16: Update JSON schemas
 
 **Files:**
 - Modify: `/Users/wash/Developer/tools/piqley/piqley-plugin-sdk/schemas/manifest.schema.json`
@@ -1994,7 +2120,7 @@ git commit -m "feat: include stage-*.json files in .piqleyplugin archive"
 
 - [ ] **Step 1: Update manifest.schema.json**
 
-Remove `"hooks"` from the `"required"` array (change to `["name", "pluginProtocolVersion"]`). Remove the `"hooks"` property and the `"hookConfig"` and `"batchProxyConfig"` definitions.
+Remove `"hooks"` from required/properties. Add `"identifier"`, `"name"`, `"description"`. Remove `"hookConfig"` and `"batchProxyConfig"` definitions (moved to stage schema).
 
 Updated file:
 
@@ -2004,9 +2130,11 @@ Updated file:
   "$id": "https://piqley.dev/schemas/manifest.schema.json",
   "title": "Piqley Plugin Manifest",
   "type": "object",
-  "required": ["name", "pluginProtocolVersion"],
+  "required": ["identifier", "name", "pluginProtocolVersion"],
   "properties": {
+    "identifier": { "type": "string", "minLength": 1, "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$" },
     "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
     "pluginProtocolVersion": { "type": "string", "const": "1" },
     "pluginVersion": {
       "type": "string",
@@ -2216,7 +2344,7 @@ git commit -m "feat: update schemas for stage-based architecture — add stage.s
 
 ---
 
-### Task 16: Cross-repo verification
+### Task 17: Cross-repo verification
 
 - [ ] **Step 1: Run PiqleyCore tests**
 
