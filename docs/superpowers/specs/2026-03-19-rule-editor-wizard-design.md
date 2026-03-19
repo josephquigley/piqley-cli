@@ -225,6 +225,9 @@ extension StageConfig {
     /// Used by the edit flow. Throws if index is out of bounds.
     public mutating func replaceRule(at index: Int, with rule: Rule, slot: RuleSlot)
 }
+
+// Note: Since preRules/postRules are optional arrays, mutation methods must handle
+// the nil case — e.g. appendRule to a nil slot initializes it as [rule].
 ```
 
 ### Hardcoded Field Catalog
@@ -261,10 +264,21 @@ The validation logic currently in `RuleEvaluator.compileEmitAction` is extracted
 ### Command
 
 ```swift
-struct PluginRulesEditCommand: AsyncParsableCommand {
+/// Command group: piqley plugin rules
+struct PluginRulesCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rules",
-        abstract: "Edit rules for a plugin."
+        abstract: "Manage rules for a plugin.",
+        subcommands: [PluginRulesEditCommand.self],
+        defaultSubcommand: PluginRulesEditCommand.self
+    )
+}
+
+/// Subcommand: piqley plugin rules edit <plugin-id>
+struct PluginRulesEditCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "edit",
+        abstract: "Interactively edit rules for a plugin."
     )
 
     @Argument(help: "The plugin identifier to edit rules for.")
@@ -285,7 +299,7 @@ struct PluginRulesEditCommand: AsyncParsableCommand {
 }
 ```
 
-This command lives under the existing `PluginCommand` group, making the invocation `piqley plugin rules edit <plugin-id>`.
+`PluginRulesCommand` is a group under `PluginCommand`, with `edit` as the default subcommand. This makes `piqley plugin rules edit <plugin-id>` the explicit invocation, while `piqley plugin rules <plugin-id>` also works (defaults to edit). Future subcommands like `list`, `add`, `remove` can be added to the group without restructuring.
 
 ### TUI Wizard (TermKit)
 
