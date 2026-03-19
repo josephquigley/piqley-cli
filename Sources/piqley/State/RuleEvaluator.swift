@@ -230,6 +230,28 @@ struct RuleEvaluator: Sendable {
             if matched {
                 // Emit actions first (modify plugin namespace)
                 for action in rule.emitActions {
+                    if case let .clone(field, sourceNamespace, sourceField) = action {
+                        // Clone is handled inline because it needs access to state and metadataBuffer
+                        if sourceNamespace == "read", let buffer = metadataBuffer, let image = imageName {
+                            let fileMetadata = await buffer.load(image: image)
+                            if field == "*" {
+                                for (key, val) in fileMetadata {
+                                    working[key] = val
+                                }
+                            } else if let sourceField, let val = fileMetadata[sourceField] {
+                                working[field] = val
+                            }
+                        } else if field == "*" {
+                            if let namespaceData = state[sourceNamespace] {
+                                for (key, val) in namespaceData {
+                                    working[key] = val
+                                }
+                            }
+                        } else if let sourceField, let val = state[sourceNamespace]?[sourceField] {
+                            working[field] = val
+                        }
+                        continue
+                    }
                     Self.applyAction(action, to: &working)
                 }
 

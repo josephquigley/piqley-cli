@@ -577,4 +577,120 @@ struct RuleEvaluatorTests {
             )
         }
     }
+
+    // MARK: - Clone evaluation
+
+    @Test("clone single field from original namespace")
+    func cloneSingleField() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("nature")])]]
+        )
+        #expect(result["keywords"] == .array([.string("landscape"), .string("nature")]))
+    }
+
+    @Test("clone wildcard copies all fields from source namespace")
+    func cloneWildcardCopiesAll() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "*", values: nil, replacements: nil, source: "original")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": [
+                "TIFF:Model": .string("Sony"),
+                "IPTC:Keywords": .array([.string("landscape")]),
+            ]],
+            currentNamespace: ["existing": .string("preserved")]
+        )
+        #expect(result["TIFF:Model"] == .string("Sony"))
+        #expect(result["IPTC:Keywords"] == .array([.string("landscape")]))
+        #expect(result["existing"] == .string("preserved"))
+    }
+
+    @Test("clone overwrites existing value")
+    func cloneOverwrites() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("new-value")])]],
+            currentNamespace: ["keywords": .array([.string("old-value")])]
+        )
+        #expect(result["keywords"] == .array([.string("new-value")]))
+    }
+
+    @Test("clone from non-existent source is no-op")
+    func cloneNonExistentSourceNoop() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "Sony",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]],
+            currentNamespace: ["existing": .string("kept")]
+        )
+        // IPTC:Keywords doesn't exist in state, so no clone happens
+        #expect(result["keywords"] == nil)
+        #expect(result["existing"] == .string("kept"))
+    }
+
+    @Test("clone followed by remove")
+    func cloneThenRemove() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [
+                    EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords"),
+                    EmitConfig(action: "remove", field: "keywords", values: ["glob:auto-*"], replacements: nil, source: nil),
+                ]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("auto-focus"), .string("nature")])]]
+        )
+        #expect(result["keywords"] == .array([.string("landscape"), .string("nature")]))
+    }
+
+    @Test("clone with read: namespace")
+    func cloneReadNamespace() async throws {
+        let buffer = MetadataBuffer(preloaded: [
+            "test.jpg": ["IPTC:Keywords": .array([.string("from-file")])]
+        ])
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "read:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "read:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: [:],
+            metadataBuffer: buffer,
+            imageName: "test.jpg"
+        )
+        #expect(result["keywords"] == .array([.string("from-file")]))
+    }
 }
