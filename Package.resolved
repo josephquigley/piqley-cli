@@ -1,15 +1,6 @@
 {
-  "originHash" : "164ada6eb82c2d2a71a2e8b2ccb882a760328d24ae6207b6a97809882fd1bc04",
+  "originHash" : "b0b78b1708999e29a5728ab019f21108a17964eefb20891c365744dfa11160e8",
   "pins" : [
-    {
-      "identity" : "piqley-core",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/josephquigley/piqley-core.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "d9da7207d2f14fa0e231c79b4f6efe3e7d3ca937"
-      }
-    },
     {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
