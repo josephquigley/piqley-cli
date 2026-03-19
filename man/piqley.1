@@ -1,4 +1,4 @@
-.Dd March 16, 2026
+.Dd March 18, 2026
 .Dt PIQLEY 1
 .Os
 .Sh NAME
@@ -11,70 +11,82 @@
 .Op Fl -dry-run
 .Op Fl -delete-source-contents
 .Op Fl -delete-source-folder
-.Op Fl -verbose-results
-.Op Fl -json-results
-.Op Fl -results-dir Ar path
-.Op Fl -no-results-file
+.Op Fl -non-interactive
 .Nm
 .Cm setup
 .Nm
+.Cm config
+.Nm
 .Cm clear-cache
-.Op Fl -upload-log
-.Op Fl -email-log
+.Op Fl -plugin Ar name
+.Nm
+.Cm secret set
+.Ar plugin key
+.Nm
+.Cm secret delete
+.Ar plugin key
+.Nm
+.Cm plugin setup
+.Op Ar plugin-name
+.Op Fl -force
+.Nm
+.Cm plugin init
+.Op Ar plugin-name
+.Op Fl -no-examples
+.Op Fl -non-interactive
+.Nm
+.Cm plugin config
+.Ar plugin-name
+.Nm
+.Cm uninstall
+.Op Fl -force
 .Sh DESCRIPTION
 .Nm
-is a command-line tool for publishing photos to Ghost CMS as part of a
-Lightroom \(-> Hazel \(-> Ghost workflow.
+is a plugin-driven command-line tool for processing and publishing photos
+to Ghost CMS as part of a Lightroom \(-> Hazel \(-> Ghost workflow.
 .Pp
 Given a folder of exported JPEG images,
 .Nm
-copies them into a temporary working directory and then
-extracts EXIF metadata including keywords, camera model, title, and
-description from each image.
+copies them into a temporary working directory and runs them through a
+configurable plugin pipeline.
 Plugins never have access to the original files and cannot modify or
 destroy them.
 The temporary directory is automatically cleaned up when processing
 finishes.
-Images are resized according to the configured maximum long-edge and JPEG
-quality settings, then uploaded to Ghost CMS as scheduled posts.
 .Pp
-Photos belonging to a 365 Project (identified by a configurable EXIF keyword)
-are also sent via SMTP as email attachments after a successful upload.
+The plugin pipeline is defined in
+.Pa ~/.config/piqley/config.json
+and consists of named hooks that plugins can subscribe to.
+Each plugin declares its hooks in a
+.Pa manifest.json
+and may provide executable commands, declarative metadata-matching rules
+in
+.Pa config.json ,
+or both.
 .Pp
-Deduplication is performed in two tiers: a local append-only upload log
-(fast path) and a fallback query to the Ghost Admin API (self-healing when the
-log is missing or incomplete).
-This ensures that re-running the tool on the same folder never creates
-duplicate posts.
-If the Ghost API deduplication query fails, processing is aborted to prevent
-duplicates; this is a fatal error.
-.Pp
-Posts without a title (no EXIF title field) are saved as drafts rather than
-scheduled.
-365 Project posts always receive a computed title and are always scheduled.
+Plugins are discovered automatically from
+.Pa ~/.config/piqley/plugins/ .
+Each plugin lives in its own subdirectory and contains a
+.Pa manifest.json
+(identity, hooks, config schema) and an optional
+.Pa config.json
+(runtime values and declarative rules).
 .Pp
 Only one instance of
 .Nm
 may run at a time.
 An advisory file lock is used; if another instance is detected, the tool
 exits immediately with an error.
-.Pp
-Email send failures are non-fatal.
-A failed email does not affect the exit code or the upload log; only the
-email log entry is withheld.
 .Sh COMMANDS
 .Ss process folder-path
 Scan
 .Ar folder-path
-for exported JPEG images, extract EXIF metadata, resize images, upload to
-Ghost CMS, and optionally email 365 Project entries.
+for exported JPEG images and run them through the plugin pipeline.
 .Pp
 Available flags:
 .Bl -tag -width Ds
 .It Fl -dry-run
-Preview all actions without uploading to Ghost or sending emails.
-Prints a summary of what would be scheduled, saved as draft, or skipped for
-each image.
+Preview all actions without uploading or sending anything.
 .It Fl -delete-source-contents
 Delete the contents of the source folder after a successful run.
 The folder itself is preserved but all files and subdirectories inside it
@@ -84,52 +96,117 @@ Has no effect during a dry run.
 Delete the source folder and its contents after a successful run.
 The entire directory is removed from disk.
 Has no effect during a dry run.
-.It Fl -verbose-results
-Include successfully processed images in the result output in addition to
-errors and duplicates.
-By default, only errors and duplicates are written to the results file.
-.It Fl -json-results
-Write a single JSON results file instead of individual plain-text files.
-The JSON file is named
-.Pa results.json
-and placed in the results directory.
-.It Fl -results-dir Ar path
-Directory to write result files to.
-Defaults to
-.Ar folder-path
-(the input folder).
-.It Fl -no-results-file
-Do not write any results files.
-When set, no text or JSON result files are created regardless of other
-result flags.
+.It Fl -non-interactive
+Skip interactive prompts; drop invalid rules with warnings instead of
+asking for confirmation.
 .El
 .Ss setup
 Interactive configuration wizard.
-Prompts for all required settings and writes non-secret values to
+Prompts for core settings and writes them to
 .Pa ~/.config/piqley/config.json .
-Secret values (Ghost Admin API key and SMTP password) are stored in the
-macOS Keychain rather than on disk.
+Installs bundled plugins from the distribution into the plugins
+directory and runs plugin setup for all discovered plugins.
 .Pp
 Run this command before using
 .Cm process
 for the first time, or to update an existing configuration.
+.Ss config
+Open the main configuration file
+.Pa ( ~/.config/piqley/config.json )
+in the editor specified by the
+.Ev EDITOR
+environment variable.
+On macOS, falls back to the system
+.Xr open 1
+command if
+.Ev EDITOR
+is not set.
 .Ss clear-cache
-Delete one or both local log caches used for deduplication.
+Delete plugin execution logs.
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl -plugin Ar name
+Clear only the specified plugin's execution log.
+.El
+.Pp
+When
+.Fl -plugin
+is not specified, execution logs for all plugins are deleted.
+.Ss secret set plugin key
+Store a plugin secret.
+Prompts for the value on standard input.
+.Pp
+On macOS, secrets are stored in the system Keychain.
+On Linux, secrets are written to
+.Pa ~/.config/piqley/secrets.json .
+.Ss secret delete plugin key
+Remove a previously stored plugin secret.
+.Ss plugin setup Op plugin-name
+Run interactive setup for one or all plugins.
+Each plugin's manifest declares its configuration schema (plain values
+and secrets); the setup scanner walks through each entry and prompts for
+a value.
 .Pp
 Available flags:
 .Bl -tag -width Ds
-.It Fl -upload-log
-Delete only the upload log
-.Pa ( ~/.config/piqley/upload-log.jsonl ) .
-.It Fl -email-log
-Delete only the email log
-.Pa ( ~/.config/piqley/email-log.jsonl ) .
+.It Fl -force
+Force re-setup by clearing existing config values and the
+.Li isSetUp
+flag before prompting.
 .El
 .Pp
-When neither flag is specified, both logs are deleted.
-The upload log self-heals from the Ghost API on the next
-.Cm process
-run; the email log self-heals from Ghost published posts.
+When
+.Ar plugin-name
+is omitted, setup runs for all discovered plugins.
+.Ss plugin init Op plugin-name
+Create a new declarative-only plugin.
+Generates a skeleton plugin directory under
+.Pa ~/.config/piqley/plugins/
+with a
+.Pa manifest.json
+and
+.Pa config.json
+pre-populated with example hooks and rules.
+.Pp
+Available flags:
+.Bl -tag -width Ds
+.It Fl -no-examples
+Skip example rules and values in the generated config files.
+.It Fl -non-interactive
+Non-interactive mode.
+Requires the
+.Ar plugin-name
+argument.
+.El
+.Pp
+When
+.Ar plugin-name
+is omitted in interactive mode, the command prompts for a name.
+.Ss plugin config plugin-name
+Open the specified plugin's
+.Pa config.json
+in the editor specified by the
+.Ev EDITOR
+environment variable.
+On macOS, falls back to the system
+.Xr open 1
+command if
+.Ev EDITOR
+is not set.
+.Ss uninstall
+Remove all piqley configuration, plugins, and stored secrets.
+Deletes the
+.Pa ~/.config/piqley/
+directory and, on macOS, all Keychain items for the
+.Nm
+service.
+.Pp
+Available flags:
+.Bl -tag -width Ds
+.It Fl -force
+Skip the confirmation prompt.
+.El
 .Sh CONFIGURATION
 Non-secret configuration is stored in
 .Pa ~/.config/piqley/config.json
@@ -137,212 +214,125 @@ as a JSON object.
 The
 .Cm setup
 command creates and populates this file interactively.
-.Ss Ghost settings
+Use
+.Cm config
+to open it directly in your editor.
 .Bl -tag -width Ds
-.It ghost.url
-.Pq string, required
-Base URL of the Ghost site, e.g.\&
-.Li https://example.com .
-Must not include a trailing slash.
-.It ghost.schedulingWindow.start
-.Pq string, required
-Earliest time of day at which posts may be scheduled, in
-.Li HH:MM
-24-hour format.
-.It ghost.schedulingWindow.end
-.Pq string, required
-Latest time of day at which posts may be scheduled, in
-.Li HH:MM
-24-hour format.
-.It ghost.schedulingWindow.timezone
-.Pq string, required
-IANA timezone name used to interpret the scheduling window, e.g.\&
-.Li America/New_York .
-.It ghost.non365ProjectFilterTags
-.Pq array of strings, optional, default: []
-Tags that exclude non-365 posts from the schedule-date calculation.
-Posts tagged with any value in this list are not counted when determining
-the next available schedule slot.
+.It autoDiscoverPlugins
+.Pq boolean, default: true
+When enabled, any plugin directory found under
+.Pa ~/.config/piqley/plugins/
+with a valid
+.Pa manifest.json
+is loaded automatically.
+.It disabledPlugins
+.Pq array of strings, default: []
+Plugin names to exclude from discovery and pipeline execution.
+.It pipeline
+.Pq object, default: {}
+Maps hook names to ordered arrays of plugin names.
+Controls the order in which plugins execute for each hook stage.
 .El
-.Ss Image processing
+.Ss Plugin configuration
+Each plugin has its own
+.Pa config.json
+inside its plugin directory.
+This file contains:
 .Bl -tag -width Ds
-.It processing.maxLongEdge
-.Pq integer, required
-Maximum pixel length of the longest edge after resize.
-Images smaller than this value are not upscaled.
-.It processing.jpegQuality
-.Pq integer, required
-JPEG compression quality on a scale of 1\(en100.
-Higher values produce larger files with less compression artefacts.
+.It values
+Key-value settings the plugin reads at runtime (e.g., output quality,
+tag prefixes).
+.It rules
+Declarative metadata-matching rules.
+Each rule matches a field from the original image metadata or a
+dependency plugin's output using exact, glob, or regex patterns, and
+emits tags or keywords.
+Rules can be scoped to specific hook stages.
+.It isSetUp
+Boolean flag set by
+.Cm plugin setup
+to indicate the plugin has been configured.
 .El
-.Ss 365 Project
+.Sh PLUGIN ARCHITECTURE
+Plugins live under
+.Pa ~/.config/piqley/plugins/<name>/ .
+Each plugin directory contains:
 .Bl -tag -width Ds
-.It project365.keyword
-.Pq string, required
-EXIF keyword that identifies a photo as a 365 Project entry.
-Matching is case-sensitive.
-.It project365.referenceDate
-.Pq string, required
-Start date for day numbering, in
-.Li YYYY-MM-DD
-format.
-Day 1 is this date (the day the first photo was taken).
-.It project365.emailTo
-.Pq string, required
-Email address to which 365 Project photos are sent as attachments.
+.It Pa manifest.json
+Declares the plugin's name, protocol version, version, config schema,
+dependencies, and hook entries.
+Each hook entry may specify an executable command with arguments and a
+timeout.
+.It Pa config.json
+Runtime configuration: key-value settings and declarative rules.
+Created by
+.Cm plugin init
+or
+.Cm plugin setup .
+.It Pa logs/execution.jsonl
+Append-only execution log written by the pipeline orchestrator.
+Cleared by
+.Cm clear-cache .
+.It Pa data/
+Plugin-managed persistent data directory.
 .El
-.Ss SMTP
-.Bl -tag -width Ds
-.It smtp.host
-.Pq string, required
-Hostname of the outgoing SMTP server.
-.It smtp.port
-.Pq integer, required
-SMTP server port number.
-Typically 587 for STARTTLS.
-.It smtp.username
-.Pq string, required
-Login username for SMTP authentication.
-.It smtp.from
-.Pq string, required
-Sender address used in outgoing email headers.
-.El
-.Ss Tags
-.Pp
-Before any tag configuration is applied,
+.Ss Hooks
+Plugins subscribe to named hooks declared in their manifest.
+Hooks run in the order defined by the pipeline configuration.
+A hook entry without a command is declarative-only and relies on the
+rules in the plugin's
+.Pa config.json .
+.Ss Secrets
+Plugin secrets are managed with
+.Cm secret set
+and
+.Cm secret delete .
+On macOS, secrets are stored in the Keychain under the
 .Nm
-flattens hierarchical EXIF keywords to their leaf nodes.
-Lightroom and other editors store keywords in a hierarchy separated by
-.Sq ">"
-characters.
-Only the rightmost (leaf) component is used; parent levels are discarded
-and surrounding whitespace is trimmed.
-.Pp
-For example, a photo with these EXIF keywords:
-.Bd -literal -offset indent
-Animals > Cats > Tabby
-Places > New York
-365 Project
-.Ed
-.Pp
-produces the leaf set
-.Bq Tabby, New York, 365 Project .
-These leaf keywords are then matched against the
-.Li tagBlocklist ,
-tested for the 365 Project keyword, and \(em if not blocked \(em sent to
-Ghost as tags.
-.Bl -tag -width Ds
-.It tagBlocklist
-.Pq array of strings, optional, default: []
-Patterns to prevent specific leaf keywords from becoming Ghost tags.
-Each pattern is matched against the leaf node after hierarchical
-flattening described above.
-See
-.Sx Pattern Matching
-below for supported pattern syntax.
-.It requiredTags
-.Pq array of strings, optional, default: []
-Tag names always added to every post, regardless of EXIF keywords.
-.It cameraModelTags
-.Pq object, optional, default: {}
-Maps camera model patterns to arrays of Ghost tag names.
-When a photo's EXIF camera model string matches a key, all corresponding
-tags are added to the post.
-Keys use the same pattern syntax as
-.Li tagBlocklist .
-See
-.Sx Pattern Matching
-below.
-.El
-.Ss Pattern Matching
-Pattern matching is used by the
-.Li tagBlocklist
-array and by keys in the
-.Li cameraModelTags
-object.
-Three types of pattern are supported:
-.Bl -tag -width Ds
-.It Plain string
-Exact match, case-insensitive.
-For example,
-.Qq Canon EOS R5
-matches
-.Qq canon eos r5 .
-.It Li "glob:<pattern>"
-Glob pattern.
-.Sq *
-matches any sequence of characters;
-.Sq \&?
-matches exactly one character.
-Matching is case-insensitive.
-For example,
-.Li glob:*Nikon*
-matches any camera model containing
-.Qq Nikon .
-.It Li "regex:<pattern>"
-Regular expression with full-match semantics: the pattern must match the
-entire string.
-Matching is case-insensitive.
-For example,
-.Li regex:Sony\es+a\ed+.*
-matches Sony alpha model names such as
-.Qq Sony a7R IV .
-.El
-.Pp
-All matching is case-insensitive.
-When multiple patterns match the same value, all corresponding tags are
-accumulated and deduplicated.
-.Pp
-Example
-.Li cameraModelTags
-configuration:
-.Bd -literal -offset indent
-{
-  "cameraModelTags": {
-    "Canon EOS R5": ["Canon", "Mirrorless"],
-    "glob:*Nikon*": ["Nikon"],
-    "regex:Sony\es+a\ed+.*": ["Sony", "Mirrorless"]
-  }
-}
-.Ed
+service name.
+On Linux, they are stored in
+.Pa ~/.config/piqley/secrets.json .
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.config/piqley/config.json
-Configuration file (JSON).
+Main configuration file (JSON).
 Created and populated by the
 .Cm setup
 command.
-.It Pa ~/.config/piqley/upload-log.jsonl
-Append-only log of successful Ghost uploads.
-Used as the primary (fast-path) deduplication cache.
-Safe to delete; the cache self-heals from the Ghost API on the next run.
-.It Pa ~/.config/piqley/email-log.jsonl
-Append-only log of sent 365 Project emails.
-Prevents duplicate emails from being sent if the tool is run again on the
-same folder.
-.It Keychain service Li piqley-ghost
-Ghost Admin API key, stored in the macOS Keychain by the
-.Cm setup
-command.
-.It Keychain service Li piqley-smtp
-SMTP password, stored in the macOS Keychain by the
-.Cm setup
-command.
+.It Pa ~/.config/piqley/plugins/
+Plugin directory.
+Each subdirectory is a plugin containing
+.Pa manifest.json
+and optionally
+.Pa config.json .
+.It Pa ~/.config/piqley/secrets.json
+Secret store for Linux.
+On macOS, secrets are stored in the Keychain instead.
+.It Pa ~/.config/piqley/piqley.lock
+Advisory lock file to prevent concurrent execution.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev EDITOR
+Editor used by
+.Cm config
+and
+.Cm plugin config
+to open JSON files.
+Falls back to
+.Xr open 1
+on macOS when unset.
 .El
 .Sh EXIT STATUS
 .Bl -tag -width Ds
 .It 0
-All images processed successfully.
+All images processed successfully (or command completed without error).
 .It 1
 Fatal error.
-Causes include: missing or invalid configuration, Ghost API failure during
-deduplication, and another instance of
+Causes include: missing or invalid configuration, plugin failures, and
+another instance of
 .Nm
 already running.
-.It 2
-Partial success.
-One or more images encountered errors during processing, but the remaining
-images were handled without issue.
 .El
 .Sh EXAMPLES
 Process a folder of exported images:
@@ -350,30 +340,42 @@ Process a folder of exported images:
 piqley process ~/Photos/export
 .Ed
 .Pp
-Preview what would happen without uploading or emailing:
+Preview what would happen without uploading:
 .Bd -literal -offset indent
 piqley process ~/Photos/export --dry-run
 .Ed
 .Pp
-Write a JSON results file to a custom directory:
+Open the main config file in your editor:
 .Bd -literal -offset indent
-piqley process ~/Photos/export --json-results --results-dir /tmp/results
+piqley config
 .Ed
 .Pp
-Clear only the upload log cache:
+Open a plugin's config file:
 .Bd -literal -offset indent
-piqley clear-cache --upload-log
+piqley plugin config my-tagger
 .Ed
 .Pp
-Example
-.Li cameraModelTags
-configuration for matching camera models and assigning Ghost tags:
+Create a new plugin with example rules:
 .Bd -literal -offset indent
-{
-  "cameraModelTags": {
-    "Canon EOS R5": ["Canon", "Mirrorless"],
-    "glob:*Nikon*": ["Nikon"],
-    "regex:Sony\es+a\ed+.*": ["Sony", "Mirrorless"]
-  }
-}
+piqley plugin init my-tagger
+.Ed
+.Pp
+Store a secret for a plugin:
+.Bd -literal -offset indent
+piqley secret set ghost api-key
+.Ed
+.Pp
+Run setup for a specific plugin:
+.Bd -literal -offset indent
+piqley plugin setup ghost
+.Ed
+.Pp
+Clear execution logs for a specific plugin:
+.Bd -literal -offset indent
+piqley clear-cache --plugin ghost
+.Ed
+.Pp
+Remove all piqley data without confirmation:
+.Bd -literal -offset indent
+piqley uninstall --force
 .Ed
