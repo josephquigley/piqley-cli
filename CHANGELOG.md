@@ -6,16 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
-### Fixed
-
-- Plugin identifier `skip` is now rejected as a reserved name in `plugin init`, `plugin create`, and pipeline validation
-
-### Changed
-
-- Source images are no longer overwritten by default after a successful pipeline run
-
 ### Added
 
+- `ForkManager` actor for COW (copy-on-write) image isolation per plugin
+- `ImageConverter` for format conversion using CoreGraphics/ImageIO
+- Fork/DAG-based source resolution in pipeline orchestrator
+- `imageFolderOverride` parameter on `PluginRunner.run()` for fork-aware execution
 - `config add-plugin` and `config remove-plugin` subcommands for non-interactive pipeline editing
 - `PipelineEditor` shared validation for add/remove pipeline operations
 - Skip rule effect: images matched by a skip rule are excluded from binary execution and skip records are included in the plugin wire payload
