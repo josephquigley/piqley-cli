@@ -61,6 +61,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Rule editor crash on launch due to double `LoggingSystem.bootstrap` with TermKit
 - `posix_spawn` with file actions for editor TTY attachment
 - Accept any non-empty input as yes for description prompt
 - Launch editor via `/bin/sh` with `/dev/tty` redirection
