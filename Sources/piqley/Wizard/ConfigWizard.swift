@@ -97,11 +97,16 @@ final class ConfigWizard {
         }
 
         // Plugin count metadata
-        let activeSet = Set(config.pipeline.values.flatMap(\.self))
-        let totalCount = discoveredPlugins.count
-        let activeCount = discoveredPlugins.filter { activeSet.contains($0.identifier) }.count
+        let pipelineIdentifiers = Set(config.pipeline.values.flatMap(\.self))
+        let activeCount = discoveredPlugins.filter { pipelineIdentifiers.contains($0.identifier) }.count
+        let missingCount = pipelineIdentifiers.subtracting(discoveredIdentifiers).count
         buf += ANSI.moveTo(row: allPluginsRow + 1, col: 4)
-        buf += "\(ANSI.dim)\(totalCount) installed, \(activeCount) active in pipeline\(ANSI.reset)"
+        var summary = "\(ANSI.dim)\(discoveredPlugins.count) installed, \(activeCount) active in pipeline"
+        if missingCount > 0 {
+            summary += ", \(ANSI.reset)\(ANSI.red)\(missingCount) missing\(ANSI.reset)\(ANSI.dim)"
+        }
+        summary += "\(ANSI.reset)"
+        buf += summary
 
         // Footer
         buf += ANSI.moveTo(row: size.rows, col: 1)
