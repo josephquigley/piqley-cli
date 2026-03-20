@@ -20,6 +20,9 @@ struct ProcessCommand: AsyncParsableCommand {
     @Flag(help: "Delete the source folder and its contents after a successful run")
     var deleteSourceFolder = false
 
+    @Flag(help: "Overwrite source images with processed versions after a successful run")
+    var overwriteSource = false
+
     @Flag(help: "Skip interactive prompts; drop invalid rules with warnings")
     var nonInteractive = false
 
@@ -50,7 +53,10 @@ struct ProcessCommand: AsyncParsableCommand {
             secretStore: secretStore
         )
 
-        let succeeded = try await orchestrator.run(sourceURL: sourceURL, dryRun: dryRun, nonInteractive: nonInteractive)
+        let succeeded = try await orchestrator.run(
+            sourceURL: sourceURL, dryRun: dryRun,
+            nonInteractive: nonInteractive, overwriteSource: overwriteSource
+        )
 
         if succeeded, !dryRun {
             if deleteSourceFolder {

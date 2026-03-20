@@ -16,7 +16,7 @@ struct PipelineOrchestrator: Sendable {
 
     /// Runs the full pipeline for a source folder.
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
-    func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false) async throws -> Bool {
+    func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
         var pipeline = config.pipeline
 
         // Auto-discover new plugins if enabled
@@ -99,9 +99,11 @@ struct PipelineOrchestrator: Sendable {
             }
         }
 
-        // Copy processed images back to source
-        try temp.copyBack(to: sourceURL)
-        logger.info("Copied processed images back to \(sourceURL.path)")
+        // Copy processed images back to source if requested
+        if overwriteSource {
+            try temp.copyBack(to: sourceURL)
+            logger.info("Copied processed images back to \(sourceURL.path)")
+        }
 
         return true
     }

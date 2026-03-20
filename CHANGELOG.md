@@ -6,11 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
-### Fixed
+### Changed
 
-- Copy processed images back to source directory after successful pipeline run
+- Source images are no longer overwritten by default after a successful pipeline run
 
 ### Added
+
+- `--overwrite-source` flag on `process` command to copy processed images back to the source directory
 
 - `piqley plugin list` — show all installed plugins with active/inactive status, version, and stages
 - `piqley plugin rules edit <plugin-id>` — ANSI-based TUI wizard for creating, editing, removing, and reordering declarative metadata rules
