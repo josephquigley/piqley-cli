@@ -67,29 +67,35 @@ final class RawTerminal {
     }
 
     private func readEscapeSequence() -> Key {
-        var seq = [UInt8](repeating: 0, count: 2)
-        // Try to read the next bytes quickly
-        let count = read(STDIN_FILENO, &seq, 2)
-        if count == 0 { return .escape }
-        if count == 1 {
-            // Alt + key
-            return .char(Character(UnicodeScalar(seq[0])))
-        }
+        // Read one byte at a time with a short timeout to distinguish
+        // bare Escape from escape sequences (ESC [ A, etc.)
+        var first = [UInt8](repeating: 0, count: 1)
+        let cnt1 = read(STDIN_FILENO, &first, 1)
+        if cnt1 <= 0 { return .escape }
 
-        if seq[0] == 91 { // '['
-            switch seq[1] {
+        if first[0] == 91 { // '['
+            var second = [UInt8](repeating: 0, count: 1)
+            let cnt2 = read(STDIN_FILENO, &second, 1)
+            if cnt2 <= 0 { return .escape }
+
+            switch second[0] {
             case 65: return .cursorUp
             case 66: return .cursorDown
             case 67: return .cursorRight
             case 68: return .cursorLeft
             case 53: // Page up: ESC[5~
-                _ = read(STDIN_FILENO, &seq, 1)
+                var tilde = [UInt8](repeating: 0, count: 1)
+                _ = read(STDIN_FILENO, &tilde, 1)
                 return .pageUp
             case 54: // Page down: ESC[6~
-                _ = read(STDIN_FILENO, &seq, 1)
+                var tilde = [UInt8](repeating: 0, count: 1)
+                _ = read(STDIN_FILENO, &tilde, 1)
                 return .pageDown
             default: break
             }
+        } else {
+            // Alt + key
+            return .char(Character(UnicodeScalar(first[0])))
         }
         return .unknown
     }
