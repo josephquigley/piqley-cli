@@ -15,22 +15,17 @@ enum RulesWizardApp {
         let originalStages: [String: StageConfig]
     }
 
-    /// Launch the wizard. This method does not return -- it calls `exit()` via TermKit.
-    static func run(context: RuleEditingContext, writeBack: WriteBackConfig) -> Never {
-        // TermKit requires MainActor, so dispatch to main
-        DispatchQueue.main.async {
-            Application.prepare()
+    /// Launch the wizard. This method does not return -- TermKit calls `exit()` on shutdown.
+    @MainActor
+    static func run(context: RuleEditingContext, writeBack: WriteBackConfig) {
+        Application.prepare()
 
-            let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
-            stageScreen.present()
+        let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
+        stageScreen.present()
 
-            Application.run()
-        }
-
-        // Application.run() uses dispatchMain() internally, but we need to keep
-        // this thread alive. dispatchMain() is called inside Application.run(),
-        // so we just need to block here.
-        dispatchMain()
+        // Application.run() calls dispatchMain() internally and never returns.
+        // TermKit's shutdown() calls exit(), so this is effectively a one-way trip.
+        Application.run()
     }
 
     /// Writes modified stages back to disk. Called by the wizard before shutdown.
