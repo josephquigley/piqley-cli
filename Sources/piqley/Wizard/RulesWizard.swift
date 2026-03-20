@@ -373,7 +373,8 @@ final class RulesWizard {
         guard let field = promptWithAutocomplete(
             title: "Target field for \(action)",
             hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
-            completions: uniqueFields
+            completions: uniqueFields,
+            browsableList: uniqueFields
         ) else { return nil }
 
         switch action {

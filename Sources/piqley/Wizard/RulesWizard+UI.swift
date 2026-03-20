@@ -62,13 +62,16 @@ extension RulesWizard {
     }
 
     /// Prompt for text input with autocomplete suggestions.
-    /// Tab completes the top match. Returns nil if cancelled.
+    /// Tab completes the top match. If `browsableList` is provided, `l` opens
+    /// a selectable list to pick from. Returns nil if cancelled.
     func promptWithAutocomplete(
-        title: String, hint: String, completions: [String], defaultValue: String? = nil
+        title: String, hint: String, completions: [String],
+        browsableList: [String]? = nil, defaultValue: String? = nil
     ) -> String? {
         var input = defaultValue ?? ""
         let size = ANSI.terminalSize()
         let maxSuggestions = 5
+        let hasList = browsableList != nil
 
         while true {
             let query = input.lowercased()
@@ -100,11 +103,18 @@ extension RulesWizard {
             }
 
             buf += ANSI.moveTo(row: size.rows, col: 1)
-            buf += "\(ANSI.dim)Tab autocomplete  Enter confirm  Esc cancel\(ANSI.reset)"
+            let listHint = hasList ? "  Ctrl+L browse list" : ""
+            buf += "\(ANSI.dim)Tab autocomplete\(listHint)  Enter confirm  Esc cancel\(ANSI.reset)"
             terminal.write(buf)
 
             let key = terminal.readKey()
             switch key {
+            case .ctrlL where hasList:
+                if let list = browsableList,
+                   let idx = selectFromList(title: "Select field", items: list)
+                {
+                    input = list[idx]
+                }
             case let .char(char):
                 input.append(char)
             case .backspace:

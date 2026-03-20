@@ -56,6 +56,7 @@ final class RawTerminal {
         if byte == 13 || byte == 10 { return .enter }
         if byte == 127 { return .backspace }
         if byte == 9 { return .tab }
+        if byte == 12 { return .ctrlL }
         if byte == 3 { return .ctrlC }
 
         // Regular printable character
@@ -128,6 +129,7 @@ enum Key: Equatable {
     case pageUp
     case pageDown
     case ctrlC
+    case ctrlL
     case unknown
 }
 
