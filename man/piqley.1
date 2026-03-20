@@ -15,7 +15,9 @@
 .Nm
 .Cm setup
 .Nm
-.Cm config
+.Cm config edit
+.Nm
+.Cm config open
 .Nm
 .Cm clear-cache
 .Op Fl -plugin Ar name
@@ -113,7 +115,11 @@ directory and runs plugin setup for all discovered plugins.
 Run this command before using
 .Cm process
 for the first time, or to update an existing configuration.
-.Ss config
+.Ss config edit
+Open the interactive pipeline configuration wizard.
+The wizard displays all pipeline stages with their plugin counts
+and allows adding, removing, and reordering plugins per stage.
+.Ss config open
 Open the main configuration file
 .Pa ( ~/.config/piqley/config.json )
 in the editor specified by the
@@ -253,20 +259,11 @@ Use
 .Cm config
 to open it directly in your editor.
 .Bl -tag -width Ds
-.It autoDiscoverPlugins
-.Pq boolean, default: true
-When enabled, any plugin directory found under
-.Pa ~/.config/piqley/plugins/
-with a valid
-.Pa manifest.json
-is loaded automatically.
-.It disabledPlugins
-.Pq array of strings, default: []
-Plugin names to exclude from discovery and pipeline execution.
 .It pipeline
 .Pq object, default: {}
-Maps hook names to ordered arrays of plugin names.
-Controls the order in which plugins execute for each hook stage.
+Maps hook names to ordered arrays of plugin identifiers.
+Controls which plugins execute for each hook stage and in what order.
+A plugin not listed in any stage simply does not run.
 .El
 .Ss Plugin configuration
 Each plugin has its own
@@ -388,9 +385,14 @@ Preview what would happen without uploading:
 piqley process ~/Photos/export --dry-run
 .Ed
 .Pp
+Edit the pipeline configuration interactively:
+.Bd -literal -offset indent
+piqley config edit
+.Ed
+.Pp
 Open the main config file in your editor:
 .Bd -literal -offset indent
-piqley config
+piqley config open
 .Ed
 .Pp
 Open a plugin's config file:

@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 
 - `piqley config edit` — interactive TUI wizard for editing the pipeline configuration
-- `piqley config open` — open config file in editor (replaces bare `piqley config`)
+- `piqley config open` — open config file in editor (replaces `piqley config`)
 - `piqley plugin list` — show all installed plugins with version and stages
 
 ### Changed
