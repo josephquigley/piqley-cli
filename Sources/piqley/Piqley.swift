@@ -15,12 +15,10 @@ struct Piqley: AsyncParsableCommand {
         ]
     )
 
+    /// Custom entry point that intercepts the rule editor before the async runtime starts.
+    /// TermKit's Application.run() calls dispatchMain() which is incompatible with
+    /// Swift's cooperative async executor.
     static func main() async {
-        // The rule editor wizard uses TermKit which calls dispatchMain().
-        // dispatchMain() is incompatible with Swift's async runtime, so we
-        // must intercept the rules command and run it synchronously before
-        // the async executor is involved. TermKit also bootstraps its own
-        // logging system, so we skip piqley's bootstrap for this path.
         let args = CommandLine.arguments
         let isRulesEdit = args.contains("rules") && (args.contains("edit") || {
             guard let rulesIdx = args.firstIndex(of: "rules") else { return false }
@@ -29,14 +27,22 @@ struct Piqley: AsyncParsableCommand {
         }())
 
         if isRulesEdit {
-            // Parse and run synchronously — TermKit's dispatchMain() takes over.
-            do {
-                var command = try parseAsRoot()
-                try command.run()
-            } catch {
-                exit(withError: error)
+            // TermKit needs dispatchMain() which conflicts with async runtime.
+            // Parse and run on the main queue, then keep the async task alive
+            // indefinitely — TermKit's shutdown() calls exit() to end the process.
+            DispatchQueue.main.async {
+                do {
+                    var command = try parseAsRoot()
+                    try command.run()
+                } catch {
+                    Self.exit(withError: error)
+                }
             }
-            return // unreachable — dispatchMain()/exit() called by TermKit
+            // Yield forever — TermKit's exit() terminates the process.
+            while true {
+                await Task.yield()
+                try? await Task.sleep(for: .seconds(60))
+            }
         }
 
         LoggingSystem.bootstrap { label in
