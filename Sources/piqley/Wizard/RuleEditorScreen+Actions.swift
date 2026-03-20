@@ -35,8 +35,7 @@ extension RuleEditorScreen {
             }
         }
 
-        let top = Toplevel()
-        top.fill()
+        let top = makeWizardToplevel()
 
         let win = WizardWindow(inputCtx.title)
         win.fill()

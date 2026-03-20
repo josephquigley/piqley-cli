@@ -47,8 +47,7 @@ final class RuleEditorScreen {
             }
         }
 
-        let top = Toplevel()
-        top.fill()
+        let top = makeWizardToplevel()
 
         let win = WizardWindow("New Rule: Select Source")
         win.fill()
@@ -105,8 +104,7 @@ final class RuleEditorScreen {
         var filterText = ""
         var filterActive = false
 
-        let top = Toplevel()
-        top.fill()
+        let top = makeWizardToplevel()
 
         let win = WizardWindow("New Rule: Select Field")
         win.fill()
@@ -288,8 +286,7 @@ final class RuleEditorScreen {
         builder: RuleBuilder,
         onComplete: @escaping (Rule?) -> Void
     ) {
-        let top = Toplevel()
-        top.fill()
+        let top = makeWizardToplevel()
 
         let win = WizardWindow("New Rule: Enter Pattern")
         win.fill()

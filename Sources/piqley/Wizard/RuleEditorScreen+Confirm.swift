@@ -84,8 +84,7 @@ extension RuleEditorScreen {
             Application.present(top: dialog)
 
         case let .success(rule):
-            let top = Toplevel()
-            top.fill()
+            let top = makeWizardToplevel()
 
             let win = WizardWindow("Confirm Rule")
             win.fill()

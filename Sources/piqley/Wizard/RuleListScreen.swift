@@ -35,11 +35,7 @@ final class RuleListScreen {
     func present() {
         let hasBinary = context.stageHasBinary(stageName)
 
-        let top = Toplevel()
-        top.fill()
-        if let scheme = RulesWizardApp.wizardColorScheme {
-            top.colorScheme = scheme
-        }
+        let top = makeWizardToplevel()
 
         let win = WizardWindow("\(stageName) rules")
         win.fill()

@@ -1,5 +1,7 @@
 import Foundation
 import PiqleyCore
+// TermKit's Application.driver is a shared mutable static without concurrency annotations.
+// @preconcurrency suppresses the warning — safe because TermKit is single-threaded on main.
 @preconcurrency import TermKit
 
 /// Entry point for the TUI rule editor wizard.
@@ -48,7 +50,8 @@ enum RulesWizardApp {
     }
 
     /// Creates a color scheme with black background for the wizard.
-    private nonisolated static func makeBlackColorScheme() -> ColorScheme {
+    @MainActor
+    private static func makeBlackColorScheme() -> ColorScheme {
         let drv = Application.driver
         return ColorScheme(
             normal: drv.makeAttribute(fore: .white, back: .black),
