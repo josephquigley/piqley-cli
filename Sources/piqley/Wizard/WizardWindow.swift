@@ -21,9 +21,23 @@ class WizardWindow: Window {
     }
 }
 
-/// Creates a Toplevel with the wizard's color scheme applied.
-func makeWizardToplevel() -> Toplevel {
-    let top = Toplevel()
+/// A Toplevel subclass with a closure-based cold key handler.
+/// Cold keys are processed AFTER focused views, so letter shortcuts
+/// don't interfere with text input but still work when no view consumes them.
+class WizardToplevel: Toplevel {
+    nonisolated(unsafe) var onColdKey: ((KeyEvent) -> Bool)?
+
+    override func processColdKey(event: KeyEvent) -> Bool {
+        if let handler = onColdKey, handler(event) {
+            return true
+        }
+        return super.processColdKey(event: event)
+    }
+}
+
+/// Creates a WizardToplevel with the wizard's color scheme applied.
+func makeWizardToplevel() -> WizardToplevel {
+    let top = WizardToplevel()
     top.fill()
     if let scheme = RulesWizardApp.wizardColorScheme {
         top.colorScheme = scheme

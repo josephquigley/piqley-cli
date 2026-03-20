@@ -92,11 +92,11 @@ final class RuleListScreen {
         footer.width = Dim.fill()
         win.addSubview(footer)
 
-        // Key handling — WizardWindow.onKey intercepts before the focused view.
-        // Also handle on the Toplevel level via processColdKey for keys that
-        // the focused ListView doesn't consume.
+        // Key handling via cold keys on the Toplevel. Cold keys are processed
+        // AFTER focused views, so letter shortcuts (a/e/d/r/f/q) only fire when
+        // no child view (like a TextField) consumes them first.
         let views = ListViews(list: list, filterField: filterField, slotLabel: slotLabel, hasBinary: hasBinary)
-        win.onKey = { [weak self] event in
+        top.onColdKey = { [weak self] event in
             guard let self else { return false }
             return handleKey(event: event, views: views)
         }

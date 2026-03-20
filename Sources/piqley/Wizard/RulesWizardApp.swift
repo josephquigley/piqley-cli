@@ -55,9 +55,9 @@ enum RulesWizardApp {
         let drv = Application.driver
         return ColorScheme(
             normal: drv.makeAttribute(fore: .white, back: .black),
-            focus: drv.makeAttribute(fore: .black, back: .cyan),
-            hotNormal: drv.makeAttribute(fore: .cyan, back: .black),
-            hotFocus: drv.makeAttribute(fore: .black, back: .cyan)
+            focus: drv.makeAttribute(fore: .black, back: .white),
+            hotNormal: drv.makeAttribute(fore: .white, back: .black, flags: .bold),
+            hotFocus: drv.makeAttribute(fore: .black, back: .white)
         )
     }
 
