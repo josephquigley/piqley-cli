@@ -99,6 +99,10 @@ struct PipelineOrchestrator: Sendable {
             }
         }
 
+        // Copy processed images back to source
+        try temp.copyBack(to: sourceURL)
+        logger.info("Copied processed images back to \(sourceURL.path)")
+
         return true
     }
 

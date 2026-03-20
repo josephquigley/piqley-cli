@@ -29,6 +29,24 @@ struct TempFolder: Sendable {
         }
     }
 
+    /// Copies processed images back to `destinationURL`, overwriting originals.
+    func copyBack(to destinationURL: URL) throws {
+        let contents = try FileManager.default.contentsOfDirectory(
+            at: url, includingPropertiesForKeys: nil
+        )
+        for file in contents {
+            let name = file.lastPathComponent
+            guard !name.hasPrefix("."),
+                  Self.imageExtensions.contains(file.pathExtension.lowercased())
+            else { continue }
+            let destination = destinationURL.appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+    }
+
     func delete() throws {
         try FileManager.default.removeItem(at: url)
     }

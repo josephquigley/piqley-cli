@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+### Fixed
+
+- Copy processed images back to source directory after successful pipeline run
+
 ### Added
 
 - `piqley plugin list` — show all installed plugins with active/inactive status, version, and stages
