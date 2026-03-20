@@ -38,12 +38,21 @@ enum RulesWizardApp {
         stageScreen.present()
 
         // begin() sets up layout, initial render, and starts event processing.
-        // We do NOT call Application.run() because it calls dispatchMain().
-        // Instead, the async runtime's main executor drains DispatchQueue.main,
-        // which is where TermKit dispatches input events and display updates.
         Application.begin(toplevel: Application.top)
 
-        // Keep the task alive — TermKit's shutdown() calls exit() to end the process.
+        // TermKit's input relies on FileHandle.readabilityHandler backed by
+        // GCD dispatch sources. The Swift async MainActor executor processes
+        // GCD main queue blocks but does NOT run the main RunLoop, which some
+        // dispatch sources may depend on. We pump the RunLoop from a timer-based
+        // GCD source to ensure all I/O sources fire.
+        let runLoopTimer = DispatchSource.makeTimerSource(queue: .main)
+        runLoopTimer.schedule(deadline: .now(), repeating: .milliseconds(16))
+        runLoopTimer.setEventHandler {
+            RunLoop.main.run(mode: .default, before: Date())
+        }
+        runLoopTimer.resume()
+
+        // Keep the async task alive — TermKit's shutdown() calls exit().
         while true {
             try? await Task.sleep(for: .seconds(3600))
         }
