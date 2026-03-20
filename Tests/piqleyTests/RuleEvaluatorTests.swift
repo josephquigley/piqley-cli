@@ -30,7 +30,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
-        #expect(result["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
     }
 
     @Test("glob match on string field")
@@ -42,7 +42,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["TIFF:Model": .string("Sony A7R IV")]]
         )
-        #expect(result["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
     }
 
     @Test("regex match on string field")
@@ -54,7 +54,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["TIFF:Model": .string("ILCE-A7R4")]]
         )
-        #expect(result["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
     }
 
     @Test("array field: element-wise matching")
@@ -66,7 +66,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["IPTC:Keywords": .array([.string("portrait"), .string("landscape")])]]
         )
-        #expect(result["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
     }
 
     @Test("array field: non-string elements skipped")
@@ -78,7 +78,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["tags": .array([.number(42), .bool(true)])]]
         )
-        #expect(result.isEmpty)
+        #expect(result.namespace.isEmpty)
     }
 
     @Test("no match: empty output")
@@ -90,7 +90,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
-        #expect(result.isEmpty)
+        #expect(result.namespace.isEmpty)
     }
 
     @Test("multiple rules: additive, deduplicated")
@@ -106,7 +106,7 @@ struct RuleEvaluatorTests {
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
         // First rule emits ["sony", "camera"], second adds "mirrorless" (sony already present)
-        #expect(result["keywords"] == .array([.string("sony"), .string("camera"), .string("mirrorless")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony"), .string("camera"), .string("mirrorless")]))
     }
 
     @Test("multiple emit fields")
@@ -121,8 +121,8 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
-        #expect(result["keywords"] == .array([.string("sony")]))
-        #expect(result["tags"] == .array([.string("camera-brand")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["tags"] == .array([.string("camera-brand")]))
     }
 
     @Test("all rules evaluate regardless of stage (no hook filtering in RuleEvaluator)")
@@ -134,7 +134,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["TIFF:Model": .string("Sony")]]
         )
-        #expect(result["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
     }
 
     // MARK: - Error handling
@@ -185,7 +185,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-tag"), .string("auto-focus"), .string("keeper")])]
         )
-        #expect(result["keywords"] == .array([.string("keeper")]))
+        #expect(result.namespace["keywords"] == .array([.string("keeper")]))
     }
 
     @Test("remove is case-insensitive for exact matches")
@@ -201,7 +201,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-tag"), .string("keeper")])]
         )
-        #expect(result["keywords"] == .array([.string("keeper")]))
+        #expect(result.namespace["keywords"] == .array([.string("keeper")]))
     }
 
     @Test("remove all values removes the field entirely")
@@ -217,7 +217,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("a"), .string("b")])]
         )
-        #expect(result["keywords"] == nil)
+        #expect(result.namespace["keywords"] == nil)
     }
 
     // MARK: - Replace action
@@ -237,7 +237,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("SONYA7R5"), .string("keeper")])]
         )
-        #expect(result["keywords"] == .array([.string("Sony A7R5"), .string("keeper")]))
+        #expect(result.namespace["keywords"] == .array([.string("Sony A7R5"), .string("keeper")]))
     }
 
     @Test("replace first match wins")
@@ -257,7 +257,7 @@ struct RuleEvaluatorTests {
             currentNamespace: ["keywords": .array([.string("SONYA7R5")])]
         )
         // Exact match wins over regex
-        #expect(result["keywords"] == .array([.string("Sony A7R V")]))
+        #expect(result.namespace["keywords"] == .array([.string("Sony A7R V")]))
     }
 
     @Test("replace whole-match only: partial match does not replace")
@@ -276,7 +276,7 @@ struct RuleEvaluatorTests {
             currentNamespace: ["keywords": .array([.string("SONYA7R5")])]
         )
         // "SONY" doesn't whole-match "SONYA7R5", so no replacement
-        #expect(result["keywords"] == .array([.string("SONYA7R5")]))
+        #expect(result.namespace["keywords"] == .array([.string("SONYA7R5")]))
     }
 
     // MARK: - RemoveField action
@@ -294,8 +294,8 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old")]), "tags": .array([.string("kept")])]
         )
-        #expect(result["keywords"] == nil)
-        #expect(result["tags"] == .array([.string("kept")]))
+        #expect(result.namespace["keywords"] == nil)
+        #expect(result.namespace["tags"] == .array([.string("kept")]))
     }
 
     @Test("removeField with wildcard removes all fields")
@@ -311,7 +311,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("a")]), "tags": .array([.string("b")])]
         )
-        #expect(result.isEmpty)
+        #expect(result.namespace.isEmpty)
     }
 
     // MARK: - Multi-action and namespace preservation
@@ -332,7 +332,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("old-stuff")])]
         )
-        #expect(result["keywords"] == .array([.string("fresh-start")]))
+        #expect(result.namespace["keywords"] == .array([.string("fresh-start")]))
     }
 
     @Test("untouched fields preserved in output")
@@ -348,8 +348,8 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["existing": .string("preserved")]
         )
-        #expect(result["existing"] == .string("preserved"))
-        #expect(result["keywords"] == .array([.string("sony")]))
+        #expect(result.namespace["existing"] == .string("preserved"))
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
     }
 
     @Test("add deduplicates against currentNamespace")
@@ -365,7 +365,7 @@ struct RuleEvaluatorTests {
             state:["original": ["TIFF:Model": .string("Sony")]],
             currentNamespace: ["keywords": .array([.string("sony")])]
         )
-        #expect(result["keywords"] == .array([.string("sony"), .string("new")]))
+        #expect(result.namespace["keywords"] == .array([.string("sony"), .string("new")]))
     }
 
     // MARK: - Validation errors
@@ -590,6 +590,75 @@ struct RuleEvaluatorTests {
         #expect(evaluator.compiledRules.count == 1)
     }
 
+    @Test("skip action halts further rule evaluation")
+    func skipActionHalts() async throws {
+        let rules = [
+            makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*Draft*",
+                emit: [EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)]
+            ),
+            makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: nil, field: "tags", values: ["should-not-appear"], replacements: nil, source: nil)]
+            )
+        ]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let state: [String: [String: JSONValue]] = [
+            "original": ["IPTC:Keywords": .array([.string("Draft-Photo")])]
+        ]
+        let result = await evaluator.evaluate(
+            state: state, imageName: "IMG_001.jpg", pluginId: "com.test.plugin"
+        )
+        #expect(result.skipped == true)
+        #expect(result.namespace["tags"] == nil)
+    }
+
+    @Test("skip action writes skip record to state store")
+    func skipWritesRecord() async throws {
+        let rules = [makeRule(
+            field: "original:IPTC:Keywords",
+            pattern: "glob:*Draft*",
+            emit: [EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let stateStore = StateStore()
+        let state: [String: [String: JSONValue]] = [
+            "original": ["IPTC:Keywords": .array([.string("Draft-Photo")])]
+        ]
+        let result = await evaluator.evaluate(
+            state: state, imageName: "IMG_001.jpg", pluginId: "com.test.plugin",
+            stateStore: stateStore
+        )
+        #expect(result.skipped == true)
+        let skipState = await stateStore.resolve(image: "IMG_001.jpg", dependencies: ["skip"])
+        if case let .array(arr) = skipState["skip"]?["records"],
+           case let .object(record) = arr.first {
+            #expect(record["file"] == .string("IMG_001.jpg"))
+            #expect(record["plugin"] == .string("com.test.plugin"))
+        } else {
+            Issue.record("Expected skip record, got \(String(describing: skipState["skip"]?["records"]))")
+        }
+    }
+
+    @Test("no skip when rule doesn't match")
+    func noSkipOnMismatch() async throws {
+        let rules = [makeRule(
+            field: "original:IPTC:Keywords",
+            pattern: "glob:*Draft*",
+            emit: [EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let state: [String: [String: JSONValue]] = [
+            "original": ["IPTC:Keywords": .array([.string("Portrait")])]
+        ]
+        let result = await evaluator.evaluate(
+            state: state, imageName: "IMG_001.jpg", pluginId: "com.test.plugin"
+        )
+        #expect(result.skipped == false)
+    }
+
     // MARK: - Clone evaluation
 
     @Test("clone single field from original namespace")
@@ -605,7 +674,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("nature")])]]
         )
-        #expect(result["keywords"] == .array([.string("landscape"), .string("nature")]))
+        #expect(result.namespace["keywords"] == .array([.string("landscape"), .string("nature")]))
     }
 
     @Test("clone wildcard copies all fields from source namespace")
@@ -625,9 +694,9 @@ struct RuleEvaluatorTests {
             ]],
             currentNamespace: ["existing": .string("preserved")]
         )
-        #expect(result["TIFF:Model"] == .string("Sony"))
-        #expect(result["IPTC:Keywords"] == .array([.string("landscape")]))
-        #expect(result["existing"] == .string("preserved"))
+        #expect(result.namespace["TIFF:Model"] == .string("Sony"))
+        #expect(result.namespace["IPTC:Keywords"] == .array([.string("landscape")]))
+        #expect(result.namespace["existing"] == .string("preserved"))
     }
 
     @Test("clone overwrites existing value")
@@ -644,7 +713,7 @@ struct RuleEvaluatorTests {
             state: ["original": ["IPTC:Keywords": .array([.string("new-value")])]],
             currentNamespace: ["keywords": .array([.string("old-value")])]
         )
-        #expect(result["keywords"] == .array([.string("new-value")]))
+        #expect(result.namespace["keywords"] == .array([.string("new-value")]))
     }
 
     @Test("clone from non-existent source is no-op")
@@ -662,8 +731,8 @@ struct RuleEvaluatorTests {
             currentNamespace: ["existing": .string("kept")]
         )
         // IPTC:Keywords doesn't exist in state, so no clone happens
-        #expect(result["keywords"] == nil)
-        #expect(result["existing"] == .string("kept"))
+        #expect(result.namespace["keywords"] == nil)
+        #expect(result.namespace["existing"] == .string("kept"))
     }
 
     @Test("clone followed by remove")
@@ -682,7 +751,7 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(
             state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("auto-focus"), .string("nature")])]]
         )
-        #expect(result["keywords"] == .array([.string("landscape"), .string("nature")]))
+        #expect(result.namespace["keywords"] == .array([.string("landscape"), .string("nature")]))
     }
 
     @Test("clone with read: namespace")
@@ -703,6 +772,6 @@ struct RuleEvaluatorTests {
             metadataBuffer: buffer,
             imageName: "test.jpg"
         )
-        #expect(result["keywords"] == .array([.string("from-file")]))
+        #expect(result.namespace["keywords"] == .array([.string("from-file")]))
     }
 }

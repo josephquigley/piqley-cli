@@ -28,6 +28,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Clone evaluation logic in `RuleEvaluator`
 - Clone case to `EmitAction` enum with compilation validation
 - `skip` action support in `EmitAction` and `RuleEvaluator` compilation
+- `RuleEvaluationResult` struct: `evaluate()` now returns namespace and skip status
+- Skip evaluation halts rule processing and writes skip records to `StateStore`
+- `StateStore.appendSkipRecord` for recording skip events per image
 - Fail-fast manifest validation at plugin discovery
 - `piqley plugin create` command with skeleton fetcher, template substitution, and SDK version resolution
 - `SemVer` parsing with compatibility matching

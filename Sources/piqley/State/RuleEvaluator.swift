@@ -33,6 +33,11 @@ enum RuleCompilationError: Error, LocalizedError {
     }
 }
 
+struct RuleEvaluationResult: Sendable {
+    let namespace: [String: JSONValue]
+    let skipped: Bool
+}
+
 struct RuleEvaluator: Sendable {
     let compiledRules: [CompiledRule]
 
@@ -176,9 +181,12 @@ struct RuleEvaluator: Sendable {
         state: [String: [String: JSONValue]],
         currentNamespace: [String: JSONValue] = [:],
         metadataBuffer: MetadataBuffer? = nil,
-        imageName: String? = nil
-    ) async -> [String: JSONValue] {
+        imageName: String? = nil,
+        pluginId: String? = nil,
+        stateStore: StateStore? = nil
+    ) async -> RuleEvaluationResult {
         var working = currentNamespace
+        var skipped = false
 
         for rule in compiledRules {
             // Resolve the match field value
@@ -208,7 +216,16 @@ struct RuleEvaluator: Sendable {
 
             if matched {
                 // Emit actions first (modify plugin namespace)
+                var didSkip = false
                 for action in rule.emitActions {
+                    if case .skip = action {
+                        if let store = stateStore, let image = imageName, let plugin = pluginId {
+                            let record = JSONValue.object(["file": .string(image), "plugin": .string(plugin)])
+                            await store.appendSkipRecord(image: image, record: record)
+                        }
+                        didSkip = true
+                        break
+                    }
                     if case let .clone(field, sourceNamespace, sourceField) = action {
                         // Clone is handled inline because it needs access to state and metadataBuffer
                         if sourceNamespace == "read", let buffer = metadataBuffer, let image = imageName {
@@ -234,6 +251,11 @@ struct RuleEvaluator: Sendable {
                     Self.applyAction(action, to: &working)
                 }
 
+                if didSkip {
+                    skipped = true
+                    break
+                }
+
                 // Write actions second (modify file metadata via buffer)
                 if let buffer = metadataBuffer, let image = imageName {
                     for action in rule.writeActions {
@@ -243,7 +265,7 @@ struct RuleEvaluator: Sendable {
             }
         }
 
-        return working
+        return RuleEvaluationResult(namespace: working, skipped: skipped)
     }
 
     static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {

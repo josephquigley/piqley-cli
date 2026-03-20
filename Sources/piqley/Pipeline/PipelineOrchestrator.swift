@@ -260,10 +260,11 @@ struct PipelineOrchestrator: Sendable {
                 image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginIdentifier]
             )
             let currentNamespace = resolved[ctx.pluginIdentifier] ?? [:]
-            let ruleOutput = await evaluator.evaluate(
+            let ruleResult = await evaluator.evaluate(
                 state: resolved, currentNamespace: currentNamespace,
                 metadataBuffer: buffer, imageName: imageName
             )
+            let ruleOutput = ruleResult.namespace
             if ruleOutput != currentNamespace {
                 await ctx.stateStore.setNamespace(
                     image: imageName, plugin: ctx.pluginIdentifier, values: ruleOutput
