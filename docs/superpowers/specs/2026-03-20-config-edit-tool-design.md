@@ -76,7 +76,7 @@ post-process plugins
 
 Keybindings:
 - `↑↓` / `PageUp` / `PageDown` — navigate
-- `a` (add) — opens filterable list of discovered plugins not already in this stage; selected plugin is appended to the end
+- `a` (add) — opens filterable list of discovered plugins not already in this stage; selected plugin is appended to the end. If no plugins are available to add (none discovered, or all already in stage), show a brief message and return.
 - `d` (remove) — marks plugin at cursor for removal (strikethrough until save, toggles like rules wizard deletion)
 - `r` (reorder) — interactive reorder mode: selected item shown italic+indented, arrow keys move it, Enter confirms, Escape cancels
 - `s` — save config to disk
@@ -92,16 +92,11 @@ final class ConfigWizard {
     let discoveredPlugins: [LoadedPlugin]
     let terminal: RawTerminal
     var modified: Bool
-    var removedPlugins: Set<String>  // keyed by "stage:index"
+    var removedPlugins: Set<String>  // keyed by "stage:pluginIdentifier"
 }
 ```
 
-Reuses existing TUI components from `RulesWizard+UI.swift`:
-- `drawScreen(title:items:cursor:footer:)` — screen rendering
-- `selectFromFilterableList(title:items:)` — for the "add plugin" picker
-- Interactive reorder pattern from `RulesWizard.interactiveReorder`
-- Strikethrough/deletion toggle pattern from `RulesWizard.ruleList`
-- Unsaved changes prompt from `RulesWizard.promptUnsavedAndExit`
+The TUI methods (`drawScreen`, `selectFromFilterableList`, `selectFromList`, `confirm`, `showError`, `promptUnsavedAndExit`) live on `RulesWizard+UI.swift` as methods on `RulesWizard`. These need to be extracted into methods on `RawTerminal` (or a protocol/extension) so both `ConfigWizard` and `RulesWizard` can use them. The interactive reorder and strikethrough/deletion toggle patterns from `RulesWizard` are re-implemented in `ConfigWizard` (they're simpler for plain plugin identifiers than for rules).
 
 The wizard receives discovered plugins from the command layer (via `PluginDiscovery.loadManifests()`), so it knows the full set of available plugins for the "add" action.
 
@@ -125,6 +120,14 @@ The wizard receives discovered plugins from the command layer (via `PluginDiscov
 ### ConfigCommand (`ConfigCommand.swift`)
 - Restructure as parent command with `EditSubcommand` and `OpenSubcommand`.
 
+### SetupCommand (`SetupCommand.swift`)
+- Remove any prompts for `autoDiscoverPlugins`.
+- Update `loadManifests(disabled:)` calls to `loadManifests()`.
+- Review pipeline seeding logic — ensure fresh setup still populates pipeline stages from discovered plugins.
+
+### Documentation (`man/piqley.1`, `README.md`)
+- Remove references to `autoDiscoverPlugins` and `disabledPlugins` from man page and README config examples.
+
 ### All callers
 - Update all call sites of `loadManifests(disabled:)` to `loadManifests()`.
 - Remove all references to `config.disabledPlugins` and `config.autoDiscoverPlugins`.
@@ -134,4 +137,5 @@ The wizard receives discovered plugins from the command layer (via `PluginDiscov
 - Update `ConfigTests` — remove tests for `autoDiscoverPlugins` and `disabledPlugins`; verify pipeline-only config round-trips correctly.
 - Update `PipelineOrchestratorTests` — remove auto-discover and disabled-plugin test scenarios; update config fixtures.
 - Update `PluginDiscoveryTests` — remove tests for `autoAppend`; update `loadManifests` call sites.
+- Update `SetupCommandTests` (if they exist) — remove auto-discover prompt tests, update `loadManifests` calls.
 - Add config wizard save/load round-trip test (config with plugins in various stages saves and loads correctly).
