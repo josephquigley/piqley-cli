@@ -1,34 +1,28 @@
-import Testing
 import Foundation
+import Testing
 @testable import piqley
 
 @Suite("AppConfig")
 struct ConfigTests {
-    @Test("decodes pipeline config from JSON")
-    func testDecodeFullConfig() throws {
+    @Test("decodes pipeline-only config from JSON")
+    func testDecodePipelineConfig() throws {
         let json = """
         {
-          "autoDiscoverPlugins": true,
-          "disabledPlugins": ["bad-plugin"],
           "pipeline": {
             "pre-process": ["piqley-metadata", "piqley-resize"],
-            "publish": ["ghost:required"]
+            "publish": ["ghost"]
           }
         }
         """
         let config = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
-        #expect(config.autoDiscoverPlugins == true)
-        #expect(config.disabledPlugins == ["bad-plugin"])
         #expect(config.pipeline["pre-process"] == ["piqley-metadata", "piqley-resize"])
-        #expect(config.pipeline["publish"] == ["ghost:required"])
+        #expect(config.pipeline["publish"] == ["ghost"])
     }
 
-    @Test("defaults autoDiscoverPlugins to true when absent")
-    func testDefaults() throws {
+    @Test("decodes empty JSON with empty pipeline")
+    func testEmptyDefaults() throws {
         let json = "{}"
         let config = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
-        #expect(config.autoDiscoverPlugins == true)
-        #expect(config.disabledPlugins.isEmpty)
         #expect(config.pipeline.isEmpty)
     }
 

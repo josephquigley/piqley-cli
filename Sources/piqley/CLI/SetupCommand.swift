@@ -34,24 +34,29 @@ struct SetupCommand: AsyncParsableCommand {
 
         var config = AppConfig()
 
-        // Auto-discover preference
-        let autoDiscoverInput = prompt("Auto-discover new plugins from ~/.config/piqley/plugins/? [Y/n]: ",
-                                       default: "Y")
-        config.autoDiscoverPlugins = autoDiscoverInput.lowercased() != "n"
+        // Install bundled plugins first so we can discover them
+        installBundledPlugins()
 
-        // Seed default pipeline with bundled plugins
-        config.pipeline[Hook.preProcess.rawValue] = ["piqley-metadata", "piqley-resize"]
+        // Discover all plugins and seed the pipeline
+        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+        let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
+        let plugins = try discovery.loadManifests()
+
+        // Seed pipeline from discovered plugins: add each plugin to the stages it supports
+        for plugin in plugins {
+            for hookName in Hook.canonicalOrder.map(\.rawValue) {
+                guard plugin.stages[hookName] != nil else { continue }
+                var list = config.pipeline[hookName] ?? []
+                if !list.contains(plugin.identifier) {
+                    list.append(plugin.identifier)
+                    config.pipeline[hookName] = list
+                }
+            }
+        }
 
         // Save config
         try config.save()
         print("\nConfig saved to \(AppConfig.configURL.path)")
-
-        // Install bundled plugins
-        installBundledPlugins()
-
-        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-        let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-        let plugins = try discovery.loadManifests(disabled: config.disabledPlugins)
 
         if !plugins.isEmpty {
             print("\nConfiguring plugins...\n")

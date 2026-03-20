@@ -17,14 +17,7 @@ struct PipelineOrchestrator: Sendable {
     /// Runs the full pipeline for a source folder.
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
     func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
-        var pipeline = config.pipeline
-
-        // Auto-discover new plugins if enabled
-        if config.autoDiscoverPlugins {
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory)
-            let discovered = try discovery.loadManifests(disabled: config.disabledPlugins)
-            PluginDiscovery.autoAppend(discovered: discovered, into: &pipeline)
-        }
+        let pipeline = config.pipeline
 
         // Create temp folder and copy images
         let temp = try TempFolder.create()
@@ -74,7 +67,7 @@ struct PipelineOrchestrator: Sendable {
         // Execute hooks in order
         for hook in Hook.canonicalOrder.map(\.rawValue) {
             for pluginEntry in pipeline[hook] ?? [] {
-                let pluginIdentifier = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
+                let pluginIdentifier = pluginEntry
 
                 guard !blocklist.isBlocked(pluginIdentifier) else {
                     logger.debug("[\(pluginIdentifier)] skipped (blocklisted)")
@@ -380,7 +373,7 @@ struct PipelineOrchestrator: Sendable {
         var allManifests: [PluginManifest] = []
         for hook in Hook.canonicalOrder.map(\.rawValue) {
             for pluginEntry in pipeline[hook] ?? [] {
-                let identifier = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
+                let identifier = pluginEntry
                 if let loaded = try loadPlugin(named: identifier) {
                     if !allManifests.contains(where: { $0.identifier == loaded.manifest.identifier }) {
                         allManifests.append(loaded.manifest)

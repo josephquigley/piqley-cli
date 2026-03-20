@@ -109,29 +109,34 @@ struct RuleEvaluator: Sendable {
         switch actionStr {
         case "add":
             let values = config.values!
-            return .add(field: config.field, values: values)
+            let field = config.field ?? "keywords"
+            return .add(field: field, values: values)
 
         case "remove":
             let values = config.values!
+            let field = config.field ?? "keywords"
             let matchers: [any TagMatcher & Sendable] = try values.map { entry in
                 try TagMatcherFactory.build(from: entry)
             }
-            return .remove(field: config.field, matchers: matchers)
+            return .remove(field: field, matchers: matchers)
 
         case "replace":
             let replacements = config.replacements!
+            let field = config.field ?? "keywords"
             let compiled: [(matcher: any TagMatcher & Sendable, replacement: String)] = try replacements.map { entry in
                 let matcher = try TagMatcherFactory.build(from: entry.pattern)
                 return (matcher: matcher, replacement: entry.replacement)
             }
-            return .replace(field: config.field, replacements: compiled)
+            return .replace(field: field, replacements: compiled)
 
         case "removeField":
-            return .removeField(field: config.field)
+            let field = config.field ?? "keywords"
+            return .removeField(field: field)
 
         case "clone":
             let source = config.source!
-            if config.field == "*" {
+            let field = config.field ?? "keywords"
+            if field == "*" {
                 // Wildcard clone: source is the namespace name
                 return .clone(field: "*", sourceNamespace: source, sourceField: nil)
             } else {
@@ -139,7 +144,7 @@ struct RuleEvaluator: Sendable {
                 guard !namespace.isEmpty, !field.isEmpty else {
                     throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone source must be 'namespace:field'")
                 }
-                return .clone(field: config.field, sourceNamespace: namespace, sourceField: field)
+                return .clone(field: config.field ?? "keywords", sourceNamespace: namespace, sourceField: field)
             }
 
         default:

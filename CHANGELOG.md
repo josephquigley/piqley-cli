@@ -6,15 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
-### Changed
-
-- Source images are no longer overwritten by default after a successful pipeline run
-
 ### Added
 
+- `piqley config edit` — interactive TUI wizard for editing the pipeline configuration
+- `piqley config open` — open config file in editor (replaces `piqley config`)
+- Filterable plugin browser in config editor ("List all Plugins" on stage selector) with per-plugin action menu for adding to/removing from stages
+- Missing plugin detection in config editor — plugins in pipeline but not on disk are flagged red across all views including the plugin browser and summary metadata
+- Plugin detail screen in config editor showing full manifest info with numbered pipeline actions
+- Config editor only offers stages a plugin has a stage config for (prevents adding to unsupported stages)
 - `--overwrite-source` flag on `process` command to copy processed images back to the source directory
-
-- `piqley plugin list` — show all installed plugins with active/inactive status, version, and stages
+- `piqley plugin list` — show all installed plugins with version and stages
 - `piqley plugin rules edit <plugin-id>` — ANSI-based TUI wizard for creating, editing, removing, and reordering declarative metadata rules
 - Rule editor: interactive reorder mode with context-aware delete/undelete
 - Rule editor: save shortcut (`s`) and save-without-quit workflow
@@ -23,6 +24,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rule editor: Ctrl+L opens filterable field selection list from target field prompt
 - Rule editor: show match context on action selection screen
 - Rule editor: show replacement patterns in rule list display
+
+### Changed
+
+- Simplify `AppConfig` to pipeline-only (remove `autoDiscoverPlugins`, `disabledPlugins`)
+- `piqley plugin list` shows pipeline stage membership instead of active/inactive status
+- `piqley setup` seeds pipeline from all discovered plugins instead of hardcoded defaults
+- Source images are no longer overwritten by default after a successful pipeline run
 - `FieldDiscovery` for rule editor field introspection
 - Environment template resolution for binary plugins
 - Clone evaluation logic in `RuleEvaluator`

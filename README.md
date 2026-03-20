@@ -57,7 +57,8 @@ piqley process /path/to/exported/photos
 | `piqley secret set <key>` | Store a secret in the macOS Keychain |
 | `piqley secret delete <key>` | Remove a secret from the Keychain |
 | `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
-| `piqley config` | Open the main config file in your editor |
+| `piqley config edit` | Edit the pipeline configuration interactively |
+| `piqley config open` | Open the main config file in your editor |
 | `piqley uninstall` | Remove all piqley configuration and plugins (`--force` to skip prompt) |
 
 ### Process Options
