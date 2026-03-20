@@ -16,12 +16,15 @@ enum RulesWizardApp {
     }
 
     /// Launch the wizard. This method does not return -- TermKit calls `exit()` on shutdown.
-    @MainActor
     static func run(context: RuleEditingContext, writeBack: WriteBackConfig) {
+        // We are called synchronously from main() before the async runtime starts.
+        // TermKit views are @MainActor; we are on the main thread so assumeIsolated is safe.
         Application.prepare()
 
-        let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
-        stageScreen.present()
+        MainActor.assumeIsolated {
+            let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
+            stageScreen.present()
+        }
 
         // Application.run() calls dispatchMain() internally and never returns.
         // TermKit's shutdown() calls exit(), so this is effectively a one-way trip.

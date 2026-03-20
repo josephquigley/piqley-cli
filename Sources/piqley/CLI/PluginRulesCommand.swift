@@ -12,7 +12,7 @@ struct PluginRulesCommand: ParsableCommand {
     )
 }
 
-struct PluginRulesEditCommand: AsyncParsableCommand {
+struct PluginRulesEditCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "edit",
         abstract: "Interactively edit rules for a plugin."
@@ -21,7 +21,7 @@ struct PluginRulesEditCommand: AsyncParsableCommand {
     @Argument(help: "The plugin identifier to edit rules for.")
     var pluginID: String
 
-    func run() async throws {
+    func run() throws {
         // 1. Resolve plugin directory
         let pluginDir = PipelineOrchestrator.defaultPluginsDirectory
             .appendingPathComponent(pluginID)
@@ -84,6 +84,6 @@ struct PluginRulesEditCommand: AsyncParsableCommand {
             )
         }
 
-        await RulesWizardApp.run(context: context, writeBack: writeBack)
+        RulesWizardApp.run(context: context, writeBack: writeBack)
     }
 }

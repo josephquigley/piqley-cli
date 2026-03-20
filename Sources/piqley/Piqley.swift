@@ -16,23 +16,33 @@ struct Piqley: AsyncParsableCommand {
     )
 
     static func main() async {
-        // Skip logging bootstrap when launching the rule editor wizard.
-        // TermKit's Application.prepare() bootstraps its own logging system
-        // and LoggingSystem.bootstrap can only be called once per process.
+        // The rule editor wizard uses TermKit which calls dispatchMain().
+        // dispatchMain() is incompatible with Swift's async runtime, so we
+        // must intercept the rules command and run it synchronously before
+        // the async executor is involved. TermKit also bootstraps its own
+        // logging system, so we skip piqley's bootstrap for this path.
         let args = CommandLine.arguments
         let isRulesEdit = args.contains("rules") && (args.contains("edit") || {
-            // "rules <plugin-id>" without explicit "edit" defaults to edit
             guard let rulesIdx = args.firstIndex(of: "rules") else { return false }
             let nextIdx = args.index(after: rulesIdx)
             return nextIdx < args.endIndex && !args[nextIdx].hasPrefix("-")
         }())
 
-        if !isRulesEdit {
-            LoggingSystem.bootstrap { label in
-                var handler = StreamLogHandler.standardError(label: label)
-                handler.logLevel = .info
-                return CleanLogHandler(underlying: handler)
+        if isRulesEdit {
+            // Parse and run synchronously — TermKit's dispatchMain() takes over.
+            do {
+                var command = try parseAsRoot()
+                try command.run()
+            } catch {
+                exit(withError: error)
             }
+            return // unreachable — dispatchMain()/exit() called by TermKit
+        }
+
+        LoggingSystem.bootstrap { label in
+            var handler = StreamLogHandler.standardError(label: label)
+            handler.logLevel = .info
+            return CleanLogHandler(underlying: handler)
         }
 
         do {
