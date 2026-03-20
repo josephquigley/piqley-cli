@@ -102,7 +102,7 @@ final class RulesWizard {
                 title: "\(stageName) rules",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  q back"
+                footer: "\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  q back"
             )
 
             let key = terminal.readKey()
@@ -139,6 +139,8 @@ final class RulesWizard {
                         cursor = newPos
                     }
                 }
+            case .char("s"):
+                saveAndQuit()
             case .char("q"), .escape:
                 return
             default: break
