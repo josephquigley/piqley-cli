@@ -112,54 +112,93 @@ final class ConfigWizard {
 
     // MARK: - All Plugins (filterable browser)
 
-    private func showAllPlugins() {
-        let plugins = discoveredPlugins.sorted { $0.identifier < $1.identifier }
+    /// An entry in the "All Plugins" list — either a discovered plugin or a
+    /// missing identifier referenced only in the pipeline config.
+    private enum PluginEntry {
+        case discovered(LoadedPlugin)
+        case missing(String)
 
+        var identifier: String {
+            switch self {
+            case let .discovered(plugin): plugin.identifier
+            case let .missing(identifier): identifier
+            }
+        }
+    }
+
+    private func allPluginEntries() -> [PluginEntry] {
+        let pipelineIdentifiers = Set(config.pipeline.values.flatMap(\.self))
+        let missingIdentifiers = pipelineIdentifiers.subtracting(discoveredIdentifiers)
+
+        var entries: [PluginEntry] = discoveredPlugins.map { .discovered($0) }
+        for id in missingIdentifiers.sorted() {
+            entries.append(.missing(id))
+        }
+        return entries.sorted { $0.identifier < $1.identifier }
+    }
+
+    private func showAllPlugins() {
         while true {
+            let entries = allPluginEntries()
             let activeSet = Set(config.pipeline.values.flatMap(\.self))
-            let items = plugins.map { plugin -> String in
-                let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
-                let pipelineStages = config.pipeline.compactMap { stage, list in
-                    list.contains(plugin.identifier) ? stage : nil
-                }.sorted()
-                let stageInfo = pipelineStages.isEmpty
-                    ? "\(ANSI.dim)not in pipeline\(ANSI.reset)"
-                    : pipelineStages.joined(separator: ", ")
-                let status = activeSet.contains(plugin.identifier)
-                    ? "\(ANSI.green)active\(ANSI.reset)"
-                    : "\(ANSI.dim)inactive\(ANSI.reset)"
-                return "\(plugin.identifier)  \(ANSI.dim)v\(version)\(ANSI.reset)  \(status)  \(stageInfo)"
+
+            let items = entries.map { entry -> String in
+                switch entry {
+                case let .discovered(plugin):
+                    let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
+                    let pipelineStages = config.pipeline.compactMap { stage, list in
+                        list.contains(plugin.identifier) ? stage : nil
+                    }.sorted()
+                    let stageInfo = pipelineStages.isEmpty
+                        ? "\(ANSI.dim)not in pipeline\(ANSI.reset)"
+                        : pipelineStages.joined(separator: ", ")
+                    let status = activeSet.contains(plugin.identifier)
+                        ? "\(ANSI.green)active\(ANSI.reset)"
+                        : "\(ANSI.dim)inactive\(ANSI.reset)"
+                    return "\(plugin.identifier)  \(ANSI.dim)v\(version)\(ANSI.reset)  \(status)  \(stageInfo)"
+                case let .missing(id):
+                    let pipelineStages = config.pipeline.compactMap { stage, list in
+                        list.contains(id) ? stage : nil
+                    }.sorted()
+                    return "\(id)  \(ANSI.red)missing\(ANSI.reset)  \(pipelineStages.joined(separator: ", "))"
+                }
             }
 
             guard let idx = terminal.selectFromFilterableList(title: "All Plugins", items: items) else {
                 return
             }
 
-            pluginActions(plugin: plugins[idx])
+            pluginActions(entry: entries[idx])
         }
     }
 
     // MARK: - Plugin Actions
 
-    private func pluginActions(plugin: LoadedPlugin) {
+    private func pluginActions(entry: PluginEntry) {
         let allStages = Hook.canonicalOrder.map(\.rawValue)
+        let identifier = entry.identifier
+        let isMissing = if case .missing = entry { true } else { false }
 
         while true {
             let stagesContaining = allStages.filter { stage in
-                (config.pipeline[stage] ?? []).contains(plugin.identifier)
-            }
-            let stagesMissing = allStages.filter { stage in
-                !(config.pipeline[stage] ?? []).contains(plugin.identifier)
+                (config.pipeline[stage] ?? []).contains(identifier)
             }
 
             var menuItems: [(label: String, action: PluginAction)] = []
 
-            for stage in stagesMissing {
-                menuItems.append((
-                    label: "Add to \(stage)",
-                    action: .addToStage(stage)
-                ))
+            // Only offer "Add to" for plugins that exist on disk
+            if !isMissing {
+                let stagesMissing = allStages.filter { stage in
+                    !(config.pipeline[stage] ?? []).contains(identifier)
+                }
+                for stage in stagesMissing {
+                    menuItems.append((
+                        label: "Add to \(stage)",
+                        action: .addToStage(stage)
+                    ))
+                }
             }
+
             for stage in stagesContaining {
                 menuItems.append((
                     label: "Remove from \(stage)",
@@ -167,14 +206,25 @@ final class ConfigWizard {
                 ))
             }
 
-            let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
-            var desc = "\(ANSI.dim)v\(version)\(ANSI.reset)"
-            if let about = plugin.manifest.description, !about.isEmpty {
-                desc += "  \(ANSI.dim)\(about)\(ANSI.reset)"
+            if menuItems.isEmpty {
+                terminal.showMessage("No actions available for \(identifier).")
+                return
+            }
+
+            var titleDesc: String
+            switch entry {
+            case let .discovered(plugin):
+                let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
+                titleDesc = "\(ANSI.dim)v\(version)\(ANSI.reset)"
+                if let about = plugin.manifest.description, !about.isEmpty {
+                    titleDesc += "  \(ANSI.dim)\(about)\(ANSI.reset)"
+                }
+            case .missing:
+                titleDesc = "\(ANSI.red)not found on disk\(ANSI.reset)"
             }
 
             guard let choice = terminal.selectFromList(
-                title: "\(plugin.identifier)\n\(desc)",
+                title: "\(identifier)\n\(titleDesc)",
                 items: menuItems.map(\.label)
             ) else {
                 return
@@ -183,11 +233,11 @@ final class ConfigWizard {
             switch menuItems[choice].action {
             case let .addToStage(stage):
                 var list = config.pipeline[stage] ?? []
-                list.append(plugin.identifier)
+                list.append(identifier)
                 config.pipeline[stage] = list
                 modified = true
             case let .removeFromStage(stage):
-                config.pipeline[stage]?.removeAll { $0 == plugin.identifier }
+                config.pipeline[stage]?.removeAll { $0 == identifier }
                 modified = true
             }
         }
