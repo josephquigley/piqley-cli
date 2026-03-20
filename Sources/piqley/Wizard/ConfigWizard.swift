@@ -22,31 +22,31 @@ final class ConfigWizard {
 
     // MARK: - Stage Select
 
+    /// Selectable items on the stage selector: 4 stages + "List all Plugins"
+    private enum StageMenuItem {
+        case stage(String)
+        case allPlugins
+    }
+
     private func stageSelect() {
         let stages = Hook.canonicalOrder.map(\.rawValue)
+        let menuItems: [StageMenuItem] = stages.map { .stage($0) } + [.allPlugins]
         var cursor = 0
 
         while true {
-            let items = stages.map { stage in
-                let plugins = config.pipeline[stage] ?? []
-                let count = plugins.count
-                let label = count == 1 ? "plugin" : "plugins"
-                return "\(stage) (\(count) \(label))"
-            }
-
-            terminal.drawScreen(
-                title: "Edit Pipeline",
-                items: items,
-                cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit"
-            )
+            drawStageScreen(stages: stages, menuItems: menuItems, cursor: cursor)
 
             let key = terminal.readKey()
             switch key {
             case .cursorUp: cursor = max(0, cursor - 1)
-            case .cursorDown: cursor = min(stages.count - 1, cursor + 1)
+            case .cursorDown: cursor = min(menuItems.count - 1, cursor + 1)
             case .enter:
-                pluginList(stageName: stages[cursor])
+                switch menuItems[cursor] {
+                case let .stage(name):
+                    pluginList(stageName: name)
+                case .allPlugins:
+                    showAllPlugins()
+                }
             case .char("s"):
                 save()
             case .escape, .ctrlC:
@@ -54,6 +54,76 @@ final class ConfigWizard {
             default: break
             }
         }
+    }
+
+    private func drawStageScreen(stages: [String], menuItems _: [StageMenuItem], cursor: Int) {
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)Edit Pipeline\(ANSI.reset)"
+
+        // Stage items (rows 3..6)
+        for (idx, stage) in stages.enumerated() {
+            let plugins = config.pipeline[stage] ?? []
+            let count = plugins.count
+            let label = count == 1 ? "plugin" : "plugins"
+            let text = "\(stage) (\(count) \(label))"
+            buf += ANSI.moveTo(row: 3 + idx, col: 1)
+            if idx == cursor {
+                buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
+            } else {
+                buf += "   \(text)"
+            }
+        }
+
+        // Blank line, then "List all Plugins"
+        let allPluginsRow = 3 + stages.count + 1
+        let allPluginsIdx = stages.count
+        let allPluginsText = "List all Plugins"
+        buf += ANSI.moveTo(row: allPluginsRow, col: 1)
+        if cursor == allPluginsIdx {
+            buf += "\(ANSI.inverse) \u{25B8} \(allPluginsText) \(ANSI.reset)"
+        } else {
+            buf += "   \(allPluginsText)"
+        }
+
+        // Plugin count metadata
+        let activeSet = Set(config.pipeline.values.flatMap(\.self))
+        let totalCount = discoveredPlugins.count
+        let activeCount = discoveredPlugins.filter { activeSet.contains($0.identifier) }.count
+        buf += ANSI.moveTo(row: allPluginsRow + 1, col: 4)
+        buf += "\(ANSI.dim)\(totalCount) installed, \(activeCount) active in pipeline\(ANSI.reset)"
+
+        // Footer
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit\(ANSI.reset)"
+
+        terminal.write(buf)
+    }
+
+    // MARK: - All Plugins (filterable browser)
+
+    private func showAllPlugins() {
+        let plugins = discoveredPlugins.sorted { $0.identifier < $1.identifier }
+        let activeSet = Set(config.pipeline.values.flatMap(\.self))
+
+        let items = plugins.map { plugin -> String in
+            let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
+            let pipelineStages = config.pipeline.compactMap { stage, list in
+                list.contains(plugin.identifier) ? stage : nil
+            }.sorted()
+            let stageInfo = pipelineStages.isEmpty
+                ? "\(ANSI.dim)not in pipeline\(ANSI.reset)"
+                : pipelineStages.joined(separator: ", ")
+            let status = activeSet.contains(plugin.identifier)
+                ? "\(ANSI.green)active\(ANSI.reset)"
+                : "\(ANSI.dim)inactive\(ANSI.reset)"
+            return "\(plugin.identifier)  \(ANSI.dim)v\(version)\(ANSI.reset)  \(status)  \(stageInfo)"
+        }
+
+        // Read-only filterable browser — result is discarded
+        _ = terminal.selectFromFilterableList(title: "All Plugins", items: items)
     }
 
     // MARK: - Plugin List
