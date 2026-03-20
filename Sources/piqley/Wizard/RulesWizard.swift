@@ -364,9 +364,16 @@ final class RulesWizard {
     }
 
     private func promptForEmitConfig(action: String) -> EmitConfig? {
-        guard let field = promptForInput(
+        // Build autocomplete list from all known fields
+        let allFieldNames = context.availableSources().flatMap { source in
+            context.fields(in: source).map(\.name)
+        }
+        let uniqueFields = Array(Set(allFieldNames)).sorted()
+
+        guard let field = promptWithAutocomplete(
             title: "Target field for \(action)",
-            hint: "The field to modify (e.g. keywords, IPTC:Keywords)"
+            hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
+            completions: uniqueFields
         ) else { return nil }
 
         switch action {

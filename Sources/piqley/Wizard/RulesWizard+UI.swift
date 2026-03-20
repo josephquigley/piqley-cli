@@ -61,6 +61,67 @@ extension RulesWizard {
         }
     }
 
+    /// Prompt for text input with autocomplete suggestions.
+    /// Tab completes the top match. Returns nil if cancelled.
+    func promptWithAutocomplete(
+        title: String, hint: String, completions: [String], defaultValue: String? = nil
+    ) -> String? {
+        var input = defaultValue ?? ""
+        let size = ANSI.terminalSize()
+        let maxSuggestions = 5
+
+        while true {
+            let query = input.lowercased()
+            let matches = query.isEmpty ? [] : completions.filter {
+                $0.lowercased().contains(query)
+            }
+
+            var buf = ""
+            buf += ANSI.clearScreen()
+            buf += ANSI.moveTo(row: 1, col: 1)
+            buf += "\(ANSI.bold)\(title)\(ANSI.reset)"
+            buf += ANSI.moveTo(row: 2, col: 1)
+            buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
+            buf += ANSI.moveTo(row: 4, col: 1)
+            buf += "\u{25B8} \(input)\u{2588}"
+
+            // Show suggestions
+            for (idx, match) in matches.prefix(maxSuggestions).enumerated() {
+                buf += ANSI.moveTo(row: 6 + idx, col: 3)
+                if idx == 0 {
+                    buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(match)"
+                } else {
+                    buf += "\(ANSI.dim)  \(match)\(ANSI.reset)"
+                }
+            }
+            if matches.count > maxSuggestions {
+                buf += ANSI.moveTo(row: 6 + maxSuggestions, col: 3)
+                buf += "\(ANSI.dim)  ... \(matches.count - maxSuggestions) more\(ANSI.reset)"
+            }
+
+            buf += ANSI.moveTo(row: size.rows, col: 1)
+            buf += "\(ANSI.dim)Tab autocomplete  Enter confirm  Esc cancel\(ANSI.reset)"
+            terminal.write(buf)
+
+            let key = terminal.readKey()
+            switch key {
+            case let .char(char):
+                input.append(char)
+            case .backspace:
+                if !input.isEmpty { input.removeLast() }
+            case .tab:
+                if let first = matches.first {
+                    input = first
+                }
+            case .enter:
+                if !input.isEmpty { return input }
+            case .escape, .ctrlC:
+                return nil
+            default: break
+            }
+        }
+    }
+
     /// Show a y/n confirmation. Returns true for yes.
     func confirm(_ message: String) -> Bool {
         let size = ANSI.terminalSize()
