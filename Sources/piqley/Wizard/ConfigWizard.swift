@@ -106,24 +106,88 @@ final class ConfigWizard {
 
     private func showAllPlugins() {
         let plugins = discoveredPlugins.sorted { $0.identifier < $1.identifier }
-        let activeSet = Set(config.pipeline.values.flatMap(\.self))
 
-        let items = plugins.map { plugin -> String in
-            let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
-            let pipelineStages = config.pipeline.compactMap { stage, list in
-                list.contains(plugin.identifier) ? stage : nil
-            }.sorted()
-            let stageInfo = pipelineStages.isEmpty
-                ? "\(ANSI.dim)not in pipeline\(ANSI.reset)"
-                : pipelineStages.joined(separator: ", ")
-            let status = activeSet.contains(plugin.identifier)
-                ? "\(ANSI.green)active\(ANSI.reset)"
-                : "\(ANSI.dim)inactive\(ANSI.reset)"
-            return "\(plugin.identifier)  \(ANSI.dim)v\(version)\(ANSI.reset)  \(status)  \(stageInfo)"
+        while true {
+            let activeSet = Set(config.pipeline.values.flatMap(\.self))
+            let items = plugins.map { plugin -> String in
+                let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
+                let pipelineStages = config.pipeline.compactMap { stage, list in
+                    list.contains(plugin.identifier) ? stage : nil
+                }.sorted()
+                let stageInfo = pipelineStages.isEmpty
+                    ? "\(ANSI.dim)not in pipeline\(ANSI.reset)"
+                    : pipelineStages.joined(separator: ", ")
+                let status = activeSet.contains(plugin.identifier)
+                    ? "\(ANSI.green)active\(ANSI.reset)"
+                    : "\(ANSI.dim)inactive\(ANSI.reset)"
+                return "\(plugin.identifier)  \(ANSI.dim)v\(version)\(ANSI.reset)  \(status)  \(stageInfo)"
+            }
+
+            guard let idx = terminal.selectFromFilterableList(title: "All Plugins", items: items) else {
+                return
+            }
+
+            pluginActions(plugin: plugins[idx])
         }
+    }
 
-        // Read-only filterable browser — result is discarded
-        _ = terminal.selectFromFilterableList(title: "All Plugins", items: items)
+    // MARK: - Plugin Actions
+
+    private func pluginActions(plugin: LoadedPlugin) {
+        let allStages = Hook.canonicalOrder.map(\.rawValue)
+
+        while true {
+            let stagesContaining = allStages.filter { stage in
+                (config.pipeline[stage] ?? []).contains(plugin.identifier)
+            }
+            let stagesMissing = allStages.filter { stage in
+                !(config.pipeline[stage] ?? []).contains(plugin.identifier)
+            }
+
+            var menuItems: [(label: String, action: PluginAction)] = []
+
+            for stage in stagesMissing {
+                menuItems.append((
+                    label: "Add to \(stage)",
+                    action: .addToStage(stage)
+                ))
+            }
+            for stage in stagesContaining {
+                menuItems.append((
+                    label: "Remove from \(stage)",
+                    action: .removeFromStage(stage)
+                ))
+            }
+
+            let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "\u{2014}"
+            var desc = "\(ANSI.dim)v\(version)\(ANSI.reset)"
+            if let about = plugin.manifest.description, !about.isEmpty {
+                desc += "  \(ANSI.dim)\(about)\(ANSI.reset)"
+            }
+
+            guard let choice = terminal.selectFromList(
+                title: "\(plugin.identifier)\n\(desc)",
+                items: menuItems.map(\.label)
+            ) else {
+                return
+            }
+
+            switch menuItems[choice].action {
+            case let .addToStage(stage):
+                var list = config.pipeline[stage] ?? []
+                list.append(plugin.identifier)
+                config.pipeline[stage] = list
+                modified = true
+            case let .removeFromStage(stage):
+                config.pipeline[stage]?.removeAll { $0 == plugin.identifier }
+                modified = true
+            }
+        }
+    }
+
+    private enum PluginAction {
+        case addToStage(String)
+        case removeFromStage(String)
     }
 
     // MARK: - Plugin List
