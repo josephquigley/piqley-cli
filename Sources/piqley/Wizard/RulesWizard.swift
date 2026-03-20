@@ -283,10 +283,10 @@ final class RulesWizard {
         ) else { return nil }
         let source = sources[sourceIdx]
 
-        // Step 2: Select field — show without namespace prefix
+        // Step 2: Select field — filterable list without namespace prefix
         let fields = context.fields(in: source)
         let fieldItems = fields.map(\.name)
-        guard let fieldIdx = selectFromList(
+        guard let fieldIdx = selectFromFilterableList(
             title: "Select field",
             items: fieldItems
         ) else { return nil }
