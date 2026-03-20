@@ -8,9 +8,10 @@ enum DependencyValidator {
         manifests: [PluginManifest],
         pipeline: [String: [String]]
     ) -> String? {
-        // Check for reserved name "original"
-        for manifest in manifests where manifest.identifier == ReservedName.original {
-            return "Plugin identifier 'original' is reserved and cannot be used."
+        // Check for reserved identifiers
+        let reservedNames: Set<String> = [ReservedName.original, ReservedName.skip]
+        for manifest in manifests where reservedNames.contains(manifest.identifier) {
+            return "Plugin identifier '\(manifest.identifier)' is reserved and cannot be used."
         }
 
         // Build a position map: identifier → (hookIndex, positionInHook)

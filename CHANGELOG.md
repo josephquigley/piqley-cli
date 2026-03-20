@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+### Fixed
+
+- Plugin identifier `skip` is now rejected as a reserved name in `plugin init`, `plugin create`, and pipeline validation
+
 ### Changed
 
 - Source images are no longer overwritten by default after a successful pipeline run

@@ -20,6 +20,13 @@ struct PluginInitTests {
         }
     }
 
+    @Test("rejects reserved name 'skip'")
+    func testRejectsSkip() {
+        #expect(throws: (any Error).self) {
+            try PluginCommand.InitSubcommand.validatePluginName("skip")
+        }
+    }
+
     @Test("sanitizes forward slashes")
     func testSanitizesForwardSlash() throws {
         let result = try PluginCommand.InitSubcommand.sanitizePluginIdentifier("../evil")

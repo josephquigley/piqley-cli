@@ -175,8 +175,9 @@ struct PluginCommand: ParsableCommand {
             if sanitized.isEmpty {
                 throw ValidationError("Plugin identifier must not be empty")
             }
-            if sanitized == ReservedName.original {
-                throw ValidationError("'original' is a reserved identifier")
+            let reservedNames = [ReservedName.original, ReservedName.skip]
+            if reservedNames.contains(sanitized) {
+                throw ValidationError("'\(sanitized)' is a reserved identifier")
             }
             return sanitized
         }

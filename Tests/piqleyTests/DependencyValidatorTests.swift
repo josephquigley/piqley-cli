@@ -102,4 +102,13 @@ struct DependencyValidatorTests {
         #expect(result != nil)
         #expect(result!.contains("reserved"))
     }
+
+    @Test("plugin named skip is rejected")
+    func testSkipNameRejected() throws {
+        let manifests = [manifest(name: "skip", hook: "publish")]
+        let pipeline: [String: [String]] = ["publish": ["skip"]]
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        #expect(result != nil)
+        #expect(result!.contains("reserved"))
+    }
 }
