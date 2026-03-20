@@ -48,7 +48,7 @@ final class RulesWizard {
                 return "\(name) (\(count) rules)"
             }
 
-            drawScreen(
+            terminal.drawScreen(
                 title: "Edit Rules: \(context.pluginIdentifier)",
                 items: items,
                 cursor: cursor,
@@ -98,7 +98,7 @@ final class RulesWizard {
                 && deletedRules.contains(deletionKey(stage: stageName, slot: slot, index: cursor))
             let deleteLabel = isCurrentDeleted ? "d undelete" : "d delete"
 
-            drawScreen(
+            terminal.drawScreen(
                 title: "\(stageName) rules",
                 items: items,
                 cursor: cursor,
@@ -187,7 +187,7 @@ final class RulesWizard {
                 return text
             }
 
-            drawScreen(
+            terminal.drawScreen(
                 title: "\(stageName) rules — reordering",
                 items: items,
                 cursor: position,
@@ -277,7 +277,7 @@ final class RulesWizard {
             default: return "\(source)  \(ANSI.dim)— dependency plugin\(ANSI.reset)"
             }
         }
-        guard let sourceIdx = selectFromList(
+        guard let sourceIdx = terminal.selectFromList(
             title: "Where is the field you want to match?",
             items: sourceItems
         ) else { return nil }
@@ -286,14 +286,14 @@ final class RulesWizard {
         // Step 2: Select field — filterable list without namespace prefix
         let fields = context.fields(in: source)
         let fieldItems = fields.map(\.name)
-        guard let fieldIdx = selectFromFilterableList(
+        guard let fieldIdx = terminal.selectFromFilterableList(
             title: "Select field",
             items: fieldItems
         ) else { return nil }
         let selectedField = fields[fieldIdx]
 
         // Step 3: Enter pattern
-        guard let pattern = promptForInput(
+        guard let pattern = terminal.promptForInput(
             title: "Enter match pattern for \(selectedField.name)",
             hint: "Plain text = exact match. Prefix with glob: or regex: for advanced.",
             defaultValue: existing?.match.pattern
@@ -340,7 +340,7 @@ final class RulesWizard {
         let whenLine = "\(ANSI.dim)When \(matchContext)\(ANSI.reset)"
 
         while true {
-            guard let actionIdx = selectFromList(
+            guard let actionIdx = terminal.selectFromList(
                 title: "\(whenLine)\nSelect \(label)  \(ANSI.dim)(Esc when done)\(ANSI.reset)",
                 items: actions
             ) else { break }
@@ -354,13 +354,13 @@ final class RulesWizard {
                 continue
             }
 
-            if !confirm("Add another \(label)?") { break }
+            if !terminal.confirm("Add another \(label)?") { break }
         }
         return true
     }
 
     private func addWriteActions(to builder: inout RuleBuilder, matchContext: String) -> Bool {
-        if !confirm("Add write actions (modify file metadata)?") { return true }
+        if !terminal.confirm("Add write actions (modify file metadata)?") { return true }
         return addActions(to: &builder, isWrite: true, matchContext: matchContext)
     }
 
@@ -379,15 +379,19 @@ final class RulesWizard {
         for stageName in context.stageNames() {
             for slot in [RuleSlot.pre, .post] {
                 for rule in context.rules(forStage: stageName, slot: slot) {
-                    for emit in rule.emit { fieldSet.insert(emit.field) }
-                    for write in rule.write { fieldSet.insert(write.field) }
+                    for emit in rule.emit {
+                        fieldSet.insert(emit.field)
+                    }
+                    for write in rule.write {
+                        fieldSet.insert(write.field)
+                    }
                 }
             }
         }
 
         let uniqueFields = fieldSet.sorted()
 
-        guard let field = promptWithAutocomplete(
+        guard let field = terminal.promptWithAutocomplete(
             title: "Target field for \(action)",
             hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
             completions: uniqueFields,
@@ -396,7 +400,7 @@ final class RulesWizard {
 
         switch action {
         case "add", "remove":
-            guard let valuesStr = promptForInput(
+            guard let valuesStr = terminal.promptForInput(
                 title: "Values (comma-separated)",
                 hint: "e.g. sony, mirrorless, alpha"
             ) else { return nil }
@@ -404,11 +408,11 @@ final class RulesWizard {
             return EmitConfig(action: action, field: field, values: values, replacements: nil, source: nil)
 
         case "replace":
-            guard let pattern = promptForInput(
+            guard let pattern = terminal.promptForInput(
                 title: "Replacement pattern",
                 hint: "Pattern to match in values"
             ) else { return nil }
-            guard let replacement = promptForInput(
+            guard let replacement = terminal.promptForInput(
                 title: "Replacement string",
                 hint: "What to replace with (use $1, $2 for capture groups)"
             ) else { return nil }
@@ -422,7 +426,7 @@ final class RulesWizard {
             return EmitConfig(action: action, field: field, values: nil, replacements: nil, source: nil)
 
         case "clone":
-            guard let source = promptForInput(
+            guard let source = terminal.promptForInput(
                 title: "Clone source",
                 hint: "source:field (e.g. original:IPTC:Keywords) or source name for wildcard"
             ) else { return nil }

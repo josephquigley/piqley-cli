@@ -6,13 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+### Added
+
+- `piqley config edit` — interactive TUI wizard for editing the pipeline configuration
+- `piqley config open` — open config file in editor (replaces bare `piqley config`)
+- `piqley plugin list` — show all installed plugins with version and stages
+
+### Changed
+
+- Simplify `AppConfig` to pipeline-only (remove `autoDiscoverPlugins`, `disabledPlugins`)
+- `piqley plugin list` shows pipeline stage membership instead of active/inactive status
+
 ### Fixed
 
 - Copy processed images back to source directory after successful pipeline run
-
-### Added
-
-- `piqley plugin list` — show all installed plugins with active/inactive status, version, and stages
 - `piqley plugin rules edit <plugin-id>` — interactive TUI wizard for creating, editing, removing, and reordering declarative metadata rules
 - `FieldDiscovery` for rule editor field introspection
 - Environment template resolution for binary plugins
