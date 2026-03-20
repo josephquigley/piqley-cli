@@ -335,25 +335,25 @@ final class RulesWizard {
 
     private func addActions(to builder: inout RuleBuilder, isWrite: Bool) -> Bool {
         let actions = ["add", "remove", "replace", "removeField", "clone"]
-        let label = isWrite ? "Write action" : "Action"
+        let label = isWrite ? "write action" : "action"
 
         while true {
+            // Escape = done adding actions
             guard let actionIdx = selectFromList(
-                title: "Select \(label.lowercased())",
-                items: actions + ["(done)"]
-            ) else { return false }
+                title: "Select \(label)  \(ANSI.dim)(Esc when done)\(ANSI.reset)",
+                items: actions
+            ) else { break }
 
-            if actionIdx == actions.count { break }
             let action = actions[actionIdx]
 
-            guard let config = promptForEmitConfig(action: action) else { return false }
+            guard let config = promptForEmitConfig(action: action) else { break }
             let result = isWrite ? builder.addWrite(config) : builder.addEmit(config)
             if case let .failure(error) = result {
                 showError(error)
                 continue
             }
 
-            if !confirm("Add another \(label.lowercased())?") { break }
+            if !confirm("Add another \(label)?") { break }
         }
         return true
     }
