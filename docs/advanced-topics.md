@@ -435,6 +435,87 @@ Skip records are tracked globally. Downstream rules can check if the current ima
 
 Binary plugins receive a `skipped` array in their input payload listing which images were skipped and by which plugin, so they can report or log skipped images if needed.
 
+## Fork Pipeline Workflow
+
+This example shows how forking enables a complex multi-destination workflow where different plugins operate on different versions of the same images.
+
+A photographer exports images from Lightroom. The pipeline processes them through multiple plugins, each operating on its own fork of the image data.
+
+1. **Privacy Stripper** (no fork) strips GPS coordinates from all images. Operates directly on the main pipeline.
+2. **Resize** (fork from main) creates a copy and resizes to 2000px long edge at 85% quality.
+3. **Watermark** (fork from Resize) copies the resized images and applies a digital watermark.
+4. **Ghost pre-process** (fork from Watermark) strips metadata, re-applies select fields.
+5. **365 Project pre-process** (fork from Watermark) does its own metadata preparation.
+6. **Ghost publish** uploads Ghost pre-process's images to Ghost CMS.
+7. **365 Project publish** uploads 365 pre-process's images.
+8. **Watermark publish** (writeBack) copies watermarked images back to main.
+9. **Backblaze publish** (no fork) archives main (now watermarked) images.
+10. **Watermark Database** reads state from watermark and Ghost publish to record URLs.
+
+The fork DAG looks like this:
+
+```
+Main <- Privacy Stripper (no fork, modifies main directly)
+  |
+  +-- Resize (fork from main)
+  |     |
+  |     +-- Watermark (fork from Resize)
+  |           |
+  |           +-- Ghost pre-process (fork from Watermark)
+  |           |     +-- Ghost publish (uses Ghost pre-process fork)
+  |           |
+  |           +-- 365 pre-process (fork from Watermark)
+  |           |     +-- 365 publish (uses 365 pre-process fork)
+  |           |
+  |           +-- Watermark publish (writeBack -> merges to main)
+  |
+  +-- Backblaze publish (no fork, reads main post-writeback)
+```
+
+Key observations:
+
+- Privacy Stripper operates on main directly because every downstream consumer wants GPS stripped.
+- Resize forks from main so the full-resolution originals are preserved for archival.
+- Watermark forks from Resize so it gets the resized images without re-doing the resize.
+- Ghost and 365 pre-process both fork from Watermark, so they start with watermarked, resized images but can diverge in their metadata handling.
+- Watermark publish uses writeBack to merge the watermarked images back to main, so Backblaze archives the watermarked versions.
+- The Watermark Database plugin reads cross-fork state (from both Watermark and Ghost publish namespaces) to correlate watermark IDs with published URLs.
+
+## Rule Composition Patterns
+
+### Negation + Clone Wildcard
+
+Negation and clone wildcard combine naturally for allow-list patterns. Clone everything from a source, then use negated removeField to keep only what you want.
+
+Example: clone all original metadata, keep only keywords.
+
+```json
+{
+  "match": { "field": "original:IPTC:Keywords", "pattern": "regex:.*" },
+  "emit": [
+    { "action": "clone", "field": "*", "source": "original" },
+    { "action": "removeField", "field": "IPTC:Keywords", "not": true }
+  ]
+}
+```
+
+This first clones every field from `original` into the plugin's namespace, then removes everything except `IPTC:Keywords`. The result is a clean namespace containing only the keywords.
+
+This pattern is useful for plugins that need a narrow slice of the original metadata without listing every field to exclude. Instead of maintaining a long list of fields to remove, you state the fields you want to keep.
+
+### Negated Match + Emit
+
+Use negated match to target the "everything else" case:
+
+```json
+{
+  "match": { "field": "original:IPTC:Keywords", "pattern": "glob:Project 365", "not": true },
+  "emit": [{ "field": "category", "values": ["general"] }]
+}
+```
+
+Images with the "Project 365" keyword skip this rule. All other images get tagged as "general". Pair this with a non-negated rule for "Project 365" images to create a complete routing system without binary logic.
+
 ## Automation
 
 ### Hazel (macOS)

@@ -14,24 +14,29 @@ This generates a ready-to-build Swift package with the SDK dependency wired up.
 
 ## The Plugin Protocol
 
-A plugin is a single async function:
+A plugin is a single binary that handles one or more pipeline stages. The SDK dispatches each stage invocation to your `handle` method with a `PluginRequest` whose `hook` property tells you which stage is running. Branch on the hook to separate your logic:
 
 ```swift
 @main
 struct MyPlugin: PiqleyPlugin {
     func handle(_ request: PluginRequest) async throws -> PluginResponse {
-        let images = try request.imageFiles()
-
-        for image in images {
-            request.reportProgress("Processing \(image.lastPathComponent)...")
-
-            // Your logic here
-
-            request.reportImageResult(image.lastPathComponent, success: true)
+        switch request.hook {
+        case .preProcess:
+            return try await preProcess(request)
+        case .postProcess:
+            return try await postProcess(request)
+        case .publish:
+            return try await publish(request)
+        case .postPublish:
+            return try await postPublish(request)
         }
+    }
 
+    private func preProcess(_ request: PluginRequest) async throws -> PluginResponse {
+        // TODO: Pre-process logic
         return .ok
     }
+    // ... similar for other hooks
 
     static func main() async {
         await MyPlugin().run()
@@ -40,6 +45,12 @@ struct MyPlugin: PiqleyPlugin {
 ```
 
 Call `run()` from your entry point. The SDK reads the request from stdin, calls your `handle` method, and writes the response to stdout. You never deal with JSON parsing or the communication protocol directly.
+
+## Multi-Stage Plugins
+
+A single plugin binary can participate in multiple pipeline stages. Register the plugin in each stage's slot in your pipeline config, and the orchestrator will invoke the same binary once per stage. Your `handle` method receives a different `hook` value each time, so you branch on it to run the appropriate logic.
+
+This is useful when a plugin needs to do preparation in pre-process and then act on that preparation in publish. For example, a watermark plugin might analyze images in pre-process (checking dimensions, selecting watermark placement) and then apply the watermark in publish. The plugin's state persists across stages via the normal state-flow mechanism: values emitted in pre-process are available to read in publish.
 
 ## What the Request Gives You
 
@@ -155,6 +166,148 @@ let stage = buildStage {
 
 try stage.write(to: pluginDirectory, hookName: "publish")
 ```
+
+## Format Declarations
+
+Plugins can declare which image formats they support and whether they convert images to a different format. These declarations go in the plugin manifest:
+
+```swift
+let manifest = try buildManifest {
+    Identifier("com.example.resize")
+    Name("Resize")
+    // ...
+
+    SupportedFormats(["JPEG", "PNG", "TIFF"])
+    ConversionFormat("JPEG")
+}
+```
+
+In the JSON manifest, these appear as top-level fields:
+
+```json
+{
+  "identifier": "com.example.resize",
+  "supportedFormats": ["JPEG", "PNG", "TIFF"],
+  "conversionFormat": "JPEG"
+}
+```
+
+The behavior depends on which fields are present:
+
+| `supportedFormats` | `conversionFormat` | Behavior |
+|---|---|---|
+| absent | absent | Plugin accepts all formats, outputs unchanged |
+| present | absent | Plugin only receives matching formats, outputs unchanged |
+| absent | present | Plugin accepts all formats, converts output to the declared format |
+| present | present | Plugin only receives matching formats, converts output to the declared format |
+
+When `conversionFormat` is set, the orchestrator implicitly creates a fork for this plugin so the format conversion does not affect the main pipeline or other plugins.
+
+## Fork/COW Pipeline
+
+Forking creates a copy-on-write branch of the image data so a plugin can modify images without affecting the main pipeline. This is essential for plugins that resize, convert, or watermark images while other plugins need the original.
+
+### Declaring a Fork
+
+Set `fork: true` in a plugin's hook configuration:
+
+```json
+{
+  "pipeline": {
+    "pre-process": [
+      { "plugin": "privacy-strip" },
+      { "plugin": "resize", "fork": true }
+    ]
+  }
+}
+```
+
+When `conversionFormat` is declared in the manifest, forking is implicit. You do not need to set `fork: true` separately.
+
+### Fork Lifetime
+
+A fork persists across all pipeline stages. If a plugin forks in pre-process, its fork is available in post-process, publish, and post-publish. Downstream plugins that declare a dependency on the forking plugin operate on that fork, not on main.
+
+### Fork Source Resolution
+
+When a plugin forks, it copies from its dependency's fork if one exists, otherwise from main. This creates a tree of forks:
+
+- `resize` forks from main.
+- `watermark` depends on `resize`, so it forks from the resize fork.
+- `ghost-pre-process` depends on `watermark`, so it forks from the watermark fork.
+
+Each fork is independent. Changes to the watermark fork do not affect the resize fork or main.
+
+### writeBack
+
+A plugin can merge its fork back to main using the `writeBack` post-rule action. This is useful when you want the main pipeline to receive the plugin's modified images (for example, writing watermarked images back so an archival plugin can pick them up):
+
+```json
+{
+  "postRules": [
+    { "action": "writeBack" }
+  ]
+}
+```
+
+writeBack replaces the main pipeline's image data with this fork's data. Only one plugin should writeBack per stage to avoid conflicts.
+
+## Rule Negation
+
+Rules support a `not` flag that inverts the match or action condition.
+
+### Negating a Match
+
+Add `"not": true` to the match block to fire the rule when the pattern does *not* match:
+
+```json
+{
+  "match": { "field": "original:IPTC:Keywords", "pattern": "glob:Project 365", "not": true },
+  "emit": [{ "field": "non-365", "values": ["true"] }]
+}
+```
+
+This rule fires for every image that does not have a "Project 365" keyword.
+
+### Negating remove/removeField (Allow-List Semantics)
+
+Add `"not": true` to a `remove` or `removeField` action to invert it into an allow-list. Instead of removing the listed values, it removes everything *except* the listed values:
+
+```json
+{
+  "write": [
+    { "action": "removeField", "field": "EXIF:*", "not": true,
+      "values": ["EXIF:DateTimeOriginal", "EXIF:ExposureTime", "EXIF:FNumber"] }
+  ]
+}
+```
+
+This removes all EXIF fields *except* DateTimeOriginal, ExposureTime, and FNumber. Without `not`, it would remove only those three fields.
+
+## Clone Wildcard
+
+The clone action supports `"field": "*"` to copy all fields from a source namespace at once:
+
+```json
+{
+  "emit": [
+    { "action": "clone", "field": "*", "source": "original" }
+  ]
+}
+```
+
+This clones every field from the `original` namespace into the current plugin's namespace. It is commonly combined with negated `removeField` to create an allow-list pattern: clone everything, then remove all except the fields you want to keep.
+
+```json
+{
+  "emit": [
+    { "action": "clone", "field": "*", "source": "original" },
+    { "action": "removeField", "field": "IPTC:Keywords", "not": true }
+  ]
+}
+```
+
+This keeps only `IPTC:Keywords` from the original metadata, discarding everything else.
 
 ## Testing
 
