@@ -52,14 +52,15 @@ Plugins may declare format preferences in their manifest:
 | nil | nil | Plugin accepts everything |
 | nil | declared | Validation error: `conversionFormat` requires `supportedFormats` |
 
-Conversion uses `CGImageDestination` (already a dependency via MetadataExtractor). Specifying `conversionFormat` implicitly triggers a fork (see Section 3).
+Conversion uses `CGImageDestination` (already a dependency via MetadataExtractor). Specifying `conversionFormat` implicitly triggers a fork (see Section 3). Format conversion happens once, when the fork is first created (the plugin's earliest stage). Since forks persist across stages (Section 3, "Fork lifetime"), converted files carry forward to subsequent stages without re-conversion.
 
 ### Files touched
 
-- `TempFolder.swift` — expanded extensions, return skipped file list
-- `PipelineOrchestrator.swift` — log warnings, abort on zero images
+- `TempFolder.swift` in piqley-cli — expanded extensions, return skipped file list
+- `PipelineOrchestrator.swift` in piqley-cli — log warnings, abort on zero images
 - `PluginManifest` in PiqleyCore — `supportedFormats: [String]?`, `conversionFormat: String?`
 - `ManifestValidator` in PiqleyCore — reject `conversionFormat` without `supportedFormats`
+- `PluginRequest.swift` in piqley-plugin-sdk — update `imageExtensions` to match `TempFolder.imageExtensions`
 
 ---
 
@@ -102,10 +103,11 @@ Add `not: Bool?` to `EmitConfig`. Only valid on `remove` and `removeField`.
 - `not: true` is valid on: match conditions, `remove`, `removeField`
 - `not: true` is rejected on: `add`, `replace`, `clone`, `skip`, `writeBack`
 - Negation on constructive/non-filtering actions has no meaningful semantics
+- Negation semantics apply identically in both `emit` and `write` arrays. The `RuleEvaluator` uses the same `applyAction` logic for both contexts.
 
-### Clone wildcard
+### Clone wildcard (already implemented)
 
-`clone` with `field: "*"` copies all fields from the source namespace.
+`clone` with `field: "*"` copies all fields from the source namespace. This is already implemented in `RuleEvaluator` and the SDK (`RuleEmit.cloneAll`). No code changes needed; this section documents it for completeness since it composes with the new negation features.
 
 ```json
 {"action": "clone", "field": "*", "source": "original"}
@@ -119,9 +121,10 @@ Combined with `removeField` + `not: true`, this enables: "clone everything from 
 
 - `MatchConfig` in PiqleyCore — add `not: Bool?`
 - `EmitConfig` in PiqleyCore — add `not: Bool?`
-- `RuleValidator` in PiqleyCore — validate `not` constraints, allow `clone` with `field: "*"`
-- `RuleEvaluator` in piqley-cli — invert match logic, invert remove/removeField, clone wildcard
-- SDK builders in piqley-plugin-sdk — `MatchPattern`, `RuleEmit` ergonomics
+- `RuleValidator` in PiqleyCore — validate `not` constraints
+- `RuleEvaluator` in piqley-cli — invert match logic, invert remove/removeField
+- `ConfigBuilder.swift` in piqley-plugin-sdk — add `not` parameter to `RuleMatch.toMatchConfig()` and `RuleEmit.toEmitConfig()`
+- `MatchField.swift` in piqley-plugin-sdk — ergonomic `not` support on match builders
 
 ---
 
@@ -157,8 +160,17 @@ There is no `writeBack` field on the manifest. Write-back is a rule effect (see 
 
 When creating a fork, the CLI determines where to copy images from:
 
-1. If the plugin declares dependencies and any dependency forked, use the nearest forking dependency's output as source.
-2. If no forking dependency exists, copy from main.
+1. If the plugin declares dependencies, find the dependency that runs latest in pipeline execution order among those that forked. Use that dependency's fork output as source.
+2. If the plugin declares dependencies but none of them forked, copy from main.
+3. If the plugin declares no dependencies, copy from main.
+
+**Ambiguity constraint:** If a plugin declares multiple dependencies that forked independently (not in a chain), the CLI uses the one that ran most recently. This is deterministic because plugin execution order within a hook is defined by the pipeline config array. The DAG is always a strict linear order at runtime, even if the logical dependency graph branches.
+
+**Multiple write-backs:** If multiple plugins write back to main in the same pipeline run, last-writer-wins. The pipeline config array determines execution order, so the user controls which write-back is final. The CLI logs a warning when a second writeBack overwrites a previous one:
+
+```
+warning: writeBack from 'com.example.plugin-b' overwrites previous writeBack from 'com.example.plugin-a'
+```
 
 ### Folder structure
 
@@ -172,7 +184,7 @@ When creating a fork, the CLI determines where to copy images from:
     com.example.365-preprocess/      ← COW from watermark's fork (separate)
 ```
 
-For sandboxed plugins, the CLI copies to the plugin's sandbox container instead of the `forks/` subfolder.
+For sandboxed plugins, the CLI copies to the plugin's sandbox container instead of the `forks/` subfolder. Sandbox container discovery and sandboxed-vs-unsandboxed detection is deferred to a future spec. The initial implementation uses `forks/` for all plugins.
 
 ### Fork lifetime
 
@@ -198,6 +210,8 @@ Write-back is a new rule write action: `"writeBack"`. Valid only in post-rules o
 - `writeBack` is only valid in `write` actions, not `emit`
 - `writeBack` requires the owning plugin stage to have `fork: true`
 - Like `skip`, validation rejects any sibling fields
+
+**Validation location:** `RuleValidator` in PiqleyCore handles structural validation (no sibling fields, write-only). The `fork: true` cross-cutting check lives in `PipelineOrchestrator` at runtime, since `RuleValidator` has no access to `HookConfig` context. The orchestrator validates this when loading stage configs before execution, alongside dependency validation.
 
 **Timing:** Write-back happens when post-rules are evaluated, before the next plugin runs. Subsequent non-dependent plugins see the updated main.
 
@@ -277,7 +291,7 @@ Reuses existing logic extracted from `ConfigWizard.addPlugin()` into a shared fu
 2. `PluginDiscovery.loadManifests()` to verify plugin exists on disk
 3. Plugin has a stage file for the target stage
 4. Plugin not already in that stage
-5. `DependencyValidator.validate()` after tentative addition
+5. `DependencyValidator.validate()` after tentative addition (loads all manifests and constructs tentative pipeline dictionary, not just the added plugin)
 
 ### Options
 
