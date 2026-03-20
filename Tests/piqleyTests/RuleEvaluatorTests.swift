@@ -754,6 +754,40 @@ struct RuleEvaluatorTests {
         #expect(result.namespace["keywords"] == .array([.string("landscape"), .string("nature")]))
     }
 
+    // MARK: - Skip match field
+
+    @Test("skip match field resolves from skip namespace")
+    func skipMatchFieldResolves() async throws {
+        let rules = [makeRule(
+            field: "skip",
+            pattern: "glob:IMG_001*",
+            emit: [EmitConfig(action: nil, field: "status", values: ["was-skipped"], replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let skipRecord = JSONValue.object(["file": .string("IMG_001.jpg"), "plugin": .string("com.test.plugin")])
+        let state: [String: [String: JSONValue]] = [
+            "skip": ["records": .array([skipRecord])]
+        ]
+        let result = await evaluator.evaluate(state: state, imageName: "IMG_001.jpg")
+        #expect(result.namespace["status"] == .array([.string("was-skipped")]))
+    }
+
+    @Test("skip match field does not match other images")
+    func skipMatchFieldNoMatchOtherImage() async throws {
+        let rules = [makeRule(
+            field: "skip",
+            pattern: "glob:*",
+            emit: [EmitConfig(action: nil, field: "status", values: ["was-skipped"], replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let skipRecord = JSONValue.object(["file": .string("IMG_001.jpg"), "plugin": .string("com.test.plugin")])
+        let state: [String: [String: JSONValue]] = [
+            "skip": ["records": .array([skipRecord])]
+        ]
+        let result = await evaluator.evaluate(state: state, imageName: "IMG_002.jpg")
+        #expect(result.namespace["status"] == nil)
+    }
+
     @Test("clone with read: namespace")
     func cloneReadNamespace() async throws {
         let buffer = MetadataBuffer(preloaded: [

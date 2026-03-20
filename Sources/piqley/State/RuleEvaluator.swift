@@ -194,6 +194,8 @@ struct RuleEvaluator: Sendable {
             if rule.namespace == "read", let buffer = metadataBuffer, let image = imageName {
                 let fileMetadata = await buffer.load(image: image)
                 value = fileMetadata[rule.field]
+            } else if rule.namespace.isEmpty, rule.field == "skip", let image = imageName {
+                value = Self.resolveSkipField(image: image, state: state)
             } else {
                 value = state[rule.namespace]?[rule.field]
             }
@@ -331,6 +333,20 @@ struct RuleEvaluator: Sendable {
         default:
             return []
         }
+    }
+
+    /// Returns the image name as a `.string` value if it is present in the skip records, otherwise nil.
+    private static func resolveSkipField(image: String, state: [String: [String: JSONValue]]) -> JSONValue? {
+        guard case let .array(records) = state[ReservedName.skip]?[ReservedName.skipRecords] else {
+            return nil
+        }
+        let isSkipped = records.contains { record in
+            if case let .object(dict) = record, case let .string(file) = dict["file"] {
+                return file == image
+            }
+            return false
+        }
+        return isSkipped ? .string(image) : nil
     }
 
     private static func splitField(_ field: String) -> (namespace: String, field: String) {
