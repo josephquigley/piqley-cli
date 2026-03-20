@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Environment template resolution for binary plugins
 - Clone evaluation logic in `RuleEvaluator`
 - Clone case to `EmitAction` enum with compilation validation
+- `skip` action support in `EmitAction` and `RuleEvaluator` compilation
 - Fail-fast manifest validation at plugin discovery
 - `piqley plugin create` command with skeleton fetcher, template substitution, and SDK version resolution
 - `SemVer` parsing with compatibility matching

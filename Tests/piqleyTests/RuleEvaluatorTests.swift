@@ -578,6 +578,18 @@ struct RuleEvaluatorTests {
         }
     }
 
+    // MARK: - Skip action
+
+    @Test("skip rule compiles successfully")
+    func skipRuleCompiles() throws {
+        let rules = [makeRule(
+            pattern: "glob:*Draft*",
+            emit: [EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        #expect(evaluator.compiledRules.count == 1)
+    }
+
     // MARK: - Clone evaluation
 
     @Test("clone single field from original namespace")

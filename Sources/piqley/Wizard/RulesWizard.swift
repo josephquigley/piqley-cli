@@ -379,8 +379,12 @@ final class RulesWizard {
         for stageName in context.stageNames() {
             for slot in [RuleSlot.pre, .post] {
                 for rule in context.rules(forStage: stageName, slot: slot) {
-                    for emit in rule.emit { fieldSet.insert(emit.field) }
-                    for write in rule.write { fieldSet.insert(write.field) }
+                    for emit in rule.emit {
+                        if let fieldName = emit.field { fieldSet.insert(fieldName) }
+                    }
+                    for write in rule.write {
+                        if let fieldName = write.field { fieldSet.insert(fieldName) }
+                    }
                 }
             }
         }

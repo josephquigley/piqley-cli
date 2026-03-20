@@ -3,6 +3,7 @@ import Logging
 import PiqleyCore
 
 enum EmitAction: Sendable {
+    case skip
     case add(field: String, values: [String])
     case remove(field: String, matchers: [any TagMatcher & Sendable])
     case replace(field: String, replacements: [(matcher: any TagMatcher & Sendable, replacement: String)])
@@ -107,39 +108,57 @@ struct RuleEvaluator: Sendable {
         let actionStr = config.action ?? "add"
 
         switch actionStr {
+        case "skip":
+            return .skip
+
         case "add":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for add")
+            }
             let values = config.values!
-            return .add(field: config.field, values: values)
+            return .add(field: field, values: values)
 
         case "remove":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for remove")
+            }
             let values = config.values!
             let matchers: [any TagMatcher & Sendable] = try values.map { entry in
                 try TagMatcherFactory.build(from: entry)
             }
-            return .remove(field: config.field, matchers: matchers)
+            return .remove(field: field, matchers: matchers)
 
         case "replace":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for replace")
+            }
             let replacements = config.replacements!
             let compiled: [(matcher: any TagMatcher & Sendable, replacement: String)] = try replacements.map { entry in
                 let matcher = try TagMatcherFactory.build(from: entry.pattern)
                 return (matcher: matcher, replacement: entry.replacement)
             }
-            return .replace(field: config.field, replacements: compiled)
+            return .replace(field: field, replacements: compiled)
 
         case "removeField":
-            return .removeField(field: config.field)
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for removeField")
+            }
+            return .removeField(field: field)
 
         case "clone":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for clone")
+            }
             let source = config.source!
-            if config.field == "*" {
+            if field == "*" {
                 // Wildcard clone: source is the namespace name
                 return .clone(field: "*", sourceNamespace: source, sourceField: nil)
             } else {
-                let (namespace, field) = splitField(source)
-                guard !namespace.isEmpty, !field.isEmpty else {
+                let (namespace, sourceField) = splitField(source)
+                guard !namespace.isEmpty, !sourceField.isEmpty else {
                     throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone source must be 'namespace:field'")
                 }
-                return .clone(field: config.field, sourceNamespace: namespace, sourceField: field)
+                return .clone(field: field, sourceNamespace: namespace, sourceField: sourceField)
             }
 
         default:
@@ -229,6 +248,10 @@ struct RuleEvaluator: Sendable {
 
     static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {
         switch action {
+        case .skip:
+            // Skip is handled by evaluate(); no-op here.
+            break
+
         case let .add(field, values):
             var existing = extractStrings(from: working[field])
             for val in values where !existing.contains(val) {
