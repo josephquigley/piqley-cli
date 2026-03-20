@@ -72,6 +72,7 @@ struct PipelineOrchestrator: Sendable {
         }
 
         // Execute hooks in order
+        var skippedImages: Set<String> = []
         for hook in Hook.canonicalOrder.map(\.rawValue) {
             for pluginEntry in pipeline[hook] ?? [] {
                 let pluginIdentifier = pluginEntry.split(separator: ":").first.map(String.init) ?? pluginEntry
@@ -85,9 +86,11 @@ struct PipelineOrchestrator: Sendable {
                     pluginIdentifier: pluginIdentifier, pluginName: pluginIdentifier,
                     hook: hook, temp: temp,
                     stateStore: stateStore, imageFiles: imageFiles,
-                    dryRun: dryRun, nonInteractive: nonInteractive
+                    dryRun: dryRun, nonInteractive: nonInteractive,
+                    skippedImages: skippedImages
                 )
-                let result = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+                let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+                skippedImages = updatedSkipped
 
                 switch result {
                 case .success, .warning, .skipped:
@@ -119,6 +122,7 @@ struct PipelineOrchestrator: Sendable {
         let imageFiles: [URL]
         let dryRun: Bool
         let nonInteractive: Bool
+        let skippedImages: Set<String>
     }
 
     private enum HookResult {
@@ -126,27 +130,34 @@ struct PipelineOrchestrator: Sendable {
         case pluginNotFound, secretMissing, ruleCompilationFailed
     }
 
+    private struct RulesetResult {
+        let didRun: Bool
+        let skippedImages: Set<String>
+    }
+
     // MARK: - Per-Plugin Hook Execution
 
     private func runPluginHook(
         _ ctx: HookContext,
         ruleEvaluatorCache: inout [String: RuleEvaluator]
-    ) async throws -> HookResult {
+    ) async throws -> (HookResult, Set<String>) {
+        var skippedImages = ctx.skippedImages
+
         guard let loadedPlugin = try loadPlugin(named: ctx.pluginIdentifier) else {
             logger.error("Plugin '\(ctx.pluginIdentifier)' not found in \(pluginsDirectory.path)")
-            return .pluginNotFound
+            return (.pluginNotFound, skippedImages)
         }
 
         guard let stageConfig = loadedPlugin.stages[ctx.hook] else {
-            logger.debug("[\(loadedPlugin.name)] hook '\(ctx.hook)': no stage file — skipping")
-            return .skipped
+            logger.debug("[\(loadedPlugin.name)] hook '\(ctx.hook)': no stage file -- skipping")
+            return (.skipped, skippedImages)
         }
 
         let secrets: [String: String]
         do {
             secrets = try fetchSecrets(for: loadedPlugin)
         } catch {
-            return .secretMissing
+            return (.secretMissing, skippedImages)
         }
 
         let execLogPath = pluginsDirectory
@@ -172,14 +183,17 @@ struct PipelineOrchestrator: Sendable {
         var preRulesDidRun = false
         if let preRules = stageConfig.preRules, !preRules.isEmpty {
             do {
-                preRulesDidRun = try await evaluateRuleset(
+                let rulesetResult = try await evaluateRuleset(
                     rules: preRules, ctx: ctx, manifestDeps: manifestDeps,
                     buffer: buffer, ruleEvaluatorCache: &ruleEvaluatorCache,
-                    cacheKey: "\(ctx.pluginIdentifier):pre:\(ctx.hook)"
+                    cacheKey: "\(ctx.pluginIdentifier):pre:\(ctx.hook)",
+                    skippedImages: skippedImages
                 )
+                preRulesDidRun = rulesetResult.didRun
+                skippedImages = rulesetResult.skippedImages
             } catch {
                 logger.error("[\(loadedPlugin.name)] pre-rule compilation failed: \(error.localizedDescription)")
-                return .ruleCompilationFailed
+                return (.ruleCompilationFailed, skippedImages)
             }
         }
 
@@ -188,19 +202,44 @@ struct PipelineOrchestrator: Sendable {
         // Binary
         var binaryDidRun = false
         if stageConfig.binary?.command != nil {
-            let result = try await runBinary(
-                ctx, loadedPlugin: loadedPlugin,
-                secrets: secrets, pluginConfig: pluginConfig,
-                hookConfig: stageConfig.binary, manifestDeps: manifestDeps,
-                rulesDidRun: preRulesDidRun, execLogPath: execLogPath
-            )
-            switch result {
-            case .success, .warning:
-                binaryDidRun = true
-            case .critical, .pluginNotFound, .secretMissing, .ruleCompilationFailed:
-                return result
-            case .skipped:
-                break
+            // Skip binary entirely if all images are skipped
+            let allImageNames = Set(ctx.imageFiles.map(\.lastPathComponent))
+            if allImageNames.isSubset(of: skippedImages) {
+                logger.info("[\(loadedPlugin.name)] hook '\(ctx.hook)': all images skipped, skipping binary")
+            } else {
+                // Build skip records from state store for the payload
+                var skipRecords: [SkipRecord] = []
+                for imageName in skippedImages {
+                    let resolved = await ctx.stateStore.resolve(
+                        image: imageName, dependencies: [ReservedName.skip]
+                    )
+                    if case let .array(records) = resolved[ReservedName.skip]?[ReservedName.skipRecords] {
+                        for record in records {
+                            if case let .object(dict) = record,
+                               case let .string(file) = dict["file"],
+                               case let .string(plugin) = dict["plugin"]
+                            {
+                                skipRecords.append(SkipRecord(file: file, plugin: plugin))
+                            }
+                        }
+                    }
+                }
+
+                let result = try await runBinary(
+                    ctx, loadedPlugin: loadedPlugin,
+                    secrets: secrets, pluginConfig: pluginConfig,
+                    hookConfig: stageConfig.binary, manifestDeps: manifestDeps,
+                    rulesDidRun: preRulesDidRun, execLogPath: execLogPath,
+                    skipped: skipRecords
+                )
+                switch result {
+                case .success, .warning:
+                    binaryDidRun = true
+                case .critical, .pluginNotFound, .secretMissing, .ruleCompilationFailed:
+                    return (result, skippedImages)
+                case .skipped:
+                    break
+                }
             }
         }
 
@@ -212,23 +251,25 @@ struct PipelineOrchestrator: Sendable {
         // Post-rules
         if let postRules = stageConfig.postRules, !postRules.isEmpty {
             do {
-                _ = try await evaluateRuleset(
+                let rulesetResult = try await evaluateRuleset(
                     rules: postRules, ctx: ctx, manifestDeps: manifestDeps,
                     buffer: buffer, ruleEvaluatorCache: &ruleEvaluatorCache,
-                    cacheKey: "\(ctx.pluginIdentifier):post:\(ctx.hook)"
+                    cacheKey: "\(ctx.pluginIdentifier):post:\(ctx.hook)",
+                    skippedImages: skippedImages
                 )
+                skippedImages = rulesetResult.skippedImages
             } catch {
                 logger.error("[\(loadedPlugin.name)] post-rule compilation failed: \(error.localizedDescription)")
-                return .ruleCompilationFailed
+                return (.ruleCompilationFailed, skippedImages)
             }
         }
 
         await buffer.flush()
 
         if !preRulesDidRun, !binaryDidRun, (stageConfig.postRules ?? []).isEmpty {
-            return .skipped
+            return (.skipped, skippedImages)
         }
-        return .success
+        return (.success, skippedImages)
     }
 
     // MARK: - Rule Evaluation
@@ -240,8 +281,9 @@ struct PipelineOrchestrator: Sendable {
         manifestDeps: [String],
         buffer: MetadataBuffer,
         ruleEvaluatorCache: inout [String: RuleEvaluator],
-        cacheKey: String
-    ) async throws -> Bool {
+        cacheKey: String,
+        skippedImages: Set<String> = []
+    ) async throws -> RulesetResult {
         let evaluator: RuleEvaluator
         if let cached = ruleEvaluatorCache[cacheKey] {
             evaluator = cached
@@ -255,15 +297,27 @@ struct PipelineOrchestrator: Sendable {
         }
 
         var didRun = false
+        var currentSkipped = skippedImages
         for imageName in await ctx.stateStore.allImageNames {
+            if currentSkipped.contains(imageName) { continue }
+
             let resolved = await ctx.stateStore.resolve(
-                image: imageName, dependencies: manifestDeps + [ReservedName.original, ctx.pluginIdentifier]
+                image: imageName,
+                dependencies: manifestDeps + [ReservedName.original, ctx.pluginIdentifier, ReservedName.skip]
             )
             let currentNamespace = resolved[ctx.pluginIdentifier] ?? [:]
             let ruleResult = await evaluator.evaluate(
                 state: resolved, currentNamespace: currentNamespace,
-                metadataBuffer: buffer, imageName: imageName
+                metadataBuffer: buffer, imageName: imageName,
+                pluginId: ctx.pluginIdentifier, stateStore: ctx.stateStore
             )
+
+            if ruleResult.skipped {
+                currentSkipped.insert(imageName)
+                didRun = true
+                continue
+            }
+
             let ruleOutput = ruleResult.namespace
             if ruleOutput != currentNamespace {
                 await ctx.stateStore.setNamespace(
@@ -273,7 +327,7 @@ struct PipelineOrchestrator: Sendable {
             }
         }
 
-        return didRun
+        return RulesetResult(didRun: didRun, skippedImages: currentSkipped)
     }
 
     // MARK: - Binary Execution
@@ -287,7 +341,8 @@ struct PipelineOrchestrator: Sendable {
         hookConfig: HookConfig?,
         manifestDeps: [String],
         rulesDidRun: Bool,
-        execLogPath: URL
+        execLogPath: URL,
+        skipped: [SkipRecord] = []
     ) async throws -> HookResult {
         let runner = PluginRunner(
             plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig
@@ -312,7 +367,8 @@ struct PipelineOrchestrator: Sendable {
             tempFolder: ctx.temp,
             executionLogPath: execLogPath,
             dryRun: ctx.dryRun,
-            state: pluginState
+            state: pluginState,
+            skipped: skipped
         )
 
         // Store returned state under the plugin's namespace
@@ -363,7 +419,9 @@ struct PipelineOrchestrator: Sendable {
         guard needsState else { return nil }
 
         var statePayload: [String: [String: [String: JSONValue]]] = [:]
-        let allDeps = rulesDidRun ? manifestDeps + [pluginIdentifier] : manifestDeps
+        let allDeps = rulesDidRun
+            ? manifestDeps + [pluginIdentifier, ReservedName.skip]
+            : manifestDeps + [ReservedName.skip]
         for imageName in await stateStore.allImageNames {
             let resolved = await stateStore.resolve(
                 image: imageName, dependencies: allDeps

@@ -19,7 +19,8 @@ struct PluginRunner: Sendable {
         tempFolder: TempFolder,
         executionLogPath: URL,
         dryRun: Bool,
-        state: [String: [String: [String: JSONValue]]]? = nil
+        state: [String: [String: [String: JSONValue]]]? = nil,
+        skipped: [SkipRecord] = []
     ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
         guard let hookConfig else {
             logger.error("Plugin '\(plugin.identifier)' has no hook config for hook '\(hook)'")
@@ -78,7 +79,8 @@ struct PluginRunner: Sendable {
                 folderPath: tempFolder.url,
                 executionLogPath: executionLogPath,
                 dryRun: dryRun,
-                state: state
+                state: state,
+                skipped: skipped
             ))
         case .pipe:
             let result = try await runPipe(
@@ -104,6 +106,7 @@ struct PluginRunner: Sendable {
         let executionLogPath: URL
         let dryRun: Bool
         let state: [String: [String: [String: JSONValue]]]?
+        let skipped: [SkipRecord]
     }
 
     private func runJSON(
@@ -130,7 +133,8 @@ struct PluginRunner: Sendable {
             folderPath: context.folderPath,
             executionLogPath: context.executionLogPath,
             dryRun: context.dryRun,
-            state: context.state
+            state: context.state,
+            skipped: context.skipped
         )
         if let data = try? JSONEncoder().encode(payload) {
             stdinPipe.fileHandleForWriting.write(data)
@@ -424,7 +428,8 @@ struct PluginRunner: Sendable {
         folderPath: URL,
         executionLogPath: URL,
         dryRun: Bool,
-        state: [String: [String: [String: JSONValue]]]? = nil
+        state: [String: [String: [String: JSONValue]]]? = nil,
+        skipped: [SkipRecord] = []
     ) -> PluginInputPayload {
         let dataPath = plugin.directory.appendingPathComponent(PluginDirectory.data).path
         let logPath = plugin.directory.appendingPathComponent(PluginDirectory.logs).path
@@ -440,7 +445,8 @@ struct PluginRunner: Sendable {
             dryRun: dryRun,
             state: state,
             pluginVersion: pluginVersion,
-            lastExecutedVersion: nil
+            lastExecutedVersion: nil,
+            skipped: skipped
         )
     }
 
