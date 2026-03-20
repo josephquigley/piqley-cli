@@ -2,8 +2,6 @@ import Foundation
 import PiqleyCore
 import TermKit
 
-/// Screen: select which stage to edit rules for.
-/// Shows stage names with rule counts.
 @MainActor
 final class StageSelectScreen {
     private var context: RuleEditingContext
@@ -15,16 +13,16 @@ final class StageSelectScreen {
         self.writeBack = writeBack
     }
 
-    func present() {
+    func show(in win: WizardWindow) {
         let stageNames = context.stageNames()
         guard !stageNames.isEmpty else {
             print("No stages found for plugin '\(context.pluginIdentifier)'.")
             exit(1)
         }
 
-        let win = WizardWindow("Edit Rules: \(context.pluginIdentifier)")
-        win.fill()
-        Application.top.addSubview(win)
+        // Clear previous content
+        clearWindow(win)
+        win.title = "Edit Rules: \(context.pluginIdentifier)"
 
         let list = ListView(items: buildStageItems(stageNames))
         list.x = Pos.at(1)
@@ -43,7 +41,7 @@ final class StageSelectScreen {
 
         list.activate = { [weak self] index in
             guard let self, index < stageNames.count else { return true }
-            openRuleList(for: stageNames[index], list: list, stageNames: stageNames)
+            self.openRuleList(for: stageNames[index], win: win, list: list, stageNames: stageNames)
             return true
         }
 
@@ -51,34 +49,33 @@ final class StageSelectScreen {
             guard let self else { return false }
             switch event.key {
             case .letter("q"):
-                quitWizard()
+                self.quitWizard()
                 return true
             case .letter("s"):
-                saveAndQuit()
+                self.saveAndQuit()
                 return true
             default:
                 return false
             }
         }
+
+        _ = list.becomeFirstResponder()
+        win.setNeedsDisplay()
     }
 
-    // MARK: - Navigation
-
-    private func openRuleList(for stageName: String, list: ListView, stageNames: [String]) {
+    private func openRuleList(for stageName: String, win: WizardWindow, list: ListView, stageNames: [String]) {
         let ruleListScreen = RuleListScreen(
             context: context,
             stageName: stageName
         ) { [weak self] updatedContext in
             guard let self else { return }
-            context = updatedContext
-            modified = true
-            list.items = buildStageItems(stageNames)
-            list.setNeedsDisplay()
+            self.context = updatedContext
+            self.modified = true
+            // Re-show stage select when returning
+            self.show(in: win)
         }
-        ruleListScreen.present()
+        ruleListScreen.show(in: win)
     }
-
-    // MARK: - Display helpers
 
     private func buildStageItems(_ stageNames: [String]) -> [String] {
         stageNames.map { name in
@@ -94,13 +91,10 @@ final class StageSelectScreen {
         }
     }
 
-    // MARK: - Save / Quit
-
     private func saveAndQuit() {
         do {
             try RulesWizardApp.saveStages(context.stages, to: writeBack.pluginDir)
         } catch {
-            // Print error to stderr before exiting
             FileHandle.standardError.write(Data("Error saving: \(error.localizedDescription)\n".utf8))
         }
         RulesWizardApp.exitWizard()
@@ -108,10 +102,16 @@ final class StageSelectScreen {
 
     private func quitWizard() {
         if modified {
-            // Save automatically on quit if modified
             saveAndQuit()
         } else {
             RulesWizardApp.exitWizard()
         }
+    }
+}
+
+/// Helper to clear all child views from a window.
+func clearWindow(_ win: Window) {
+    for view in win.subviews {
+        win.removeSubview(view)
     }
 }

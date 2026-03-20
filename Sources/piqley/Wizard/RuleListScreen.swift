@@ -2,54 +2,34 @@ import Foundation
 import PiqleyCore
 import TermKit
 
-/// Screen: list rules for a stage with filtering and action keys.
 @MainActor
 final class RuleListScreen {
     private var context: RuleEditingContext
     private let stageName: String
-    private let onUpdate: (RuleEditingContext) -> Void
-
-    /// The currently active slot (pre or post). For stages without a binary, always .pre.
+    private let onBack: (RuleEditingContext) -> Void
     private var currentSlot: RuleSlot
-
-    /// Whether the filter text field is active.
     private var filterActive = false
     private var filterText = ""
-
-    /// All rule display items (unfiltered).
     private var allRuleItems: [(index: Int, display: String)] = []
-
-    /// Filtered items currently shown in the list.
     private var filteredItems: [(index: Int, display: String)] = []
-
-    /// Saved subviews from the previous screen to restore on back.
-    private var previousSubviews: [View] = []
 
     init(
         context: RuleEditingContext,
         stageName: String,
-        onUpdate: @escaping (RuleEditingContext) -> Void
+        onBack: @escaping (RuleEditingContext) -> Void
     ) {
         self.context = context
         self.stageName = stageName
-        self.onUpdate = onUpdate
-        currentSlot = .pre
+        self.onBack = onBack
+        self.currentSlot = .pre
     }
 
-    func present() {
+    func show(in win: WizardWindow) {
         let hasBinary = context.stageHasBinary(stageName)
 
-        // Save and clear current content
-        previousSubviews = Application.top.subviews
-        for view in previousSubviews {
-            Application.top.removeSubview(view)
-        }
+        clearWindow(win)
+        win.title = "\(stageName) rules"
 
-        let win = WizardWindow("\(stageName) rules")
-        win.fill()
-        Application.top.addSubview(win)
-
-        // Slot indicator (only if binary exists)
         var yOffset = 0
         var slotLabel: Label?
         if hasBinary {
@@ -62,132 +42,84 @@ final class RuleListScreen {
             yOffset = 1
         }
 
-        // Filter field (always present but starts unfocused)
-        let filterLabel = Label("  Filter: ")
-        filterLabel.x = Pos.at(0)
-        filterLabel.y = Pos.at(yOffset)
-        win.addSubview(filterLabel)
-
-        let filterField = TextField("")
-        filterField.x = Pos.at(10)
-        filterField.y = Pos.at(yOffset)
-        filterField.width = Dim.fill(1)
-        filterField.canFocus = false
-        win.addSubview(filterField)
-
-        let listYOffset = yOffset + 1
-
-        // Rule list
         rebuildRuleItems()
         applyFilter()
 
-        let emptyMsg = filteredItems.isEmpty ? ["(no rules)"] : filteredItems.map(\.display)
-        let list = ListView(items: emptyMsg)
+        let items = filteredItems.isEmpty ? ["(no rules)"] : filteredItems.map(\.display)
+        let list = ListView(items: items)
         list.x = Pos.at(1)
-        list.y = Pos.at(listYOffset)
+        list.y = Pos.at(yOffset)
         list.width = Dim.fill(1)
         list.height = Dim.fill(3)
         list.allowMarking = false
         list.selectedMarker = "> "
         win.addSubview(list)
 
-        // Footer
         let footer = Label(
-            "  \u{2191}\u{2193} navigate   a add   e edit   d delete   r reorder   f filter   q back"
+            "  \u{2191}\u{2193} navigate  a add  e edit  d delete  r reorder  q back"
         )
         footer.x = Pos.at(0)
         footer.y = Pos.bottom(of: list) + 1
         footer.width = Dim.fill()
         win.addSubview(footer)
 
-        // Key handling
-        let views = ListViews(list: list, filterField: filterField, slotLabel: slotLabel, hasBinary: hasBinary)
-        win.onKey = { [weak self] event in
-            guard let self else { return false }
-            return handleKey(event: event, views: views)
-        }
-
-        // Filter text changes
-        filterField.textChanged = { [weak self] _, _ in
-            guard let self else { return }
-            filterText = filterField.text
-            applyFilter()
-            refreshList(list)
-        }
-
-        // Edit on Enter
         list.activate = { [weak self] index in
-            guard let self, index < filteredItems.count else { return true }
-            let ruleIndex = filteredItems[index].index
-            editRule(at: ruleIndex, list: list)
+            guard let self, index < self.filteredItems.count else { return true }
+            let ruleIndex = self.filteredItems[index].index
+            self.editRule(at: ruleIndex, list: list, win: win)
             return true
         }
 
-        Application.top.focusFirst()
-        Application.top.setNeedsDisplay()
+        win.onKey = { [weak self] event in
+            guard let self else { return false }
+            return self.handleKey(
+                event: event, list: list, slotLabel: slotLabel,
+                hasBinary: hasBinary, win: win
+            )
+        }
+
+        _ = list.becomeFirstResponder()
+        win.setNeedsDisplay()
     }
 
     // MARK: - Key handling
 
-    private struct ListViews {
-        let list: ListView
-        let filterField: TextField
-        let slotLabel: Label?
-        let hasBinary: Bool
-    }
-
-    private func handleKey(event: KeyEvent, views: ListViews) -> Bool {
-        let list = views.list
-        let filterField = views.filterField
-        let slotLabel = views.slotLabel
-        let hasBinary = views.hasBinary
-        // If filter is active, handle Esc to close filter
-        if filterActive {
-            if event.key == .esc {
-                deactivateFilter(filterField: filterField, list: list)
-                return true
-            }
-            return false // let the TextField handle normal typing
-        }
-
+    // swiftlint:disable:next function_parameter_count
+    private func handleKey(
+        event: KeyEvent, list: ListView, slotLabel: Label?,
+        hasBinary: Bool, win: WizardWindow
+    ) -> Bool {
         switch event.key {
         case .letter("q"), .esc:
-            goBack()
+            onBack(context)
             return true
 
         case .letter("a"):
-            addRule(list: list)
+            addRule(list: list, win: win)
             return true
 
         case .letter("e"):
-            let selectedIdx = list.selectedItem
-            if selectedIdx < filteredItems.count {
-                let ruleIndex = filteredItems[selectedIdx].index
-                editRule(at: ruleIndex, list: list)
+            let idx = list.selectedItem
+            if idx < filteredItems.count {
+                editRule(at: filteredItems[idx].index, list: list, win: win)
             }
             return true
 
         case .letter("d"):
-            let selectedIdx = list.selectedItem
-            if selectedIdx < filteredItems.count {
-                let ruleIndex = filteredItems[selectedIdx].index
-                deleteRule(at: ruleIndex, list: list)
+            let idx = list.selectedItem
+            if idx < filteredItems.count {
+                deleteRule(at: filteredItems[idx].index, list: list, win: win)
             }
             return true
 
         case .letter("r"):
-            let selectedIdx = list.selectedItem
-            if selectedIdx < filteredItems.count {
-                let ruleIndex = filteredItems[selectedIdx].index
-                startReorder(from: ruleIndex, list: list)
+            let idx = list.selectedItem
+            if idx < filteredItems.count {
+                moveRuleUp(at: filteredItems[idx].index, list: list, win: win)
             }
             return true
 
-        case .letter("f"):
-            activateFilter(filterField: filterField, list: list)
-            return true
-
-        case .controlI: // Tab
+        case .controlI:
             if hasBinary {
                 currentSlot = (currentSlot == .pre) ? .post : .pre
                 slotLabel?.text = currentSlot == .pre
@@ -205,47 +137,12 @@ final class RuleListScreen {
         }
     }
 
-    // MARK: - Navigation
-
-    private func goBack() {
-        onUpdate(context)
-        // Restore previous screen content
-        for view in Application.top.subviews {
-            Application.top.removeSubview(view)
-        }
-        for view in previousSubviews {
-            Application.top.addSubview(view)
-        }
-        Application.top.focusFirst()
-        Application.top.setNeedsDisplay()
-    }
-
-    // MARK: - Filter
-
-    private func activateFilter(filterField: TextField, list _: ListView) {
-        filterActive = true
-        filterField.canFocus = true
-        filterField.text = filterText
-        _ = filterField.becomeFirstResponder()
-    }
-
-    private func deactivateFilter(filterField: TextField, list: ListView) {
-        filterActive = false
-        filterText = ""
-        filterField.text = ""
-        filterField.canFocus = false
-        applyFilter()
-        refreshList(list)
-        _ = list.becomeFirstResponder()
-    }
-
     // MARK: - Rule data
 
     private func rebuildRuleItems() {
         let rules = context.rules(forStage: stageName, slot: currentSlot)
         allRuleItems = rules.enumerated().map { index, rule in
-            let display = Self.formatRule(rule, index: index)
-            return (index: index, display: display)
+            (index: index, display: Self.formatRule(rule, index: index))
         }
     }
 
@@ -279,80 +176,63 @@ final class RuleListScreen {
             }
             return "\(action) \(target)"
         }.joined(separator: "; ")
-
         let writeSummary = rule.write.isEmpty ? "" : " +write"
         return "\(index + 1). \(field) ~ \(pattern) \u{2192} \(emitSummary)\(writeSummary)"
     }
 
     // MARK: - Actions
 
-    private func addRule(list: ListView) {
-        let hasBinary = context.stageHasBinary(stageName)
-        let slot = hasBinary ? currentSlot : .pre
-
+    private func addRule(list: ListView, win: WizardWindow) {
+        let slot = context.stageHasBinary(stageName) ? currentSlot : .pre
         let editor = RuleEditorScreen(context: context, stageName: stageName, slot: slot, editingIndex: nil)
         editor.present { [weak self] rule in
-            guard let self, let rule else { return }
-            if var stage = context.stages[stageName] {
-                try? stage.appendRule(rule, slot: slot)
-                context.stages[stageName] = stage
+            guard let self, let rule else {
+                self?.show(in: win)
+                return
             }
-            onUpdate(context)
-            rebuildRuleItems()
-            applyFilter()
-            refreshList(list)
+            if var stage = self.context.stages[self.stageName] {
+                try? stage.appendRule(rule, slot: slot)
+                self.context.stages[self.stageName] = stage
+            }
+            self.show(in: win)
         }
     }
 
-    private func editRule(at index: Int, list: ListView) {
-        let hasBinary = context.stageHasBinary(stageName)
-        let slot = hasBinary ? currentSlot : .pre
-
+    private func editRule(at index: Int, list: ListView, win: WizardWindow) {
+        let slot = context.stageHasBinary(stageName) ? currentSlot : .pre
         let editor = RuleEditorScreen(context: context, stageName: stageName, slot: slot, editingIndex: index)
         editor.present { [weak self] rule in
-            guard let self, let rule else { return }
-            if var stage = context.stages[stageName] {
-                try? stage.replaceRule(at: index, with: rule, slot: slot)
-                context.stages[stageName] = stage
+            guard let self, let rule else {
+                self?.show(in: win)
+                return
             }
-            onUpdate(context)
-            rebuildRuleItems()
-            applyFilter()
-            refreshList(list)
+            if var stage = self.context.stages[self.stageName] {
+                try? stage.replaceRule(at: index, with: rule, slot: slot)
+                self.context.stages[self.stageName] = stage
+            }
+            self.show(in: win)
         }
     }
 
-    private func deleteRule(at index: Int, list: ListView) {
-        let hasBinary = context.stageHasBinary(stageName)
-        let slot = hasBinary ? currentSlot : .pre
-
-        let rules = context.rules(forStage: stageName, slot: slot)
-        guard index < rules.count else { return }
-
-        // Delete directly — no confirmation dialog (dialogs break with our async setup)
+    private func deleteRule(at index: Int, list: ListView, win: WizardWindow) {
+        let slot = context.stageHasBinary(stageName) ? currentSlot : .pre
         if var stage = context.stages[stageName] {
             try? stage.removeRule(at: index, slot: slot)
             context.stages[stageName] = stage
         }
-        onUpdate(context)
         rebuildRuleItems()
         applyFilter()
         refreshList(list)
     }
 
-    private func startReorder(from index: Int, list: ListView) {
-        let hasBinary = context.stageHasBinary(stageName)
-        let slot = hasBinary ? currentSlot : .pre
+    private func moveRuleUp(at index: Int, list: ListView, win: WizardWindow) {
+        let slot = context.stageHasBinary(stageName) ? currentSlot : .pre
         let rules = context.rules(forStage: stageName, slot: slot)
-        guard rules.count > 1, index < rules.count else { return }
-
-        // Move up by default, wrap around
-        let destination = index > 0 ? index - 1 : rules.count - 1
+        guard rules.count > 1, index < rules.count, index > 0 else { return }
         if var stage = context.stages[stageName] {
-            try? stage.moveRule(from: index, to: destination, slot: slot)
+            try? stage.moveRule(from: index, to: index - 1, slot: slot)
             context.stages[stageName] = stage
         }
-        onUpdate(context)
         rebuildRuleItems()
         applyFilter()
         refreshList(list)
