@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `piqley config edit` — interactive TUI wizard for editing the pipeline configuration
 - `piqley config open` — open config file in editor (replaces `piqley config`)
 - Filterable plugin browser in config editor ("List all Plugins" on stage selector) with per-plugin action menu for adding to/removing from stages
+- Missing plugin detection in config editor — plugins in pipeline but not on disk are flagged red
 - `piqley plugin list` — show all installed plugins with version and stages
 
 ### Changed

@@ -9,9 +9,13 @@ final class ConfigWizard {
     /// Tracks plugins marked for removal, keyed by "stage:pluginIdentifier"
     var removedPlugins: Set<String> = []
 
+    /// Identifiers of plugins that exist on disk.
+    let discoveredIdentifiers: Set<String>
+
     init(config: AppConfig, discoveredPlugins: [LoadedPlugin]) {
         self.config = config
         self.discoveredPlugins = discoveredPlugins
+        discoveredIdentifiers = Set(discoveredPlugins.map(\.identifier))
         terminal = RawTerminal()
     }
 
@@ -68,7 +72,11 @@ final class ConfigWizard {
             let plugins = config.pipeline[stage] ?? []
             let count = plugins.count
             let label = count == 1 ? "plugin" : "plugins"
-            let text = "\(stage) (\(count) \(label))"
+            let missingCount = plugins.filter { !discoveredIdentifiers.contains($0) }.count
+            var text = "\(stage) (\(count) \(label))"
+            if missingCount > 0 {
+                text += "  \(ANSI.red)\(missingCount) missing\(ANSI.reset)"
+            }
             buf += ANSI.moveTo(row: 3 + idx, col: 1)
             if idx == cursor {
                 buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
@@ -208,6 +216,9 @@ final class ConfigWizard {
                     if removedPlugins.contains(key) {
                         return "\(ANSI.dim)" + strikethrough(plugin) + "\(ANSI.reset)"
                     }
+                    if !discoveredIdentifiers.contains(plugin) {
+                        return "\(plugin)  \(ANSI.red)missing\(ANSI.reset)"
+                    }
                     return plugin
                 }
 
@@ -290,13 +301,15 @@ final class ConfigWizard {
             let plugins = config.pipeline[stageName] ?? []
             let items: [String] = plugins.enumerated().map { idx, plugin in
                 let key = removalKey(stage: stageName, plugin: plugin)
+                let missing = !discoveredIdentifiers.contains(plugin)
+                let suffix = missing ? "  \(ANSI.red)missing\(ANSI.reset)" : ""
                 if idx == position {
-                    return "  \(ANSI.italic)\(plugin)\(ANSI.reset)"
+                    return "  \(ANSI.italic)\(plugin)\(ANSI.reset)\(suffix)"
                 }
                 if removedPlugins.contains(key) {
                     return "\(ANSI.dim)" + strikethrough(plugin) + "\(ANSI.reset)"
                 }
-                return plugin
+                return "\(plugin)\(suffix)"
             }
 
             terminal.drawScreen(
