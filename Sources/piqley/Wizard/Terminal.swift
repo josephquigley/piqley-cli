@@ -126,6 +126,7 @@ enum ANSI {
     static func clearLine() -> String { "\u{1b}[2K" }
     static let bold = "\u{1b}[1m"
     static let dim = "\u{1b}[2m"
+    static let italic = "\u{1b}[3m"
     static let reset = "\u{1b}[0m"
     static let inverse = "\u{1b}[7m"
     static let white = "\u{1b}[37m"

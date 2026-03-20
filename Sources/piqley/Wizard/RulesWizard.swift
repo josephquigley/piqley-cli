@@ -93,11 +93,16 @@ final class RulesWizard {
                     return text
                 }
 
+            // Show "undelete" in footer if current rule is marked for deletion
+            let isCurrentDeleted = !rules.isEmpty && cursor < rules.count
+                && deletedRules.contains(deletionKey(stage: stageName, slot: slot, index: cursor))
+            let deleteLabel = isCurrentDeleted ? "d undelete" : "d delete"
+
             drawScreen(
                 title: "\(stageName) rules",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  a add  e edit  d delete  r reorder  q back"
+                footer: "\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  q back"
             )
 
             let key = terminal.readKey()
@@ -127,21 +132,11 @@ final class RulesWizard {
                     }
                 }
             case .char("r"):
-                if !rules.isEmpty, cursor < rules.count, cursor > 0 {
-                    if var stage = context.stages[stageName] {
-                        try? stage.moveRule(from: cursor, to: cursor - 1, slot: slot)
-                        context.stages[stageName] = stage
-                        modified = true
-                        // Swap deletion keys too
-                        let oldKey = deletionKey(stage: stageName, slot: slot, index: cursor)
-                        let newKey = deletionKey(stage: stageName, slot: slot, index: cursor - 1)
-                        let oldDeleted = deletedRules.contains(oldKey)
-                        let newDeleted = deletedRules.contains(newKey)
-                        deletedRules.remove(oldKey)
-                        deletedRules.remove(newKey)
-                        if oldDeleted { deletedRules.insert(newKey) }
-                        if newDeleted { deletedRules.insert(oldKey) }
-                        cursor -= 1
+                if !rules.isEmpty, cursor < rules.count, rules.count > 1 {
+                    if let newPos = interactiveReorder(
+                        stageName: stageName, slot: slot, startIndex: cursor
+                    ) {
+                        cursor = newPos
                     }
                 }
             case .char("q"), .escape:
@@ -159,6 +154,88 @@ final class RulesWizard {
             result.append("\u{0336}")
         }
         return result
+    }
+
+    // MARK: - Interactive Reorder
+
+    /// Enter reorder mode: the selected rule is shown indented and italic,
+    /// up/down arrows move it. Enter confirms, Escape cancels.
+    /// Returns the new index on confirm, or nil on cancel.
+    private func interactiveReorder(
+        stageName: String, slot: RuleSlot, startIndex: Int
+    ) -> Int? {
+        var position = startIndex
+        let originalRules = context.rules(forStage: stageName, slot: slot)
+        // Work on a mutable copy of the stage so we can preview moves
+        guard var stage = context.stages[stageName] else { return nil }
+        let ruleCount = originalRules.count
+
+        while true {
+            let rules = context.rules(forStage: stageName, slot: slot)
+            let items: [String] = rules.enumerated().map { idx, rule in
+                let key = deletionKey(stage: stageName, slot: slot, index: idx)
+                let text = formatRule(rule, index: idx)
+                if idx == position {
+                    // The rule being moved: indented + italic
+                    return "  \(ANSI.italic)\(text)\(ANSI.reset)"
+                }
+                if deletedRules.contains(key) {
+                    return "\(ANSI.dim)" + strikethrough(text) + "\(ANSI.reset)"
+                }
+                return text
+            }
+
+            drawScreen(
+                title: "\(stageName) rules — reordering",
+                items: items,
+                cursor: position,
+                footer: "\u{2191}\u{2193} move  \u{23CE} confirm  Esc cancel"
+            )
+
+            let key = terminal.readKey()
+            switch key {
+            case .cursorUp:
+                if position > 0 {
+                    try? stage.moveRule(from: position, to: position - 1, slot: slot)
+                    context.stages[stageName] = stage
+                    // Swap deletion keys
+                    swapDeletionKeys(stage: stageName, slot: slot, indexA: position, indexB: position - 1)
+                    position -= 1
+                }
+            case .cursorDown:
+                if position < ruleCount - 1 {
+                    try? stage.moveRule(from: position, to: position + 1, slot: slot)
+                    context.stages[stageName] = stage
+                    swapDeletionKeys(stage: stageName, slot: slot, indexA: position, indexB: position + 1)
+                    position += 1
+                }
+            case .enter:
+                if position != startIndex {
+                    modified = true
+                }
+                return position
+            case .escape:
+                // Cancel — restore original order
+                context.stages[stageName] = StageConfig(
+                    preRules: slot == .pre ? originalRules : context.stages[stageName]?.preRules,
+                    binary: context.stages[stageName]?.binary,
+                    postRules: slot == .post ? originalRules : context.stages[stageName]?.postRules
+                )
+                return nil
+            default: break
+            }
+        }
+    }
+
+    private func swapDeletionKeys(stage: String, slot: RuleSlot, indexA: Int, indexB: Int) {
+        let keyA = deletionKey(stage: stage, slot: slot, index: indexA)
+        let keyB = deletionKey(stage: stage, slot: slot, index: indexB)
+        let aDeleted = deletedRules.contains(keyA)
+        let bDeleted = deletedRules.contains(keyB)
+        deletedRules.remove(keyA)
+        deletedRules.remove(keyB)
+        if aDeleted { deletedRules.insert(keyB) }
+        if bDeleted { deletedRules.insert(keyA) }
     }
 
     // MARK: - Add Rule
