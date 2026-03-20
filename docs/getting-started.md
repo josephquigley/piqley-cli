@@ -55,7 +55,7 @@ Plugins within a stage run in the order you configure them.
 
 There are two kinds of plugins:
 
-**Declarative plugins** use rules to match metadata patterns and take actions (add tags, remove fields, copy values between plugins). No code needed. You configure everything through the interactive rule editor.
+**Declarative plugins** use rules to match metadata patterns and take actions (add tags, remove fields, copy values between plugins, skip images from the pipeline). No code needed. You configure everything through the interactive rule editor.
 
 **Binary plugins** are executables that receive image paths and metadata, do their work (API calls, resizing, complex logic), and stream results back. Write them in any language. The [plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides helpers for Swift, Python, Node.js, and Go.
 

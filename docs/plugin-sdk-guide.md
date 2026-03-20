@@ -52,6 +52,7 @@ Call `run()` from your entry point. The SDK reads the request from stdin, calls 
 | `pluginConfig` | User-provided config values from the plugin's `config.json` |
 | `secrets` | Sensitive values from the macOS Keychain (API keys, passwords) |
 | `state` | Metadata state from all previous plugins in the pipeline |
+| `skipped` | Images excluded from processing by upstream plugins (array of `{file, plugin}` records) |
 | `dryRun` | Whether this is a preview run (skip destructive operations) |
 | `dataPath` | Persistent storage directory for your plugin |
 | `logPath` | Directory for plugin logs |
