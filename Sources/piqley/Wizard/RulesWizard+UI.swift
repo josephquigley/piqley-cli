@@ -176,18 +176,27 @@ extension RulesWizard {
 
     func drawScreen(title: String, items: [String], cursor: Int, footer: String) {
         let size = ANSI.terminalSize()
-        let maxVisible = size.rows - 4
+        let titleLines = title.split(separator: "\n", omittingEmptySubsequences: false)
+        let titleHeight = titleLines.count
+        let itemStartRow = titleHeight + 2
+        let maxVisible = size.rows - titleHeight - 3
         let scrollOffset = max(0, cursor - maxVisible + 1)
 
         var buf = ""
         buf += ANSI.clearScreen()
-        buf += ANSI.moveTo(row: 1, col: 1)
-        buf += "\(ANSI.bold)\(title)\(ANSI.reset)"
+        for (idx, line) in titleLines.enumerated() {
+            buf += ANSI.moveTo(row: idx + 1, col: 1)
+            if idx == titleLines.count - 1 {
+                buf += "\(ANSI.bold)\(line)\(ANSI.reset)"
+            } else {
+                buf += "\(line)"
+            }
+        }
 
         let visible = Array(items.enumerated()).dropFirst(scrollOffset).prefix(maxVisible)
         for (row, entry) in visible.enumerated() {
             let (idx, text) = entry
-            buf += ANSI.moveTo(row: row + 3, col: 1)
+            buf += ANSI.moveTo(row: row + itemStartRow, col: 1)
             if idx == cursor {
                 buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
             } else {
@@ -196,7 +205,7 @@ extension RulesWizard {
         }
 
         if items.count > maxVisible {
-            buf += ANSI.moveTo(row: 2, col: size.cols - 10)
+            buf += ANSI.moveTo(row: itemStartRow - 1, col: size.cols - 10)
             buf += "\(ANSI.dim)\(scrollOffset + 1)-\(min(scrollOffset + maxVisible, items.count)) of \(items.count)\(ANSI.reset)"
         }
 

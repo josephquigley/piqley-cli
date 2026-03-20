@@ -314,12 +314,13 @@ final class RulesWizard {
             _ = builder.setMatch(field: selectedField.qualifiedName, pattern: pattern)
         }
 
-        if !addActions(to: &builder, isWrite: false) {
+        let matchDesc = "\(selectedField.name) ~ \(pattern)"
+        if !addActions(to: &builder, isWrite: false, matchContext: matchDesc) {
             return nil
         }
 
         // Step 5: Write actions
-        if !addWriteActions(to: &builder) {
+        if !addWriteActions(to: &builder, matchContext: matchDesc) {
             return nil
         }
 
@@ -333,14 +334,14 @@ final class RulesWizard {
         }
     }
 
-    private func addActions(to builder: inout RuleBuilder, isWrite: Bool) -> Bool {
+    private func addActions(to builder: inout RuleBuilder, isWrite: Bool, matchContext: String) -> Bool {
         let actions = ["add", "remove", "replace", "removeField", "clone"]
         let label = isWrite ? "write action" : "action"
+        let whenLine = "\(ANSI.dim)When \(matchContext)\(ANSI.reset)"
 
         while true {
-            // Escape = done adding actions
             guard let actionIdx = selectFromList(
-                title: "Select \(label)  \(ANSI.dim)(Esc when done)\(ANSI.reset)",
+                title: "\(whenLine)\nSelect \(label)  \(ANSI.dim)(Esc when done)\(ANSI.reset)",
                 items: actions
             ) else { break }
 
@@ -358,9 +359,9 @@ final class RulesWizard {
         return true
     }
 
-    private func addWriteActions(to builder: inout RuleBuilder) -> Bool {
+    private func addWriteActions(to builder: inout RuleBuilder, matchContext: String) -> Bool {
         if !confirm("Add write actions (modify file metadata)?") { return true }
-        return addActions(to: &builder, isWrite: true)
+        return addActions(to: &builder, isWrite: true, matchContext: matchContext)
     }
 
     private func promptForEmitConfig(action: String) -> EmitConfig? {
