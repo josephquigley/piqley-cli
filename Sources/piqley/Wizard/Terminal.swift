@@ -66,17 +66,24 @@ final class RawTerminal {
         return .unknown
     }
 
+    /// Check if stdin has data available within the given timeout (milliseconds).
+    private func stdinHasData(timeoutMs: Int32) -> Bool {
+        var pollFd = pollfd(fd: STDIN_FILENO, events: Int16(POLLIN), revents: 0)
+        return poll(&pollFd, 1, timeoutMs) > 0
+    }
+
     private func readEscapeSequence() -> Key {
-        // Read one byte at a time with a short timeout to distinguish
-        // bare Escape from escape sequences (ESC [ A, etc.)
+        // After receiving ESC, check if more bytes follow within 50ms.
+        // If not, it's a bare Escape keypress.
+        guard stdinHasData(timeoutMs: 50) else { return .escape }
+
         var first = [UInt8](repeating: 0, count: 1)
-        let cnt1 = read(STDIN_FILENO, &first, 1)
-        if cnt1 <= 0 { return .escape }
+        guard read(STDIN_FILENO, &first, 1) == 1 else { return .escape }
 
         if first[0] == 91 { // '['
+            guard stdinHasData(timeoutMs: 50) else { return .escape }
             var second = [UInt8](repeating: 0, count: 1)
-            let cnt2 = read(STDIN_FILENO, &second, 1)
-            if cnt2 <= 0 { return .escape }
+            guard read(STDIN_FILENO, &second, 1) == 1 else { return .escape }
 
             switch second[0] {
             case 65: return .cursorUp
