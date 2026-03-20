@@ -52,6 +52,8 @@ Plugins may declare format preferences in their manifest:
 | nil | nil | Plugin accepts everything |
 | nil | declared | Validation error: `conversionFormat` requires `supportedFormats` |
 
+`conversionFormat` need not be a member of `supportedFormats`. It is the target format for files that fall outside the supported set.
+
 Conversion uses `CGImageDestination` (already a dependency via MetadataExtractor). Specifying `conversionFormat` implicitly triggers a fork (see Section 3). Format conversion happens once, when the fork is first created (the plugin's earliest stage). Since forks persist across stages (Section 3, "Fork lifetime"), converted files carry forward to subsequent stages without re-conversion.
 
 ### Files touched
