@@ -251,8 +251,11 @@ extension ConfigWizard {
             // Action options
             row += 1
             var menuItems: [(label: String, action: PluginAction)] = []
-            let stagesMissing = allStages.filter { !pipelineStages.contains($0) }
-            for stage in stagesMissing {
+            let pluginStages = Set(plugin.stages.keys)
+            let addableStages = allStages.filter {
+                !pipelineStages.contains($0) && pluginStages.contains($0)
+            }
+            for stage in addableStages {
                 menuItems.append((
                     label: "Add to \(stage)", action: .addToStage(stage)
                 ))
@@ -369,11 +372,13 @@ extension ConfigWizard {
 
             var menuItems: [(label: String, action: PluginAction)] = []
 
-            if !isMissing {
-                let stagesMissing = allStages.filter { stage in
+            if case let .discovered(plugin) = entry {
+                let pluginStages = Set(plugin.stages.keys)
+                let addableStages = allStages.filter { stage in
                     !(config.pipeline[stage] ?? []).contains(identifier)
+                        && pluginStages.contains(stage)
                 }
-                for stage in stagesMissing {
+                for stage in addableStages {
                     menuItems.append((
                         label: "Add to \(stage)",
                         action: .addToStage(stage)

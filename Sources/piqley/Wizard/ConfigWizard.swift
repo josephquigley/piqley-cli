@@ -188,7 +188,7 @@ final class ConfigWizard {
     private func addPlugin(stageName: String) {
         let currentPlugins = Set(config.pipeline[stageName] ?? [])
         let available = discoveredPlugins
-            .filter { !currentPlugins.contains($0.identifier) }
+            .filter { !currentPlugins.contains($0.identifier) && $0.stages[stageName] != nil }
             .map(\.identifier)
             .sorted()
 
