@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
+### Fixed
+
+- Rules wizard now prompts for values one at a time instead of comma-separated, preventing breakage with regex patterns containing commas
+
 ### Added
 
 - `ForkManager` actor for COW (copy-on-write) image isolation per plugin

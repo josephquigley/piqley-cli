@@ -400,11 +400,17 @@ final class RulesWizard {
 
         switch action {
         case "add", "remove":
-            guard let valuesStr = terminal.promptForInput(
-                title: "Values (comma-separated)",
-                hint: "e.g. sony, mirrorless, alpha"
-            ) else { return nil }
-            let values = valuesStr.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            var values: [String] = []
+            while true {
+                let ordinal = values.isEmpty ? "first" : "next"
+                guard let value = terminal.promptForInput(
+                    title: "Enter \(ordinal) value (empty to finish)",
+                    hint: "e.g. sony  or  regex:.*\\d+mm.*"
+                ) else { return nil }
+                if value.isEmpty { break }
+                values.append(value)
+            }
+            if values.isEmpty { return nil }
             return EmitConfig(action: action, field: field, values: values, replacements: nil, source: nil)
 
         case "replace":
