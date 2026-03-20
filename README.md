@@ -48,10 +48,12 @@ piqley process /path/to/exported/photos
 | `piqley setup` | Interactive configuration and bundled plugin installation |
 | `piqley process <path>` | Process and publish photos from a folder |
 | `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
+| `piqley plugin rules edit <id>` | Interactive rule editor for a plugin's declarative metadata rules |
 | `piqley secret set <key>` | Store a secret in the macOS Keychain |
 | `piqley secret delete <key>` | Remove a secret from the Keychain |
 | `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
-| `piqley verify <image>` | Verify a GPG signature on an image |
+| `piqley config` | Open the main config file in your editor |
+| `piqley uninstall` | Remove all piqley configuration and plugins |
 
 ### Process Options
 
@@ -72,10 +74,12 @@ A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` contain
 
 ```
 ~/.config/piqley/plugins/my-plugin/
-├── manifest.json    # Declarative: config schema, hooks, setup command
-├── config.json      # Mutable: resolved values (managed by piqley)
-├── data/            # Plugin working directory
-└── bin/             # Plugin executables
+├── manifest.json           # Declarative: config schema, hooks, dependencies
+├── config.json             # Mutable: resolved values (managed by piqley)
+├── stage-pre-process.json  # Rules for pre-process hook
+├── stage-post-process.json # Rules for post-process hook
+├── data/                   # Plugin working directory
+└── bin/                    # Plugin executables
 ```
 
 ### Pipeline

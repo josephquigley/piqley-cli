@@ -38,6 +38,9 @@
 .Cm plugin config
 .Ar plugin-name
 .Nm
+.Cm plugin rules edit
+.Ar plugin-id
+.Nm
 .Cm uninstall
 .Op Fl -force
 .Sh DESCRIPTION
@@ -194,6 +197,38 @@ On macOS, falls back to the system
 command if
 .Ev EDITOR
 is not set.
+.Ss plugin rules edit plugin-id
+Open the interactive rule editor for the specified plugin.
+The editor is a full-screen terminal wizard that guides you through
+creating, editing, removing, and reordering declarative metadata rules.
+.Pp
+The wizard flow:
+.Bl -enum -compact
+.It
+Select a pipeline stage (e.g., pre-process, post-process).
+.It
+View existing rules with optional live filtering (press
+.Sq f
+to filter).
+.It
+Add, edit, delete, or reorder rules using keyboard shortcuts.
+.It
+When adding a rule: select a source, field, and match pattern, then
+define emit actions (modify plugin output) and write actions (modify
+file metadata).
+.It
+Review and confirm before saving.
+.El
+.Pp
+The editor validates rules as you build them, showing error messages
+with recovery suggestions inline.
+Changes are saved to the plugin's stage files
+.Pq Pa stage-*.json
+on confirmation.
+.Pp
+If a stage has no binary configured, all rules are placed in
+.Li preRules
+automatically without prompting for a slot choice.
 .Ss uninstall
 Remove all piqley configuration, plugins, and stored secrets.
 Deletes the
@@ -264,11 +299,19 @@ dependencies, and hook entries.
 Each hook entry may specify an executable command with arguments and a
 timeout.
 .It Pa config.json
-Runtime configuration: key-value settings and declarative rules.
+Runtime configuration: key-value settings.
 Created by
 .Cm plugin init
 or
 .Cm plugin setup .
+.It Pa stage-*.json
+Per-stage rule files (e.g.,
+.Pa stage-pre-process.json ) .
+Each contains pre-rules, an optional binary configuration, and
+post-rules.
+Edit interactively with
+.Cm plugin rules edit
+or by hand.
 .It Pa logs/execution.jsonl
 Append-only execution log written by the pipeline orchestrator.
 Cleared by
@@ -358,6 +401,11 @@ piqley plugin config my-tagger
 Create a new plugin with example rules:
 .Bd -literal -offset indent
 piqley plugin init my-tagger
+.Ed
+.Pp
+Edit rules for a plugin interactively:
+.Bd -literal -offset indent
+piqley plugin rules edit my-tagger
 .Ed
 .Pp
 Store a secret for a plugin:
