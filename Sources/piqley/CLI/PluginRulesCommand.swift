@@ -12,7 +12,7 @@ struct PluginRulesCommand: ParsableCommand {
     )
 }
 
-struct PluginRulesEditCommand: AsyncParsableCommand {
+struct PluginRulesEditCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "edit",
         abstract: "Interactively edit rules for a plugin."
@@ -21,7 +21,7 @@ struct PluginRulesEditCommand: AsyncParsableCommand {
     @Argument(help: "The plugin identifier to edit rules for.")
     var pluginID: String
 
-    func run() async throws {
+    func run() throws {
         // 1. Resolve plugin directory
         let pluginDir = PipelineOrchestrator.defaultPluginsDirectory
             .appendingPathComponent(pluginID)
@@ -70,20 +70,8 @@ struct PluginRulesEditCommand: AsyncParsableCommand {
             stages: stages
         )
 
-        // 6. Launch wizard (does not return — calls exit() via TermKit)
-        let writeBack = RulesWizardApp.WriteBackConfig(
-            pluginDir: pluginDir,
-            originalStages: stages
-        )
-
-        guard ProcessInfo.processInfo.environment["TERM"] != nil else {
-            throw ValidationError(
-                "No TERM environment variable set. "
-                    + "The rule editor requires an interactive terminal. "
-                    + "Try setting TERM=xterm-256color or run from a standard terminal."
-            )
-        }
-
-        await RulesWizardApp.run(context: context, writeBack: writeBack)
+        // 6. Launch wizard
+        let wizard = RulesWizard(context: context, pluginDir: pluginDir)
+        try wizard.run()
     }
 }

@@ -16,22 +16,10 @@ struct Piqley: AsyncParsableCommand {
     )
 
     static func main() async {
-        // Skip logging bootstrap when launching the rule editor wizard.
-        // TermKit's Application.prepare() bootstraps its own logging system
-        // and LoggingSystem.bootstrap can only be called once per process.
-        let args = CommandLine.arguments
-        let isRulesEdit = args.contains("rules") && (args.contains("edit") || {
-            guard let rulesIdx = args.firstIndex(of: "rules") else { return false }
-            let nextIdx = args.index(after: rulesIdx)
-            return nextIdx < args.endIndex && !args[nextIdx].hasPrefix("-")
-        }())
-
-        if !isRulesEdit {
-            LoggingSystem.bootstrap { label in
-                var handler = StreamLogHandler.standardError(label: label)
-                handler.logLevel = .info
-                return CleanLogHandler(underlying: handler)
-            }
+        LoggingSystem.bootstrap { label in
+            var handler = StreamLogHandler.standardError(label: label)
+            handler.logLevel = .info
+            return CleanLogHandler(underlying: handler)
         }
 
         do {

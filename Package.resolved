@@ -1,5 +1,5 @@
 {
-  "originHash" : "9a580feb591684fcc12ad93ae3ac423150561bbe32a0cf2c4479f852ddf0d0c6",
+  "originHash" : "7244f0fb9bc3c31b3e4f55523d79385d5d531d0930b0c583cba2dcde1bace302",
   "pins" : [
     {
       "identity" : "swift-argument-parser",
@@ -11,57 +11,12 @@
       }
     },
     {
-      "identity" : "swift-cmark",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-cmark.git",
-      "state" : {
-        "revision" : "5d9bdaa4228b381639fff09403e39a04926e2dbe",
-        "version" : "0.7.1"
-      }
-    },
-    {
       "identity" : "swift-log",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
         "revision" : "bbd81b6725ae874c69e9b8c8804d462356b55523",
         "version" : "1.10.1"
-      }
-    },
-    {
-      "identity" : "swift-markdown",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-markdown",
-      "state" : {
-        "revision" : "7d9a5ce307528578dfa777d505496bd5f544ad94",
-        "version" : "0.7.3"
-      }
-    },
-    {
-      "identity" : "swiftterm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/SwiftTerm.git",
-      "state" : {
-        "revision" : "3c45fdcfcf4395c72d2a4ee23c0bce79017b5391",
-        "version" : "1.12.0"
-      }
-    },
-    {
-      "identity" : "termkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/TermKit.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "2cdfc96f9c524251ae1f517a440f28150182b7c2"
-      }
-    },
-    {
-      "identity" : "textbufferkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/TextBufferKit.git",
-      "state" : {
-        "revision" : "7f3ed5b1d7288de34ad853544d802647be11cfcf",
-        "version" : "0.3.0"
       }
     }
   ],

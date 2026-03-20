@@ -1,0 +1,195 @@
+import Foundation
+import PiqleyCore
+
+extension RulesWizard {
+    // MARK: - Generic UI Components
+
+    /// Show a selectable list and return the chosen index, or nil if cancelled.
+    func selectFromList(title: String, items: [String]) -> Int? {
+        var cursor = 0
+        while true {
+            drawScreen(
+                title: title,
+                items: items,
+                cursor: cursor,
+                footer: "\u{2191}\u{2193} navigate  \u{23CE} select  Esc cancel"
+            )
+
+            let key = terminal.readKey()
+            switch key {
+            case .cursorUp: cursor = max(0, cursor - 1)
+            case .cursorDown: cursor = min(items.count - 1, cursor + 1)
+            case .pageUp: cursor = max(0, cursor - 10)
+            case .pageDown: cursor = min(items.count - 1, cursor + 10)
+            case .enter: return cursor
+            case .escape, .ctrlC: return nil
+            default: break
+            }
+        }
+    }
+
+    /// Prompt for text input. Returns nil if cancelled.
+    func promptForInput(title: String, hint: String, defaultValue: String? = nil) -> String? {
+        var input = defaultValue ?? ""
+        let size = ANSI.terminalSize()
+
+        while true {
+            var buf = ""
+            buf += ANSI.clearScreen()
+            buf += ANSI.moveTo(row: 1, col: 1)
+            buf += "\(ANSI.bold)\(title)\(ANSI.reset)"
+            buf += ANSI.moveTo(row: 2, col: 1)
+            buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
+            buf += ANSI.moveTo(row: 4, col: 1)
+            buf += "\u{25B8} \(input)\u{2588}"
+            buf += ANSI.moveTo(row: size.rows, col: 1)
+            buf += "\(ANSI.dim)Enter to confirm  Esc to cancel\(ANSI.reset)"
+            terminal.write(buf)
+
+            let key = terminal.readKey()
+            switch key {
+            case let .char(char):
+                input.append(char)
+            case .backspace:
+                if !input.isEmpty { input.removeLast() }
+            case .enter:
+                if !input.isEmpty { return input }
+            case .escape, .ctrlC:
+                return nil
+            default: break
+            }
+        }
+    }
+
+    /// Show a y/n confirmation. Returns true for yes.
+    func confirm(_ message: String) -> Bool {
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)\(message)\(ANSI.reset)"
+        buf += ANSI.moveTo(row: 3, col: 1)
+        buf += "y/n \u{25B8} "
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)y yes  n no\(ANSI.reset)"
+        terminal.write(buf)
+
+        while true {
+            let key = terminal.readKey()
+            switch key {
+            case .char("y"), .char("Y"): return true
+            case .char("n"), .char("N"), .escape: return false
+            default: break
+            }
+        }
+    }
+
+    /// Show an error message, wait for keypress.
+    func showError(_ error: RuleValidationError) {
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.red)\(ANSI.bold)Error: \(error.errorDescription ?? "Unknown error")\(ANSI.reset)"
+        if let suggestion = error.recoverySuggestion {
+            buf += ANSI.moveTo(row: 3, col: 1)
+            buf += "\(ANSI.dim)\(suggestion)\(ANSI.reset)"
+        }
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)Press any key to continue\(ANSI.reset)"
+        terminal.write(buf)
+        _ = terminal.readKey()
+    }
+
+    // MARK: - Drawing
+
+    func drawScreen(title: String, items: [String], cursor: Int, footer: String) {
+        let size = ANSI.terminalSize()
+        let maxVisible = size.rows - 4
+        let scrollOffset = max(0, cursor - maxVisible + 1)
+
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)\(title)\(ANSI.reset)"
+
+        let visible = Array(items.enumerated()).dropFirst(scrollOffset).prefix(maxVisible)
+        for (row, entry) in visible.enumerated() {
+            let (idx, text) = entry
+            buf += ANSI.moveTo(row: row + 3, col: 1)
+            if idx == cursor {
+                buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
+            } else {
+                buf += "   \(text)"
+            }
+        }
+
+        if items.count > maxVisible {
+            buf += ANSI.moveTo(row: 2, col: size.cols - 10)
+            buf += "\(ANSI.dim)\(scrollOffset + 1)-\(min(scrollOffset + maxVisible, items.count)) of \(items.count)\(ANSI.reset)"
+        }
+
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)\(footer)\(ANSI.reset)"
+
+        terminal.write(buf)
+    }
+
+    // MARK: - Save / Quit
+
+    func saveAndQuit() {
+        do {
+            try RulesWizard.saveStages(context.stages, to: pluginDir)
+            terminal.restore()
+            print("Rules saved.")
+        } catch {
+            terminal.restore()
+            print("Error saving: \(error.localizedDescription)")
+        }
+        Foundation.exit(0)
+    }
+
+    func quit() {
+        if modified {
+            if confirm("Save changes before quitting?") {
+                saveAndQuit()
+            }
+        }
+        terminal.restore()
+        Foundation.exit(0)
+    }
+
+    // MARK: - Formatting
+
+    func formatRule(_ rule: Rule, index: Int) -> String {
+        let field = rule.match.field
+        let pattern = rule.match.pattern
+        let emitSummary = rule.emit.map { emit in
+            let action = emit.action ?? "add"
+            let target = emit.field
+            if let values = emit.values {
+                return "\(action) \(target)=[\(values.joined(separator: ", "))]"
+            } else if emit.replacements != nil {
+                return "replace \(target)"
+            } else if let source = emit.source {
+                return "clone \(target) from \(source)"
+            }
+            return "\(action) \(target)"
+        }.joined(separator: "; ")
+        let writeSummary = rule.write.isEmpty ? "" : " +write"
+        return "\(index + 1). \(field) ~ \(pattern) \u{2192} \(emitSummary)\(writeSummary)"
+    }
+
+    // MARK: - File I/O
+
+    static func saveStages(_ stages: [String: StageConfig], to pluginDir: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        for (hookName, stageConfig) in stages {
+            let data = try encoder.encode(stageConfig)
+            let stageFile = pluginDir
+                .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
+            try data.write(to: stageFile, options: .atomic)
+        }
+    }
+}
