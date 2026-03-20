@@ -59,6 +59,7 @@ final class StageSelectScreen {
             }
         }
 
+        try? win.layoutSubviews()
         _ = list.becomeFirstResponder()
         win.setNeedsDisplay()
     }

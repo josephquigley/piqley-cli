@@ -37,6 +37,10 @@ enum RulesWizardApp {
         let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
         stageScreen.show(in: win)
 
+        // Force layout before begin() so child views have computed frames
+        try? Application.top.layoutSubviews()
+        Application.top.setNeedsDisplay()
+
         Application.begin(toplevel: Application.top)
 
         // Pump the RunLoop so TermKit's FileHandle.readabilityHandler fires.

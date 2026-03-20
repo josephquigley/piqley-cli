@@ -78,6 +78,7 @@ final class RuleListScreen {
             )
         }
 
+        try? win.layoutSubviews()
         _ = list.becomeFirstResponder()
         win.setNeedsDisplay()
     }
