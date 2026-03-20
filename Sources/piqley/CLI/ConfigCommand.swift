@@ -5,7 +5,7 @@ struct ConfigCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "config",
         abstract: "View or edit the piqley config",
-        subcommands: [EditSubcommand.self, OpenSubcommand.self]
+        subcommands: [EditSubcommand.self, OpenSubcommand.self, AddPluginSubcommand.self, RemovePluginSubcommand.self]
     )
 
     struct OpenSubcommand: ParsableCommand {

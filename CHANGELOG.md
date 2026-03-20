@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `config add-plugin` and `config remove-plugin` subcommands for non-interactive pipeline editing
+- `PipelineEditor` shared validation for add/remove pipeline operations
 - Skip rule effect: images matched by a skip rule are excluded from binary execution and skip records are included in the plugin wire payload
 - `--overwrite-source` flag on `process` command to copy processed images back to the source directory
 - Rule match negation (`not: true` on match config) inverts matching so rules fire on non-matching values
