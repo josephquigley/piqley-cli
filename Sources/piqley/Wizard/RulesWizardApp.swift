@@ -16,19 +16,28 @@ enum RulesWizardApp {
     }
 
     /// Launch the wizard. This method does not return -- TermKit calls `exit()` on shutdown.
-    static func run(context: RuleEditingContext, writeBack: WriteBackConfig) {
-        // We are called synchronously from main() before the async runtime starts.
-        // TermKit views are @MainActor; we are on the main thread so assumeIsolated is safe.
+    /// Launch the wizard on the MainActor.
+    /// Uses Application.begin() instead of Application.run() to avoid calling
+    /// dispatchMain(), which conflicts with Swift's async runtime. The async
+    /// runtime already services the main dispatch queue, so TermKit's GCD-based
+    /// input handlers and display updates work without dispatchMain().
+    @MainActor
+    static func run(context: RuleEditingContext, writeBack: WriteBackConfig) async {
         Application.prepare()
 
-        MainActor.assumeIsolated {
-            let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
-            stageScreen.present()
-        }
+        let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
+        stageScreen.present()
 
-        // Application.run() calls dispatchMain() internally and never returns.
-        // TermKit's shutdown() calls exit(), so this is effectively a one-way trip.
-        Application.run()
+        // begin() sets up layout, initial render, and starts event processing.
+        // We do NOT call Application.run() because it calls dispatchMain().
+        // Instead, the async runtime's main executor drains DispatchQueue.main,
+        // which is where TermKit dispatches input events and display updates.
+        Application.begin(toplevel: Application.top)
+
+        // Keep the task alive — TermKit's shutdown() calls exit() to end the process.
+        while true {
+            try? await Task.sleep(for: .seconds(3600))
+        }
     }
 
     /// Writes modified stages back to disk. Called by the wizard before shutdown.
