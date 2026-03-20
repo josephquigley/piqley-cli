@@ -11,7 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6.0-orange" alt="Swift 6.0"/>
   <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS"/>
-  <img src="https://img.shields.io/github/license/josephquigley/piqley" alt="License"/>
+  <img src="https://img.shields.io/github/license/josephquigley/piqley-cli" alt="License"/>
 </p>
 <p align="center">
   <a href="https://ko-fi.com/I3I2LL7Y1"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"/></a>
@@ -27,7 +27,7 @@ It works with any photo editor that exports to a folder (Lightroom, Capture One,
 ## Installation
 
 ```bash
-brew tap quigs/tools https://github.com/josephquigley/piqley.git
+brew tap quigs/tools https://github.com/josephquigley/piqley-cli.git
 brew install quigs/tools/piqley
 ```
 
@@ -47,26 +47,29 @@ piqley process /path/to/exported/photos
 |---------|-------------|
 | `piqley setup` | Interactive configuration and bundled plugin installation |
 | `piqley process <path>` | Process and publish photos from a folder |
+| `piqley plugin list` | List all installed plugins with active/inactive status |
 | `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
+| `piqley plugin init [id] [name]` | Create a new declarative-only plugin interactively |
+| `piqley plugin create <dir>` | Scaffold a new plugin project from an SDK skeleton |
+| `piqley plugin install <file>` | Install a `.piqleyplugin` package (`--force` to overwrite) |
+| `piqley plugin config <name>` | Open a plugin's config file in your editor |
 | `piqley plugin rules edit <id>` | Interactive rule editor for a plugin's declarative metadata rules |
 | `piqley secret set <key>` | Store a secret in the macOS Keychain |
 | `piqley secret delete <key>` | Remove a secret from the Keychain |
 | `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
 | `piqley config` | Open the main config file in your editor |
-| `piqley uninstall` | Remove all piqley configuration and plugins |
+| `piqley uninstall` | Remove all piqley configuration and plugins (`--force` to skip prompt) |
 
 ### Process Options
 
 - `--dry-run` - Preview actions without uploading
 - `--delete-source-contents` - Delete the contents of the source folder after a successful run
 - `--delete-source-folder` - Delete the source folder and its contents after a successful run
-- `--verbose-results` - Include successful images in result output
-- `--json-results` - Write a single JSON results file instead of individual text files
-- `--results-dir <path>` - Directory to write result files to (default: input folder)
+- `--non-interactive` - Skip interactive prompts; drop invalid rules with warnings
 
 ## Plugin System
 
-Piqley's core is a lightweight orchestrator. All real work (image processing, uploading, scheduling) is handled by plugins running as isolated subprocesses. Plugins never touch your original files — piqley copies images into a temporary folder before the pipeline runs, and plugins only operate on those copies. The temp folder is automatically cleaned up when processing finishes.
+Piqley's core is a lightweight orchestrator. All real work (image processing, uploading, scheduling) is handled by plugins running as isolated subprocesses. Piqley copies images into a temporary folder before the pipeline runs, plugins operate on those copies, and the processed results are copied back over the originals when the pipeline completes. The temp folder is automatically cleaned up.
 
 ### How Plugins Work
 
@@ -84,24 +87,22 @@ A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` contain
 
 ### Pipeline
 
-Plugins register for hooks in a five-stage pipeline:
+Plugins register for hooks in a four-stage pipeline:
 
 | Hook | Purpose |
 |------|---------|
 | `pre-process` | Modify images before processing (e.g. watermarking) |
 | `post-process` | Modify images after processing (e.g. resize, metadata) |
 | `publish` | Upload or distribute processed images |
-| `schedule` | Schedule or queue posts |
 | `post-publish` | Clean up, notify, or log after publishing |
 
 The pipeline order is configured in `~/.config/piqley/config.json`:
 
 ```json
 {
-  "autoDiscoverPlugins": true,
   "pipeline": {
-    "post-process": ["piqley-metadata", "piqley-resize"],
-    "publish": ["piqley-ghost"]
+    "pre-process": ["privacy-strip", "ghost-tagger"],
+    "publish": ["ghost-publisher"]
   }
 }
 ```

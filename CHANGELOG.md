@@ -13,10 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 
 - `piqley plugin list` — show all installed plugins with active/inactive status, version, and stages
-- `piqley plugin rules edit <plugin-id>` — interactive TUI wizard for creating, editing, removing, and reordering declarative metadata rules
+- `piqley plugin rules edit <plugin-id>` — ANSI-based TUI wizard for creating, editing, removing, and reordering declarative metadata rules
+- Rule editor: interactive reorder mode with context-aware delete/undelete
+- Rule editor: save shortcut (`s`) and save-without-quit workflow
+- Rule editor: Escape means done on action selection; unsaved-changes prompt on exit
+- Rule editor: autocomplete for target field in action configuration
+- Rule editor: Ctrl+L opens filterable field selection list from target field prompt
+- Rule editor: show match context on action selection screen
+- Rule editor: show replacement patterns in rule list display
 - `FieldDiscovery` for rule editor field introspection
 - Environment template resolution for binary plugins
-- `TermKit` dependency and `PluginRulesCommand` scaffold
 - Clone evaluation logic in `RuleEvaluator`
 - Clone case to `EmitAction` enum with compilation validation
 - Fail-fast manifest validation at plugin discovery
@@ -32,7 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `MetadataBuffer.invalidateAll()` for post-binary cache invalidation
 - `--delete-source-contents` flag to delete source folder contents after a successful run
 - `--delete-source-folder` flag to delete the source folder after a successful run
-- Swift-based CLI with process, setup, clear-cache, and verify subcommands
+- `--non-interactive` flag to skip interactive prompts and drop invalid rules with warnings
+- Swift-based CLI with process, setup, and clear-cache subcommands
 - Version flag (`--version`) support
 - Comprehensive man page
 - Dry run mode for process command
@@ -40,11 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Tag blocklist with glob and regex pattern matching
 - Configurable required tags
 - EXIF and IPTC metadata extraction via CoreGraphics
-- Image resizing with configurable max long edge and JPEG quality
 - Opt-in EXIF metadata allowlist for privacy-safe uploads
-- GPG-based cryptographic image signing with XMP metadata embedding
-- Deterministic image hashing via `SignableContentExtractor`
-- Signature verification via verify subcommand
 - JSONL-based execution logs for idempotent processing
 - Process lock for single-instance enforcement
 - Keychain-based secret storage for API keys and plugin credentials
