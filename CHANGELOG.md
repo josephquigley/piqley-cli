@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Simplify `AppConfig` to pipeline-only (remove `autoDiscoverPlugins`, `disabledPlugins`)
 - `piqley plugin list` shows pipeline stage membership instead of active/inactive status
-- `piqley setup` seeds pipeline from discovered plugins instead of hardcoded defaults
+- `piqley setup` seeds pipeline from all discovered plugins instead of hardcoded defaults
 
 ### Fixed
 

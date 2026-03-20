@@ -69,7 +69,6 @@ struct PipelineOrchestratorTests {
 
         var config = AppConfig()
         config.pipeline["publish"] = ["com.test.test-plugin"]
-        config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
             config: config,
@@ -117,7 +116,6 @@ struct PipelineOrchestratorTests {
 
         var config = AppConfig()
         config.pipeline["publish"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
-        config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
             config: config,
@@ -158,7 +156,6 @@ struct PipelineOrchestratorTests {
 
         var config = AppConfig()
         config.pipeline["publish"] = ["com.test.secret-plugin"]
-        config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
             config: config,

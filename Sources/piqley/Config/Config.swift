@@ -4,6 +4,13 @@ struct AppConfig: Codable, Sendable {
     /// Hook name -> ordered plugin identifier list.
     var pipeline: [String: [String]] = [:]
 
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        pipeline = try container.decodeIfPresent([String: [String]].self, forKey: .pipeline) ?? [:]
+    }
+
     // MARK: - Persistence
 
     static var configURL: URL {
