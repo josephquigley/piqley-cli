@@ -788,6 +788,93 @@ struct RuleEvaluatorTests {
         #expect(result.namespace["status"] == nil)
     }
 
+    // MARK: - Match negation
+
+    @Test("match negation fires on non-matching values")
+    func testMatchNegation() async throws {
+        let rules = [Rule(
+            match: MatchConfig(field: "original:TIFF:Model", pattern: "Canon", not: true),
+            emit: [EmitConfig(action: nil, field: "keywords", values: ["not-canon"], replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        // "Sony" does not match "Canon", so with not: true the rule fires
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("not-canon")]))
+    }
+
+    @Test("match negation does not fire on matching values")
+    func testMatchNegationNoFire() async throws {
+        let rules = [Rule(
+            match: MatchConfig(field: "original:TIFF:Model", pattern: "Canon", not: true),
+            emit: [EmitConfig(action: nil, field: "keywords", values: ["not-canon"], replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Canon")]]
+        )
+        #expect(result.namespace.isEmpty)
+    }
+
+    // MARK: - Remove negated
+
+    @Test("remove with not: true keeps only matching values")
+    func testRemoveNegated() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "Sony",
+                emit: [EmitConfig(action: "remove", field: "keywords", values: ["keeper"], replacements: nil, source: nil, not: true)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]],
+            currentNamespace: ["keywords": .array([.string("keeper"), .string("old-tag"), .string("auto-focus")])]
+        )
+        // not: true means keep only values matching the matchers ("keeper"), remove everything else
+        #expect(result.namespace["keywords"] == .array([.string("keeper")]))
+    }
+
+    // MARK: - RemoveField negated
+
+    @Test("removeField with not: true keeps only the named field")
+    func testRemoveFieldNegated() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "Sony",
+                emit: [EmitConfig(action: "removeField", field: "keywords", values: nil, replacements: nil, source: nil, not: true)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]],
+            currentNamespace: ["keywords": .array([.string("kept")]), "tags": .array([.string("removed")]), "notes": .string("gone")]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("kept")]))
+        #expect(result.namespace["tags"] == nil)
+        #expect(result.namespace["notes"] == nil)
+    }
+
+    // MARK: - WriteBack compilation
+
+    @Test("writeBack action compiles without error")
+    func testWriteBackCompiles() throws {
+        let rules = [Rule(
+            match: MatchConfig(field: "original:TIFF:Model", pattern: "glob:*"),
+            emit: [EmitConfig(action: nil, field: "keywords", values: ["test"], replacements: nil, source: nil)],
+            write: [EmitConfig(action: "writeBack", field: nil, values: nil, replacements: nil, source: nil)]
+        )]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        #expect(evaluator.compiledRules.count == 1)
+        #expect(evaluator.compiledRules[0].writeActions.count == 1)
+        if case .writeBack = evaluator.compiledRules[0].writeActions[0] {
+            // expected
+        } else {
+            Issue.record("Expected writeBack action")
+        }
+    }
+
     @Test("clone with read: namespace")
     func cloneReadNamespace() async throws {
         let buffer = MetadataBuffer(preloaded: [

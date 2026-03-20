@@ -5,16 +5,18 @@ import PiqleyCore
 enum EmitAction: Sendable {
     case skip
     case add(field: String, values: [String])
-    case remove(field: String, matchers: [any TagMatcher & Sendable])
+    case remove(field: String, matchers: [any TagMatcher & Sendable], not: Bool)
     case replace(field: String, replacements: [(matcher: any TagMatcher & Sendable, replacement: String)])
-    case removeField(field: String) // "*" means remove all fields
+    case removeField(field: String, not: Bool)
     case clone(field: String, sourceNamespace: String, sourceField: String?)
+    case writeBack
 }
 
 struct CompiledRule: Sendable {
     let namespace: String // match-side namespace
     let field: String // match-side field
     let matcher: any TagMatcher & Sendable
+    let not: Bool
     let emitActions: [EmitAction]
     let writeActions: [EmitAction]
 }
@@ -98,6 +100,7 @@ struct RuleEvaluator: Sendable {
                 namespace: namespace,
                 field: field,
                 matcher: matcher,
+                not: rule.match.not ?? false,
                 emitActions: emitActions,
                 writeActions: writeActions
             ))
@@ -131,7 +134,7 @@ struct RuleEvaluator: Sendable {
             let matchers: [any TagMatcher & Sendable] = try values.map { entry in
                 try TagMatcherFactory.build(from: entry)
             }
-            return .remove(field: field, matchers: matchers)
+            return .remove(field: field, matchers: matchers, not: config.not ?? false)
 
         case "replace":
             guard let field = config.field else {
@@ -148,7 +151,10 @@ struct RuleEvaluator: Sendable {
             guard let field = config.field else {
                 throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for removeField")
             }
-            return .removeField(field: field)
+            return .removeField(field: field, not: config.not ?? false)
+
+        case "writeBack":
+            return .writeBack
 
         case "clone":
             guard let field = config.field else {
@@ -216,10 +222,15 @@ struct RuleEvaluator: Sendable {
                 false
             }
 
-            if matched {
+            let shouldApply = rule.not ? !matched : matched
+
+            if shouldApply {
                 // Emit actions first (modify plugin namespace)
                 var didSkip = false
                 for action in rule.emitActions {
+                    if case .writeBack = action {
+                        continue
+                    }
                     if case .skip = action {
                         if let store = stateStore, let image = imageName, let plugin = pluginId {
                             let record = JSONValue.object(["file": .string(image), "plugin": .string(plugin)])
@@ -283,10 +294,16 @@ struct RuleEvaluator: Sendable {
             }
             working[field] = .array(existing.map { .string($0) })
 
-        case let .remove(field, matchers):
+        case let .remove(field, matchers, not):
             var existing = extractStrings(from: working[field])
-            existing.removeAll { value in
-                matchers.contains { $0.matches(value) }
+            if not {
+                existing = existing.filter { value in
+                    matchers.contains { $0.matches(value) }
+                }
+            } else {
+                existing.removeAll { value in
+                    matchers.contains { $0.matches(value) }
+                }
             }
             if existing.isEmpty {
                 working.removeValue(forKey: field)
@@ -307,8 +324,12 @@ struct RuleEvaluator: Sendable {
             }
             working[field] = .array(existing.map { .string($0) })
 
-        case let .removeField(field):
-            if field == "*" {
+        case let .removeField(field, not):
+            if not {
+                let kept = working[field]
+                working.removeAll()
+                if let kept { working[field] = kept }
+            } else if field == "*" {
                 working.removeAll()
             } else {
                 working.removeValue(forKey: field)
@@ -316,6 +337,9 @@ struct RuleEvaluator: Sendable {
 
         case .clone:
             // Clone is handled inline in evaluate(), not via applyAction.
+            break
+
+        case .writeBack:
             break
         }
     }

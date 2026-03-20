@@ -9,6 +9,7 @@ actor MetadataBuffer {
     private var dirty: Set<String> = []
     private let imageURLs: [String: URL]
     private let logger = Logger(label: "piqley.metadata-buffer")
+    private(set) var writeBackTriggered = false
 
     init(imageURLs: [String: URL]) {
         self.imageURLs = imageURLs
@@ -37,6 +38,10 @@ actor MetadataBuffer {
 
     /// Apply a pre-compiled write action against an image's metadata.
     func applyAction(_ action: EmitAction, image: String) {
+        if case .writeBack = action {
+            writeBackTriggered = true
+            return
+        }
         if metadata[image] == nil {
             _ = load(image: image)
         }

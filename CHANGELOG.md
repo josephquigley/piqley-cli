@@ -18,6 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Skip rule effect: images matched by a skip rule are excluded from binary execution and skip records are included in the plugin wire payload
 - `--overwrite-source` flag on `process` command to copy processed images back to the source directory
+- Rule match negation (`not: true` on match config) inverts matching so rules fire on non-matching values
+- Emit negation (`not: true` on remove/removeField) inverts filtering: remove keeps only matching values, removeField keeps only the named field
+- `writeBack` emit action compiled and forwarded to MetadataBuffer
+- Expanded image format support: png, tiff, tif, heic, heif, webp now recognized alongside jpg, jpeg, jxl
+- Unsupported file warnings logged when non-image files are found in source directory
+- Pipeline exits early with error when no supported image files are found
 - `piqley config edit` - interactive TUI wizard for editing the pipeline configuration
 - `piqley config open` - open config file in editor (replaces `piqley config`)
 - Filterable plugin browser in config editor with per-plugin action menu
