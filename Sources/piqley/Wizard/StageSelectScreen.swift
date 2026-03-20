@@ -19,8 +19,7 @@ final class StageSelectScreen {
         let stageNames = context.stageNames()
         guard !stageNames.isEmpty else {
             print("No stages found for plugin '\(context.pluginIdentifier)'.")
-            Application.shutdown()
-            return
+            exit(1)
         }
 
         let win = WizardWindow("Edit Rules: \(context.pluginIdentifier)")
@@ -50,13 +49,9 @@ final class StageSelectScreen {
 
         win.onKey = { [weak self] event in
             guard let self else { return false }
-                switch event.key {
+            switch event.key {
             case .letter("q"):
-                if modified {
-                    confirmQuit()
-                } else {
-                    Application.shutdown()
-                }
+                quitWizard()
                 return true
             case .letter("s"):
                 saveAndQuit()
@@ -104,31 +99,19 @@ final class StageSelectScreen {
     private func saveAndQuit() {
         do {
             try RulesWizardApp.saveStages(context.stages, to: writeBack.pluginDir)
-            Application.shutdown()
         } catch {
-            // Show error in a simple dialog
-            let alert = Dialog(title: "Save Error", width: 60, height: 8, buttons: [
-                Button("OK") { Application.requestStop() },
-            ])
-            let msg = Label(error.localizedDescription)
-            msg.x = Pos.at(1)
-            msg.y = Pos.at(1)
-            msg.width = Dim.fill(1)
-            alert.addSubview(msg)
-            Application.present(top: alert)
+            // Print error to stderr before exiting
+            FileHandle.standardError.write(Data("Error saving: \(error.localizedDescription)\n".utf8))
         }
+        RulesWizardApp.exitWizard()
     }
 
-    private func confirmQuit() {
-        let dialog = Dialog(title: "Unsaved Changes", width: 50, height: 7, buttons: [
-            Button("Quit without saving") { Application.shutdown() },
-            Button("Cancel") { Application.requestStop() },
-        ])
-        let msg = Label("You have unsaved changes. Quit anyway?")
-        msg.x = Pos.at(1)
-        msg.y = Pos.at(1)
-        msg.width = Dim.fill(1)
-        dialog.addSubview(msg)
-        Application.present(top: dialog)
+    private func quitWizard() {
+        if modified {
+            // Save automatically on quit if modified
+            saveAndQuit()
+        } else {
+            RulesWizardApp.exitWizard()
+        }
     }
 }

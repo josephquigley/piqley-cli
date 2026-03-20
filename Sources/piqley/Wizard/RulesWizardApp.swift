@@ -70,6 +70,14 @@ enum RulesWizardApp {
         )
     }
 
+    /// Clean up terminal and exit the process.
+    /// We can't use Application.shutdown() because it relies on dispatchMain().
+    static func exitWizard() -> Never {
+        // Restore terminal state
+        Application.driver.end()
+        exit(0)
+    }
+
     /// Writes modified stages back to disk. Called by the wizard before shutdown.
     static func saveStages(_ stages: [String: StageConfig], to pluginDir: URL) throws {
         let encoder = JSONEncoder()

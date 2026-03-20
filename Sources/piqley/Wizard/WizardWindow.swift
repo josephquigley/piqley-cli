@@ -1,3 +1,4 @@
+import Foundation
 import TermKit
 
 /// A Window subclass that supports a closure-based key handler.

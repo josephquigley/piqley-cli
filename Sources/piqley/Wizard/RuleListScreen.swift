@@ -1,3 +1,4 @@
+import Foundation
 import PiqleyCore
 import TermKit
 
@@ -21,6 +22,9 @@ final class RuleListScreen {
     /// Filtered items currently shown in the list.
     private var filteredItems: [(index: Int, display: String)] = []
 
+    /// Saved subviews from the previous screen to restore on back.
+    private var previousSubviews: [View] = []
+
     init(
         context: RuleEditingContext,
         stageName: String,
@@ -35,10 +39,8 @@ final class RuleListScreen {
     func present() {
         let hasBinary = context.stageHasBinary(stageName)
 
-        // Save current subviews so we can restore them when going back
-        let previousSubviews = Application.top.subviews
-
-        // Remove current content from Application.top
+        // Save and clear current content
+        previousSubviews = Application.top.subviews
         for view in previousSubviews {
             Application.top.removeSubview(view)
         }
@@ -98,11 +100,11 @@ final class RuleListScreen {
         footer.width = Dim.fill()
         win.addSubview(footer)
 
-        // Key handling via WizardWindow.onKey — intercepts before focused views.
+        // Key handling
         let views = ListViews(list: list, filterField: filterField, slotLabel: slotLabel, hasBinary: hasBinary)
         win.onKey = { [weak self] event in
             guard let self else { return false }
-            return handleKey(event: event, views: views, previousSubviews: previousSubviews)
+            return handleKey(event: event, views: views)
         }
 
         // Filter text changes
@@ -121,7 +123,7 @@ final class RuleListScreen {
             return true
         }
 
-        _ = list.becomeFirstResponder()
+        Application.top.focusFirst()
         Application.top.setNeedsDisplay()
     }
 
@@ -134,7 +136,7 @@ final class RuleListScreen {
         let hasBinary: Bool
     }
 
-    private func handleKey(event: KeyEvent, views: ListViews, previousSubviews: [View] = []) -> Bool {
+    private func handleKey(event: KeyEvent, views: ListViews) -> Bool {
         let list = views.list
         let filterField = views.filterField
         let slotLabel = views.slotLabel
@@ -150,15 +152,7 @@ final class RuleListScreen {
 
         switch event.key {
         case .letter("q"), .esc:
-            onUpdate(context)
-            // Restore previous screen content
-            for view in Application.top.subviews {
-                Application.top.removeSubview(view)
-            }
-            for view in previousSubviews {
-                Application.top.addSubview(view)
-            }
-            Application.top.setNeedsDisplay()
+            goBack()
             return true
 
         case .letter("a"):
@@ -209,6 +203,21 @@ final class RuleListScreen {
         default:
             return false
         }
+    }
+
+    // MARK: - Navigation
+
+    private func goBack() {
+        onUpdate(context)
+        // Restore previous screen content
+        for view in Application.top.subviews {
+            Application.top.removeSubview(view)
+        }
+        for view in previousSubviews {
+            Application.top.addSubview(view)
+        }
+        Application.top.focusFirst()
+        Application.top.setNeedsDisplay()
     }
 
     // MARK: - Filter
@@ -319,29 +328,16 @@ final class RuleListScreen {
 
         let rules = context.rules(forStage: stageName, slot: slot)
         guard index < rules.count else { return }
-        let rule = rules[index]
 
-        let dialog = Dialog(title: "Delete Rule?", width: 60, height: 10, buttons: [
-            Button("Delete") { [weak self] in
-                guard let self else { return }
-                if var stage = context.stages[stageName] {
-                    try? stage.removeRule(at: index, slot: slot)
-                    context.stages[stageName] = stage
-                }
-                onUpdate(context)
-                rebuildRuleItems()
-                applyFilter()
-                refreshList(list)
-                Application.requestStop()
-            },
-            Button("Cancel") { Application.requestStop() },
-        ])
-        let msg = Label(Self.formatRule(rule, index: index))
-        msg.x = Pos.at(1)
-        msg.y = Pos.at(1)
-        msg.width = Dim.fill(1)
-        dialog.addSubview(msg)
-        Application.present(top: dialog)
+        // Delete directly — no confirmation dialog (dialogs break with our async setup)
+        if var stage = context.stages[stageName] {
+            try? stage.removeRule(at: index, slot: slot)
+            context.stages[stageName] = stage
+        }
+        onUpdate(context)
+        rebuildRuleItems()
+        applyFilter()
+        refreshList(list)
     }
 
     private func startReorder(from index: Int, list: ListView) {
@@ -350,38 +346,15 @@ final class RuleListScreen {
         let rules = context.rules(forStage: stageName, slot: slot)
         guard rules.count > 1, index < rules.count else { return }
 
-        let dialog = Dialog(title: "Reorder Rule \(index + 1)", width: 40, height: 8, buttons: [
-            Button("Move Up") { [weak self] in
-                guard let self, index > 0 else { Application.requestStop(); return }
-                if var stage = context.stages[stageName] {
-                    try? stage.moveRule(from: index, to: index - 1, slot: slot)
-                    context.stages[stageName] = stage
-                }
-                onUpdate(context)
-                rebuildRuleItems()
-                applyFilter()
-                refreshList(list)
-                Application.requestStop()
-            },
-            Button("Move Down") { [weak self] in
-                guard let self, index < rules.count - 1 else { Application.requestStop(); return }
-                if var stage = context.stages[stageName] {
-                    try? stage.moveRule(from: index, to: index + 1, slot: slot)
-                    context.stages[stageName] = stage
-                }
-                onUpdate(context)
-                rebuildRuleItems()
-                applyFilter()
-                refreshList(list)
-                Application.requestStop()
-            },
-            Button("Cancel") { Application.requestStop() },
-        ])
-        let msg = Label("Move rule \(index + 1) of \(rules.count)")
-        msg.x = Pos.at(1)
-        msg.y = Pos.at(1)
-        msg.width = Dim.fill(1)
-        dialog.addSubview(msg)
-        Application.present(top: dialog)
+        // Move up by default, wrap around
+        let destination = index > 0 ? index - 1 : rules.count - 1
+        if var stage = context.stages[stageName] {
+            try? stage.moveRule(from: index, to: destination, slot: slot)
+            context.stages[stageName] = stage
+        }
+        onUpdate(context)
+        rebuildRuleItems()
+        applyFilter()
+        refreshList(list)
     }
 }
