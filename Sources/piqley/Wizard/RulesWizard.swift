@@ -9,6 +9,10 @@ final class RulesWizard {
     let terminal: RawTerminal
     var modified = false
 
+    /// Tracks which rules are marked for deletion (by stage + slot + index).
+    /// Deleted rules are shown struck-through and removed on save.
+    var deletedRules: Set<String> = []
+
     init(context: RuleEditingContext, pluginDir: URL) {
         self.context = context
         self.pluginDir = pluginDir
@@ -68,6 +72,10 @@ final class RulesWizard {
 
     // MARK: - Rule List
 
+    private func deletionKey(stage: String, slot: RuleSlot, index: Int) -> String {
+        "\(stage):\(slot):\(index)"
+    }
+
     private func ruleList(stageName: String) {
         let slot: RuleSlot = .pre
         var cursor = 0
@@ -76,7 +84,14 @@ final class RulesWizard {
             let rules = context.rules(forStage: stageName, slot: slot)
             let items: [String] = rules.isEmpty
                 ? ["(no rules)"]
-                : rules.enumerated().map { idx, rule in formatRule(rule, index: idx) }
+                : rules.enumerated().map { idx, rule in
+                    let key = deletionKey(stage: stageName, slot: slot, index: idx)
+                    let text = formatRule(rule, index: idx)
+                    if deletedRules.contains(key) {
+                        return "\(ANSI.dim)\u{0336}" + strikethrough(text) + "\(ANSI.reset)"
+                    }
+                    return text
+                }
 
             drawScreen(
                 title: "\(stageName) rules",
@@ -93,14 +108,23 @@ final class RulesWizard {
             case .pageDown: cursor = min(items.count - 1, cursor + 10)
             case .enter, .char("e"):
                 if !rules.isEmpty, cursor < rules.count {
-                    editRule(stageName: stageName, slot: slot, index: cursor)
+                    let delKey = deletionKey(stage: stageName, slot: slot, index: cursor)
+                    if !deletedRules.contains(delKey) {
+                        editRule(stageName: stageName, slot: slot, index: cursor)
+                    }
                 }
             case .char("a"):
                 addRule(stageName: stageName, slot: slot)
             case .char("d"):
                 if !rules.isEmpty, cursor < rules.count {
-                    deleteRule(stageName: stageName, slot: slot, index: cursor)
-                    cursor = min(cursor, max(0, rules.count - 2))
+                    let delKey = deletionKey(stage: stageName, slot: slot, index: cursor)
+                    if deletedRules.contains(delKey) {
+                        // Undelete — toggle
+                        deletedRules.remove(delKey)
+                    } else {
+                        deletedRules.insert(delKey)
+                        modified = true
+                    }
                 }
             case .char("r"):
                 if !rules.isEmpty, cursor < rules.count, cursor > 0 {
@@ -108,6 +132,15 @@ final class RulesWizard {
                         try? stage.moveRule(from: cursor, to: cursor - 1, slot: slot)
                         context.stages[stageName] = stage
                         modified = true
+                        // Swap deletion keys too
+                        let oldKey = deletionKey(stage: stageName, slot: slot, index: cursor)
+                        let newKey = deletionKey(stage: stageName, slot: slot, index: cursor - 1)
+                        let oldDeleted = deletedRules.contains(oldKey)
+                        let newDeleted = deletedRules.contains(newKey)
+                        deletedRules.remove(oldKey)
+                        deletedRules.remove(newKey)
+                        if oldDeleted { deletedRules.insert(newKey) }
+                        if newDeleted { deletedRules.insert(oldKey) }
                         cursor -= 1
                     }
                 }
@@ -116,6 +149,16 @@ final class RulesWizard {
             default: break
             }
         }
+    }
+
+    /// Apply a Unicode strikethrough to each character.
+    private func strikethrough(_ text: String) -> String {
+        var result = ""
+        for char in text {
+            result.append(char)
+            result.append("\u{0336}")
+        }
+        return result
     }
 
     // MARK: - Add Rule
@@ -141,58 +184,38 @@ final class RulesWizard {
         }
     }
 
-    // MARK: - Delete Rule
-
-    private func deleteRule(stageName: String, slot: RuleSlot, index: Int) {
-        let rules = context.rules(forStage: stageName, slot: slot)
-        guard index < rules.count else { return }
-
-        let desc = formatRule(rules[index], index: index)
-        if confirm("Delete: \(desc)?") {
-            if var stage = context.stages[stageName] {
-                try? stage.removeRule(at: index, slot: slot)
-                context.stages[stageName] = stage
-                modified = true
-            }
-        }
-    }
-
     // MARK: - Build Rule (wizard flow)
 
     private func buildRule(editing existing: Rule? = nil) -> Rule? {
         var builder = RuleBuilder(context: context)
 
-        // Pre-populate if editing
-        if let existing {
-            _ = builder.setMatch(field: existing.match.field, pattern: existing.match.pattern)
-            for emit in existing.emit {
-                _ = builder.addEmit(emit)
-            }
-            for write in existing.write {
-                _ = builder.addWrite(write)
+        // Step 1: Select source — explain what this means
+        let sources = context.availableSources()
+        let sourceItems = sources.map { source -> String in
+            switch source {
+            case "original": return "\(source)  \(ANSI.dim)— file metadata loaded at import\(ANSI.reset)"
+            case "read": return "\(source)  \(ANSI.dim)— file metadata loaded on demand\(ANSI.reset)"
+            default: return "\(source)  \(ANSI.dim)— dependency plugin\(ANSI.reset)"
             }
         }
-
-        // Step 1: Select source
-        let sources = context.availableSources()
         guard let sourceIdx = selectFromList(
-            title: "Select source to match",
-            items: sources
+            title: "Where is the field you want to match?",
+            items: sourceItems
         ) else { return nil }
         let source = sources[sourceIdx]
 
-        // Step 2: Select field
+        // Step 2: Select field — show without namespace prefix
         let fields = context.fields(in: source)
-        let fieldItems = fields.map { "\($0.qualifiedName)" }
+        let fieldItems = fields.map(\.name)
         guard let fieldIdx = selectFromList(
-            title: "Select field from \(source)",
+            title: "Select field",
             items: fieldItems
         ) else { return nil }
         let selectedField = fields[fieldIdx]
 
         // Step 3: Enter pattern
         guard let pattern = promptForInput(
-            title: "Enter match pattern",
+            title: "Enter match pattern for \(selectedField.name)",
             hint: "Plain text = exact match. Prefix with glob: or regex: for advanced.",
             defaultValue: existing?.match.pattern
         ) else { return nil }
@@ -206,19 +229,18 @@ final class RulesWizard {
             return nil
         }
 
-        // Step 4: Emit actions
-        // Reset emit actions if we pre-populated (we're rebuilding)
+        // Step 4: Actions (emit)
         if existing != nil {
             builder.reset()
             _ = builder.setMatch(field: selectedField.qualifiedName, pattern: pattern)
         }
 
-        if !addEmitActions(to: &builder, title: "Emit actions (modify plugin output)") {
+        if !addActions(to: &builder, isWrite: false) {
             return nil
         }
 
         // Step 5: Write actions
-        if !addWriteActions(to: &builder, title: "Write actions (modify file metadata)") {
+        if !addWriteActions(to: &builder) {
             return nil
         }
 
@@ -232,54 +254,34 @@ final class RulesWizard {
         }
     }
 
-    private func addEmitActions(to builder: inout RuleBuilder, title: String) -> Bool {
+    private func addActions(to builder: inout RuleBuilder, isWrite: Bool) -> Bool {
         let actions = ["add", "remove", "replace", "removeField", "clone"]
+        let label = isWrite ? "Write action" : "Action"
 
         while true {
             guard let actionIdx = selectFromList(
-                title: title,
-                items: actions + ["(done - no more emit actions)"]
-            ) else { return false }
-
-            if actionIdx == actions.count { break } // done
-            let action = actions[actionIdx]
-
-            guard let config = promptForEmitConfig(action: action) else { return false }
-            let result = builder.addEmit(config)
-            if case let .failure(error) = result {
-                showError(error)
-                continue
-            }
-
-            if !confirm("Add another emit action?") { break }
-        }
-        return true
-    }
-
-    private func addWriteActions(to builder: inout RuleBuilder, title: String) -> Bool {
-        if !confirm("Add write actions?") { return true }
-
-        let actions = ["add", "remove", "replace", "removeField", "clone"]
-
-        while true {
-            guard let actionIdx = selectFromList(
-                title: title,
-                items: actions + ["(done - no more write actions)"]
+                title: "Select \(label.lowercased())",
+                items: actions + ["(done)"]
             ) else { return false }
 
             if actionIdx == actions.count { break }
             let action = actions[actionIdx]
 
             guard let config = promptForEmitConfig(action: action) else { return false }
-            let result = builder.addWrite(config)
+            let result = isWrite ? builder.addWrite(config) : builder.addEmit(config)
             if case let .failure(error) = result {
                 showError(error)
                 continue
             }
 
-            if !confirm("Add another write action?") { break }
+            if !confirm("Add another \(label.lowercased())?") { break }
         }
         return true
+    }
+
+    private func addWriteActions(to builder: inout RuleBuilder) -> Bool {
+        if !confirm("Add write actions (modify file metadata)?") { return true }
+        return addActions(to: &builder, isWrite: true)
     }
 
     private func promptForEmitConfig(action: String) -> EmitConfig? {

@@ -138,6 +138,9 @@ extension RulesWizard {
     // MARK: - Save / Quit
 
     func saveAndQuit() {
+        // Apply pending deletions before saving
+        applyDeletions()
+
         do {
             try RulesWizard.saveStages(context.stages, to: pluginDir)
             terminal.restore()
@@ -147,6 +150,34 @@ extension RulesWizard {
             print("Error saving: \(error.localizedDescription)")
         }
         Foundation.exit(0)
+    }
+
+    /// Remove all rules marked for deletion from the context.
+    /// Processes in reverse index order so removals don't shift indices.
+    func applyDeletions() {
+        // Group by stage+slot, sorted by index descending
+        var byStageSlot: [String: [(slot: RuleSlot, index: Int)]] = [:]
+        for key in deletedRules {
+            let parts = key.split(separator: ":")
+            guard parts.count == 3,
+                  let slot = parts[1] == "pre" ? RuleSlot.pre : (parts[1] == "post" ? .post : nil),
+                  let index = Int(parts[2])
+            else { continue }
+            let stageName = String(parts[0])
+            byStageSlot[stageName, default: []].append((slot: slot, index: index))
+        }
+
+        for (stageName, entries) in byStageSlot {
+            // Sort by index descending so removals don't shift earlier indices
+            let sorted = entries.sorted { $0.index > $1.index }
+            if var stage = context.stages[stageName] {
+                for entry in sorted {
+                    try? stage.removeRule(at: entry.index, slot: entry.slot)
+                }
+                context.stages[stageName] = stage
+            }
+        }
+        deletedRules.removeAll()
     }
 
     func quit() {
