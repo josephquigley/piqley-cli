@@ -1,6 +1,6 @@
 import Foundation
 import PiqleyCore
-import TermKit
+@preconcurrency import TermKit
 
 /// Entry point for the TUI rule editor wizard.
 /// Manages the TermKit Application lifecycle and screen navigation.
@@ -9,6 +9,9 @@ import TermKit
 /// and `Application.shutdown()` calls `exit()`, the wizard handles saving to disk
 /// itself rather than returning control to the caller.
 enum RulesWizardApp {
+    /// Shared color scheme for all wizard screens.
+    nonisolated(unsafe) static var wizardColorScheme: ColorScheme?
+
     /// Configuration needed to write changes back to disk.
     struct WriteBackConfig: Sendable {
         let pluginDir: URL
@@ -25,6 +28,10 @@ enum RulesWizardApp {
     static func run(context: RuleEditingContext, writeBack: WriteBackConfig) async {
         Application.prepare()
 
+        // Set black background color scheme on the top-level view.
+        wizardColorScheme = makeBlackColorScheme()
+        Application.top.colorScheme = wizardColorScheme!
+
         let stageScreen = StageSelectScreen(context: context, writeBack: writeBack)
         stageScreen.present()
 
@@ -38,6 +45,17 @@ enum RulesWizardApp {
         while true {
             try? await Task.sleep(for: .seconds(3600))
         }
+    }
+
+    /// Creates a color scheme with black background for the wizard.
+    private nonisolated static func makeBlackColorScheme() -> ColorScheme {
+        let drv = Application.driver
+        return ColorScheme(
+            normal: drv.makeAttribute(fore: .white, back: .black),
+            focus: drv.makeAttribute(fore: .black, back: .cyan),
+            hotNormal: drv.makeAttribute(fore: .cyan, back: .black),
+            hotFocus: drv.makeAttribute(fore: .black, back: .cyan)
+        )
     }
 
     /// Writes modified stages back to disk. Called by the wizard before shutdown.

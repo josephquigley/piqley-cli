@@ -37,6 +37,9 @@ final class RuleListScreen {
 
         let top = Toplevel()
         top.fill()
+        if let scheme = RulesWizardApp.wizardColorScheme {
+            top.colorScheme = scheme
+        }
 
         let win = WizardWindow("\(stageName) rules")
         win.fill()
@@ -93,7 +96,9 @@ final class RuleListScreen {
         footer.width = Dim.fill()
         win.addSubview(footer)
 
-        // Key handling
+        // Key handling — WizardWindow.onKey intercepts before the focused view.
+        // Also handle on the Toplevel level via processColdKey for keys that
+        // the focused ListView doesn't consume.
         let views = ListViews(list: list, filterField: filterField, slotLabel: slotLabel, hasBinary: hasBinary)
         win.onKey = { [weak self] event in
             guard let self else { return false }
@@ -116,6 +121,7 @@ final class RuleListScreen {
             return true
         }
 
+        _ = list.becomeFirstResponder()
         Application.present(top: top)
     }
 
