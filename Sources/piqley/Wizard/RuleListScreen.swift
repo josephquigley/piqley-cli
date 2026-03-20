@@ -35,11 +35,17 @@ final class RuleListScreen {
     func present() {
         let hasBinary = context.stageHasBinary(stageName)
 
-        let top = makeWizardToplevel()
+        // Save current subviews so we can restore them when going back
+        let previousSubviews = Application.top.subviews
+
+        // Remove current content from Application.top
+        for view in previousSubviews {
+            Application.top.removeSubview(view)
+        }
 
         let win = WizardWindow("\(stageName) rules")
         win.fill()
-        top.addSubview(win)
+        Application.top.addSubview(win)
 
         // Slot indicator (only if binary exists)
         var yOffset = 0
@@ -92,13 +98,11 @@ final class RuleListScreen {
         footer.width = Dim.fill()
         win.addSubview(footer)
 
-        // Key handling via cold keys on the Toplevel. Cold keys are processed
-        // AFTER focused views, so letter shortcuts (a/e/d/r/f/q) only fire when
-        // no child view (like a TextField) consumes them first.
+        // Key handling via WizardWindow.onKey — intercepts before focused views.
         let views = ListViews(list: list, filterField: filterField, slotLabel: slotLabel, hasBinary: hasBinary)
-        top.onColdKey = { [weak self] event in
+        win.onKey = { [weak self] event in
             guard let self else { return false }
-            return handleKey(event: event, views: views)
+            return handleKey(event: event, views: views, previousSubviews: previousSubviews)
         }
 
         // Filter text changes
@@ -118,7 +122,7 @@ final class RuleListScreen {
         }
 
         _ = list.becomeFirstResponder()
-        Application.present(top: top)
+        Application.top.setNeedsDisplay()
     }
 
     // MARK: - Key handling
@@ -130,7 +134,7 @@ final class RuleListScreen {
         let hasBinary: Bool
     }
 
-    private func handleKey(event: KeyEvent, views: ListViews) -> Bool {
+    private func handleKey(event: KeyEvent, views: ListViews, previousSubviews: [View] = []) -> Bool {
         let list = views.list
         let filterField = views.filterField
         let slotLabel = views.slotLabel
@@ -147,7 +151,14 @@ final class RuleListScreen {
         switch event.key {
         case .letter("q"), .esc:
             onUpdate(context)
-            Application.requestStop()
+            // Restore previous screen content
+            for view in Application.top.subviews {
+                Application.top.removeSubview(view)
+            }
+            for view in previousSubviews {
+                Application.top.addSubview(view)
+            }
+            Application.top.setNeedsDisplay()
             return true
 
         case .letter("a"):

@@ -50,9 +50,7 @@ final class StageSelectScreen {
 
         win.onKey = { [weak self] event in
             guard let self else { return false }
-            // Debug: log all key events to stderr
-            FileHandle.standardError.write(Data("[KEY] \(event.key)\n".utf8))
-            switch event.key {
+                switch event.key {
             case .letter("q"):
                 if modified {
                     confirmQuit()
