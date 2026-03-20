@@ -1,25 +1,8 @@
 import Foundation
 
 struct AppConfig: Codable, Sendable {
-    var autoDiscoverPlugins: Bool = true
-    var disabledPlugins: [String] = []
-    /// Hook name → ordered plugin name list. Plugin names may include ":required" suffix (reserved for future use).
+    /// Hook name -> ordered plugin identifier list.
     var pipeline: [String: [String]] = [:]
-
-    // MARK: - Codable
-
-    enum CodingKeys: String, CodingKey {
-        case autoDiscoverPlugins, disabledPlugins, pipeline
-    }
-
-    init() {}
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        autoDiscoverPlugins = try container.decodeIfPresent(Bool.self, forKey: .autoDiscoverPlugins) ?? true
-        disabledPlugins = try container.decodeIfPresent([String].self, forKey: .disabledPlugins) ?? []
-        pipeline = try container.decodeIfPresent([String: [String]].self, forKey: .pipeline) ?? [:]
-    }
 
     // MARK: - Persistence
 

@@ -31,10 +31,7 @@ struct PluginCommand: ParsableCommand {
 
             let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
             let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-
-            // Load all plugins (including disabled) by passing an empty disabled list
-            let allPlugins = try discovery.loadManifests(disabled: [])
-            let disabledSet = Set(config.disabledPlugins)
+            let allPlugins = try discovery.loadManifests()
 
             if allPlugins.isEmpty {
                 print("No plugins installed.")
@@ -42,26 +39,23 @@ struct PluginCommand: ParsableCommand {
             }
 
             for plugin in allPlugins {
-                let active = !disabledSet.contains(plugin.identifier)
-                let status = active ? "active" : "inactive"
                 let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "—"
-                let stages = plugin.stages.keys.sorted().joined(separator: ", ")
+                let pipelineStages = config.pipeline.compactMap { stage, plugins in
+                    plugins.contains(plugin.identifier) ? stage : nil
+                }.sorted()
+                let stageInfo = pipelineStages.isEmpty ? "not in pipeline" : pipelineStages.joined(separator: ", ")
 
-                print("\(plugin.identifier) (\(status))")
-                print("  Name:    \(plugin.name)")
-                print("  Version: \(version)")
+                print("\(plugin.identifier)")
+                print("  Name:     \(plugin.name)")
+                print("  Version:  \(version)")
                 if let desc = plugin.manifest.description, !desc.isEmpty {
-                    print("  About:   \(desc)")
+                    print("  About:    \(desc)")
                 }
-                if !stages.isEmpty {
-                    print("  Stages:  \(stages)")
-                }
+                print("  Pipeline: \(stageInfo)")
                 print()
             }
 
-            let activeCount = allPlugins.count { !disabledSet.contains($0.identifier) }
-            let inactiveCount = allPlugins.count - activeCount
-            print("\(activeCount) active, \(inactiveCount) inactive — \(allPlugins.count) total")
+            print("\(allPlugins.count) plugin(s) installed")
         }
     }
 
@@ -87,7 +81,7 @@ struct PluginCommand: ParsableCommand {
 
             let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
             let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let plugins = try discovery.loadManifests(disabled: config.disabledPlugins)
+            let plugins = try discovery.loadManifests()
 
             let secretStore = makeDefaultSecretStore()
             var scanner = PluginSetupScanner(

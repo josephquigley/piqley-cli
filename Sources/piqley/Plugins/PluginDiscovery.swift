@@ -33,7 +33,7 @@ struct PluginDiscovery: Sendable {
     let pluginsDirectory: URL
     private let logger = Logger(label: "piqley.discovery")
 
-    func loadManifests(disabled: [String]) throws -> [LoadedPlugin] {
+    func loadManifests() throws -> [LoadedPlugin] {
         guard FileManager.default.fileExists(atPath: pluginsDirectory.path) else { return [] }
 
         let contents = try FileManager.default.contentsOfDirectory(
@@ -46,7 +46,6 @@ struct PluginDiscovery: Sendable {
         return try contents.compactMap { url -> LoadedPlugin? in
             guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
             let dirName = url.lastPathComponent
-            guard !disabled.contains(dirName) else { return nil }
             let manifestURL = url.appendingPathComponent(PluginFile.manifest)
             guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
             let data = try Data(contentsOf: manifestURL)
@@ -134,20 +133,5 @@ struct PluginDiscovery: Sendable {
         }
 
         return stages
-    }
-
-    static func autoAppend(discovered: [LoadedPlugin], into pipeline: inout [String: [String]]) {
-        for plugin in discovered {
-            for hookName in Hook.canonicalOrder.map(\.rawValue) {
-                guard plugin.stages[hookName] != nil else { continue }
-                var list = pipeline[hookName] ?? []
-                let alreadyListed = list.contains { entry in
-                    entry == plugin.identifier || entry.hasPrefix(plugin.identifier + ":")
-                }
-                guard !alreadyListed else { continue }
-                list.append(plugin.identifier)
-                pipeline[hookName] = list
-            }
-        }
     }
 }
