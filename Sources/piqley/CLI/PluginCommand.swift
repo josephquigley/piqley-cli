@@ -9,10 +9,61 @@ struct PluginCommand: ParsableCommand {
         commandName: "plugin",
         abstract: "Manage plugins",
         subcommands: [
-            SetupSubcommand.self, InitSubcommand.self, CreateSubcommand.self,
-            InstallSubcommand.self, ConfigSubcommand.self, PluginRulesCommand.self,
+            ListSubcommand.self, SetupSubcommand.self, InitSubcommand.self,
+            CreateSubcommand.self, InstallSubcommand.self, ConfigSubcommand.self,
+            PluginRulesCommand.self,
         ]
     )
+
+    struct ListSubcommand: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "list",
+            abstract: "List all installed plugins"
+        )
+
+        func run() throws {
+            let config: AppConfig
+            do {
+                config = try AppConfig.load()
+            } catch {
+                throw ValidationError("Failed to load config: \(formatError(error))\nRun 'piqley setup' first.")
+            }
+
+            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
+
+            // Load all plugins (including disabled) by passing an empty disabled list
+            let allPlugins = try discovery.loadManifests(disabled: [])
+            let disabledSet = Set(config.disabledPlugins)
+
+            if allPlugins.isEmpty {
+                print("No plugins installed.")
+                return
+            }
+
+            for plugin in allPlugins {
+                let active = !disabledSet.contains(plugin.identifier)
+                let status = active ? "active" : "inactive"
+                let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "—"
+                let stages = plugin.stages.keys.sorted().joined(separator: ", ")
+
+                print("\(plugin.identifier) (\(status))")
+                print("  Name:    \(plugin.name)")
+                print("  Version: \(version)")
+                if let desc = plugin.manifest.description, !desc.isEmpty {
+                    print("  About:   \(desc)")
+                }
+                if !stages.isEmpty {
+                    print("  Stages:  \(stages)")
+                }
+                print()
+            }
+
+            let activeCount = allPlugins.count { !disabledSet.contains($0.identifier) }
+            let inactiveCount = allPlugins.count - activeCount
+            print("\(activeCount) active, \(inactiveCount) inactive — \(allPlugins.count) total")
+        }
+    }
 
     struct SetupSubcommand: ParsableCommand {
         static let configuration = CommandConfiguration(
