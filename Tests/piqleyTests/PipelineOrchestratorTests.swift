@@ -56,6 +56,35 @@ private func makeTempScript(_ body: String) throws -> URL {
     return url
 }
 
+private func makePluginsDirWithSkipRule(identifier: String, hook: String, scriptURL: URL) throws -> URL {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("piqley-orch-\(UUID().uuidString)")
+    let pluginDir = dir.appendingPathComponent(identifier)
+    try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+
+    let manifest: [String: Any] = [
+        "identifier": identifier,
+        "name": identifier,
+        "pluginSchemaVersion": "1"
+    ]
+    try JSONSerialization.data(withJSONObject: manifest)
+        .write(to: pluginDir.appendingPathComponent("manifest.json"))
+
+    let skipEmit: [String: Any] = ["action": "skip"]
+    let matchConfig: [String: Any] = ["field": "original:IPTC:Keywords", "pattern": "glob:*Draft*"]
+    let stageConfig: [String: Any] = [
+        "preRules": [["match": matchConfig, "emit": [skipEmit]]],
+        "binary": ["command": scriptURL.path, "args": [], "protocol": "pipe"]
+    ]
+    try JSONSerialization.data(withJSONObject: stageConfig)
+        .write(to: pluginDir.appendingPathComponent("stage-\(hook).json"))
+
+    try FileManager.default.createDirectory(
+        at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true
+    )
+    return dir
+}
+
 @Suite("PipelineOrchestrator")
 struct PipelineOrchestratorTests {
     @Test("successful pipeline returns true")
@@ -164,5 +193,36 @@ struct PipelineOrchestratorTests {
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == false)
+    }
+
+    @Test("skip rule prevents binary execution for matched image")
+    func skipRulePreventsBinary() async throws {
+        let markerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-skip-marker-\(UUID().uuidString)")
+        let script = try makeTempScript("touch \"\(markerPath.path)\"")
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        let pluginsDir = try makePluginsDirWithSkipRule(
+            identifier: "com.test.skip-plugin", hook: "pre-process", scriptURL: script
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+
+        let sourceDir = try makeSourceDir(withImage: false)
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+        try TestFixtures.createTestJPEG(
+            at: sourceDir.appendingPathComponent("photo.jpg").path,
+            keywords: ["Draft-Photo"]
+        )
+
+        var config = AppConfig()
+        config.pipeline["pre-process"] = ["com.test.skip-plugin"]
+        config.autoDiscoverPlugins = false
+
+        let orchestrator = PipelineOrchestrator(
+            config: config, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore()
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
+        #expect(result == true)
+        #expect(!FileManager.default.fileExists(atPath: markerPath.path))
     }
 }

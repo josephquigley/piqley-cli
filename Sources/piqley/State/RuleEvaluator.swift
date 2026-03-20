@@ -3,6 +3,7 @@ import Logging
 import PiqleyCore
 
 enum EmitAction: Sendable {
+    case skip
     case add(field: String, values: [String])
     case remove(field: String, matchers: [any TagMatcher & Sendable])
     case replace(field: String, replacements: [(matcher: any TagMatcher & Sendable, replacement: String)])
@@ -30,6 +31,11 @@ enum RuleCompilationError: Error, LocalizedError {
             "Rule \(ruleIndex): invalid emit: \(reason)"
         }
     }
+}
+
+struct RuleEvaluationResult: Sendable {
+    let namespace: [String: JSONValue]
+    let skipped: Bool
 }
 
 struct RuleEvaluator: Sendable {
@@ -107,22 +113,31 @@ struct RuleEvaluator: Sendable {
         let actionStr = config.action ?? "add"
 
         switch actionStr {
+        case "skip":
+            return .skip
+
         case "add":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for add")
+            }
             let values = config.values!
-            let field = config.field ?? "keywords"
             return .add(field: field, values: values)
 
         case "remove":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for remove")
+            }
             let values = config.values!
-            let field = config.field ?? "keywords"
             let matchers: [any TagMatcher & Sendable] = try values.map { entry in
                 try TagMatcherFactory.build(from: entry)
             }
             return .remove(field: field, matchers: matchers)
 
         case "replace":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for replace")
+            }
             let replacements = config.replacements!
-            let field = config.field ?? "keywords"
             let compiled: [(matcher: any TagMatcher & Sendable, replacement: String)] = try replacements.map { entry in
                 let matcher = try TagMatcherFactory.build(from: entry.pattern)
                 return (matcher: matcher, replacement: entry.replacement)
@@ -130,21 +145,25 @@ struct RuleEvaluator: Sendable {
             return .replace(field: field, replacements: compiled)
 
         case "removeField":
-            let field = config.field ?? "keywords"
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for removeField")
+            }
             return .removeField(field: field)
 
         case "clone":
+            guard let field = config.field else {
+                throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "field required for clone")
+            }
             let source = config.source!
-            let field = config.field ?? "keywords"
             if field == "*" {
                 // Wildcard clone: source is the namespace name
                 return .clone(field: "*", sourceNamespace: source, sourceField: nil)
             } else {
-                let (namespace, field) = splitField(source)
-                guard !namespace.isEmpty, !field.isEmpty else {
+                let (namespace, sourceField) = splitField(source)
+                guard !namespace.isEmpty, !sourceField.isEmpty else {
                     throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "clone source must be 'namespace:field'")
                 }
-                return .clone(field: config.field ?? "keywords", sourceNamespace: namespace, sourceField: field)
+                return .clone(field: field, sourceNamespace: namespace, sourceField: sourceField)
             }
 
         default:
@@ -162,9 +181,12 @@ struct RuleEvaluator: Sendable {
         state: [String: [String: JSONValue]],
         currentNamespace: [String: JSONValue] = [:],
         metadataBuffer: MetadataBuffer? = nil,
-        imageName: String? = nil
-    ) async -> [String: JSONValue] {
+        imageName: String? = nil,
+        pluginId: String? = nil,
+        stateStore: StateStore? = nil
+    ) async -> RuleEvaluationResult {
         var working = currentNamespace
+        var skipped = false
 
         for rule in compiledRules {
             // Resolve the match field value
@@ -172,6 +194,8 @@ struct RuleEvaluator: Sendable {
             if rule.namespace == "read", let buffer = metadataBuffer, let image = imageName {
                 let fileMetadata = await buffer.load(image: image)
                 value = fileMetadata[rule.field]
+            } else if rule.namespace.isEmpty, rule.field == "skip", let image = imageName {
+                value = Self.resolveSkipField(image: image, state: state)
             } else {
                 value = state[rule.namespace]?[rule.field]
             }
@@ -194,7 +218,16 @@ struct RuleEvaluator: Sendable {
 
             if matched {
                 // Emit actions first (modify plugin namespace)
+                var didSkip = false
                 for action in rule.emitActions {
+                    if case .skip = action {
+                        if let store = stateStore, let image = imageName, let plugin = pluginId {
+                            let record = JSONValue.object(["file": .string(image), "plugin": .string(plugin)])
+                            await store.appendSkipRecord(image: image, record: record)
+                        }
+                        didSkip = true
+                        break
+                    }
                     if case let .clone(field, sourceNamespace, sourceField) = action {
                         // Clone is handled inline because it needs access to state and metadataBuffer
                         if sourceNamespace == "read", let buffer = metadataBuffer, let image = imageName {
@@ -220,6 +253,11 @@ struct RuleEvaluator: Sendable {
                     Self.applyAction(action, to: &working)
                 }
 
+                if didSkip {
+                    skipped = true
+                    break
+                }
+
                 // Write actions second (modify file metadata via buffer)
                 if let buffer = metadataBuffer, let image = imageName {
                     for action in rule.writeActions {
@@ -229,11 +267,15 @@ struct RuleEvaluator: Sendable {
             }
         }
 
-        return working
+        return RuleEvaluationResult(namespace: working, skipped: skipped)
     }
 
     static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {
         switch action {
+        case .skip:
+            // Skip is handled by evaluate(); no-op here.
+            break
+
         case let .add(field, values):
             var existing = extractStrings(from: working[field])
             for val in values where !existing.contains(val) {
@@ -291,6 +333,20 @@ struct RuleEvaluator: Sendable {
         default:
             return []
         }
+    }
+
+    /// Returns the image name as a `.string` value if it is present in the skip records, otherwise nil.
+    private static func resolveSkipField(image: String, state: [String: [String: JSONValue]]) -> JSONValue? {
+        guard case let .array(records) = state[ReservedName.skip]?[ReservedName.skipRecords] else {
+            return nil
+        }
+        let isSkipped = records.contains { record in
+            if case let .object(dict) = record, case let .string(file) = dict["file"] {
+                return file == image
+            }
+            return false
+        }
+        return isSkipped ? .string(image) : nil
     }
 
     private static func splitField(_ field: String) -> (namespace: String, field: String) {

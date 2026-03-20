@@ -41,6 +41,22 @@ actor StateStore {
         return result
     }
 
+    /// Appends a skip record for an image to the reserved skip namespace.
+    func appendSkipRecord(image: String, record: JSONValue) {
+        if images[image] == nil {
+            images[image] = [:]
+        }
+        if images[image]![ReservedName.skip] == nil {
+            images[image]![ReservedName.skip] = [:]
+        }
+        var existing: [JSONValue] = []
+        if case let .array(arr) = images[image]![ReservedName.skip]![ReservedName.skipRecords] {
+            existing = arr
+        }
+        existing.append(record)
+        images[image]![ReservedName.skip]![ReservedName.skipRecords] = .array(existing)
+    }
+
     /// All image filenames that have state stored.
     var allImageNames: [String] {
         Array(images.keys)

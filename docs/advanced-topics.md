@@ -343,7 +343,7 @@ Every plugin gets its own namespace. A plugin named `privacy-strip` writes to `p
 { "action": "clone", "field": "myTags", "source": "privacy-strip:tags" }
 ```
 
-The `original` namespace is special. Piqley populates it with the image's file metadata before any plugins run. Plugins can always read `original:EXIF:*` and `original:IPTC:*` fields.
+Two namespaces are reserved. The `original` namespace is populated with the image's file metadata before any plugins run. Plugins can always read `original:EXIF:*` and `original:IPTC:*` fields. The `skip` namespace tracks images that have been excluded from the pipeline via the `skip` action.
 
 ### Reading vs. Writing
 
@@ -410,6 +410,30 @@ Omitting `pattern` matches on field existence. If the field has any value, the r
   "emit": [{ "field": "processed", "values": ["true"] }]
 }
 ```
+
+### Skip an image from the pipeline
+
+The `skip` action halts all processing for the matched image. No further rules, binary execution, or downstream plugins will see the image:
+
+```json
+{
+  "match": { "field": "original:IPTC:Keywords", "pattern": "glob:*Draft*" },
+  "emit": [{ "action": "skip" }]
+}
+```
+
+Skip is useful for filtering out images that shouldn't be published: drafts, duplicates, already-published photos, or images missing required metadata. Once skipped, the image is excluded from all remaining pipeline stages.
+
+Skip records are tracked globally. Downstream rules can check if the current image was skipped using the special `skip` match field:
+
+```json
+{
+  "match": { "field": "skip", "pattern": "glob:*" },
+  "emit": [{ "field": "status", "values": ["was-skipped"] }]
+}
+```
+
+Binary plugins receive a `skipped` array in their input payload listing which images were skipped and by which plugin, so they can report or log skipped images if needed.
 
 ## Automation
 
