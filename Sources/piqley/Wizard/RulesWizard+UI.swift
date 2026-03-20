@@ -376,8 +376,9 @@ extension RulesWizard {
             let target = emit.field
             if let values = emit.values {
                 return "\(action) \(target)=[\(values.joined(separator: ", "))]"
-            } else if emit.replacements != nil {
-                return "replace \(target)"
+            } else if let replacements = emit.replacements {
+                let pairs = replacements.map { "\($0.pattern)\u{2192}\($0.replacement)" }
+                return "replace \(target) [\(pairs.joined(separator: ", "))]"
             } else if let source = emit.source {
                 return "clone \(target) from \(source)"
             }
