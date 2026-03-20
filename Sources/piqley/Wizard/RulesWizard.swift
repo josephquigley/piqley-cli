@@ -365,11 +365,27 @@ final class RulesWizard {
     }
 
     private func promptForEmitConfig(action: String) -> EmitConfig? {
-        // Build autocomplete list from all known fields
-        let allFieldNames = context.availableSources().flatMap { source in
-            context.fields(in: source).map(\.name)
+        // Build autocomplete from catalog fields + fields already used in existing rules
+        var fieldSet = Set<String>()
+
+        // Catalog fields (EXIF:ISO, TIFF:Make, IPTC:Keywords, etc.)
+        for source in context.availableSources() {
+            for field in context.fields(in: source) {
+                fieldSet.insert(field.name)
+            }
         }
-        let uniqueFields = Array(Set(allFieldNames)).sorted()
+
+        // Fields already used in existing rules (emit + write targets, match fields)
+        for stageName in context.stageNames() {
+            for slot in [RuleSlot.pre, .post] {
+                for rule in context.rules(forStage: stageName, slot: slot) {
+                    for emit in rule.emit { fieldSet.insert(emit.field) }
+                    for write in rule.write { fieldSet.insert(write.field) }
+                }
+            }
+        }
+
+        let uniqueFields = fieldSet.sorted()
 
         guard let field = promptWithAutocomplete(
             title: "Target field for \(action)",
