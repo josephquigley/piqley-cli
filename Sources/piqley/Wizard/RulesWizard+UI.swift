@@ -137,25 +137,76 @@ extension RulesWizard {
 
     // MARK: - Save / Quit
 
-    func saveAndQuit() {
-        // Apply pending deletions before saving
+    /// Save current state to disk without exiting.
+    func save() {
         applyDeletions()
-
         do {
             try RulesWizard.saveStages(context.stages, to: pluginDir)
-            terminal.restore()
-            print("Rules saved.")
+            modified = false
         } catch {
-            terminal.restore()
-            print("Error saving: \(error.localizedDescription)")
+            showMessage("Error saving: \(error.localizedDescription)")
         }
+    }
+
+    /// Exit the wizard cleanly.
+    func quit() {
+        terminal.restore()
         Foundation.exit(0)
+    }
+
+    /// Prompt to save if there are unsaved changes, then exit or return.
+    /// Returns true if the user chose to stay (cancel), false if exiting.
+    func promptUnsavedAndExit() {
+        if !modified {
+            quit()
+        }
+
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)You have unsaved changes.\(ANSI.reset)"
+        buf += ANSI.moveTo(row: 3, col: 1)
+        buf += "  s  Save and quit"
+        buf += ANSI.moveTo(row: 4, col: 1)
+        buf += "  d  Discard and quit"
+        buf += ANSI.moveTo(row: 5, col: 1)
+        buf += "  Esc  Cancel (go back)"
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)s save  d discard  Esc cancel\(ANSI.reset)"
+        terminal.write(buf)
+
+        while true {
+            let key = terminal.readKey()
+            switch key {
+            case .char("s"):
+                save()
+                quit()
+            case .char("d"):
+                quit()
+            case .escape:
+                return
+            default: break
+            }
+        }
+    }
+
+    /// Show a brief message, wait for keypress.
+    func showMessage(_ message: String) {
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)\(message)\(ANSI.reset)"
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)Press any key to continue\(ANSI.reset)"
+        terminal.write(buf)
+        _ = terminal.readKey()
     }
 
     /// Remove all rules marked for deletion from the context.
     /// Processes in reverse index order so removals don't shift indices.
     func applyDeletions() {
-        // Group by stage+slot, sorted by index descending
         var byStageSlot: [String: [(slot: RuleSlot, index: Int)]] = [:]
         for key in deletedRules {
             let parts = key.split(separator: ":")
@@ -168,7 +219,6 @@ extension RulesWizard {
         }
 
         for (stageName, entries) in byStageSlot {
-            // Sort by index descending so removals don't shift earlier indices
             let sorted = entries.sorted { $0.index > $1.index }
             if var stage = context.stages[stageName] {
                 for entry in sorted {
@@ -178,16 +228,6 @@ extension RulesWizard {
             }
         }
         deletedRules.removeAll()
-    }
-
-    func quit() {
-        if modified {
-            if confirm("Save changes before quitting?") {
-                saveAndQuit()
-            }
-        }
-        terminal.restore()
-        Foundation.exit(0)
     }
 
     // MARK: - Formatting

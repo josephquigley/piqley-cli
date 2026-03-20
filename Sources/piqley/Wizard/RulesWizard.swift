@@ -52,7 +52,7 @@ final class RulesWizard {
                 title: "Edit Rules: \(context.pluginIdentifier)",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} select  s save & quit  q quit"
+                footer: "\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit"
             )
 
             let key = terminal.readKey()
@@ -62,9 +62,9 @@ final class RulesWizard {
             case .enter:
                 ruleList(stageName: stageNames[cursor])
             case .char("s"):
-                saveAndQuit()
-            case .char("q"), .escape, .ctrlC:
-                quit()
+                save()
+            case .escape, .ctrlC:
+                promptUnsavedAndExit()
             default: break
             }
         }
@@ -102,7 +102,7 @@ final class RulesWizard {
                 title: "\(stageName) rules",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  q back"
+                footer: "\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  Esc back"
             )
 
             let key = terminal.readKey()
@@ -140,8 +140,8 @@ final class RulesWizard {
                     }
                 }
             case .char("s"):
-                saveAndQuit()
-            case .char("q"), .escape:
+                save()
+            case .escape:
                 return
             default: break
             }
