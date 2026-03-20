@@ -28,7 +28,7 @@ enum RulesWizardApp {
     /// input handlers and display updates work without dispatchMain().
     @MainActor
     static func run(context: RuleEditingContext, writeBack: WriteBackConfig) async {
-        Application.prepare()
+        Application.prepare(driverType: .unix)
 
         // Set black background color scheme on the top-level view.
         wizardColorScheme = makeBlackColorScheme()
