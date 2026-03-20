@@ -3,7 +3,14 @@ import Foundation
 struct TempFolder: Sendable {
     let url: URL
 
-    static let imageExtensions: Set<String> = ["jpg", "jpeg", "jxl"]
+    static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "jxl", "png", "tiff", "tif", "heic", "heif", "webp",
+    ]
+
+    struct CopyResult: Sendable {
+        let copiedCount: Int
+        let skippedFiles: [String]
+    }
 
     static func create() throws -> TempFolder {
         let url = FileManager.default.temporaryDirectory
@@ -12,21 +19,28 @@ struct TempFolder: Sendable {
         return TempFolder(url: url)
     }
 
-    /// Copies image files (jpg, jpeg, jxl) from `sourceURL` into this temp folder.
+    /// Copies image files from `sourceURL` into this temp folder.
     /// Skips hidden files (names starting with ".").
-    func copyImages(from sourceURL: URL) throws {
+    /// Returns a CopyResult with the count of copied files and names of skipped non-hidden files.
+    func copyImages(from sourceURL: URL) throws -> CopyResult {
         let contents = try FileManager.default.contentsOfDirectory(
             at: sourceURL,
             includingPropertiesForKeys: nil
         )
+        var copiedCount = 0
+        var skippedFiles: [String] = []
         for file in contents {
             let name = file.lastPathComponent
-            guard !name.hasPrefix("."),
-                  Self.imageExtensions.contains(file.pathExtension.lowercased())
-            else { continue }
+            guard !name.hasPrefix(".") else { continue }
+            guard Self.imageExtensions.contains(file.pathExtension.lowercased()) else {
+                skippedFiles.append(name)
+                continue
+            }
             let destination = url.appendingPathComponent(name)
             try FileManager.default.copyItem(at: file, to: destination)
+            copiedCount += 1
         }
+        return CopyResult(copiedCount: copiedCount, skippedFiles: skippedFiles)
     }
 
     /// Copies processed images back to `destinationURL`, overwriting originals.

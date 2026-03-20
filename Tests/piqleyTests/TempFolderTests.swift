@@ -36,13 +36,15 @@ struct TempFolderTests {
         let temp = try TempFolder.create()
         defer { try? temp.delete() }
 
-        try temp.copyImages(from: sourceDir)
+        let result = try temp.copyImages(from: sourceDir)
 
         let copied = try FileManager.default.contentsOfDirectory(atPath: temp.url.path)
         #expect(copied.contains("photo.jpg"))
         #expect(copied.contains("photo.jpeg"))
         #expect(copied.contains("raw.jxl"))
         #expect(!copied.contains("readme.txt"))
+        #expect(result.copiedCount == 3)
+        #expect(result.skippedFiles == ["readme.txt"])
     }
 
     @Test("copyImages skips hidden files")
@@ -58,10 +60,30 @@ struct TempFolderTests {
         let temp = try TempFolder.create()
         defer { try? temp.delete() }
 
-        try temp.copyImages(from: sourceDir)
+        let result = try temp.copyImages(from: sourceDir)
         let copied = try FileManager.default.contentsOfDirectory(atPath: temp.url.path)
         #expect(copied.contains("visible.jpg"))
         #expect(!copied.contains(".hidden.jpg"))
+        #expect(result.copiedCount == 1)
+        #expect(result.skippedFiles.isEmpty)
+    }
+
+    @Test("copyImages returns skipped files for unsupported formats")
+    func testCopyImagesReturnsSkippedFiles() throws {
+        let sourceDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-source-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        try "data".write(to: sourceDir.appendingPathComponent("photo.jpg"), atomically: true, encoding: .utf8)
+        try "data".write(to: sourceDir.appendingPathComponent("raw.cr3"), atomically: true, encoding: .utf8)
+
+        let temp = try TempFolder.create()
+        defer { try? temp.delete() }
+
+        let result = try temp.copyImages(from: sourceDir)
+        #expect(result.copiedCount == 1)
+        #expect(result.skippedFiles == ["raw.cr3"])
     }
 
     @Test("two TempFolders have different paths")

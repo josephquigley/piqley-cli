@@ -216,7 +216,6 @@ struct PipelineOrchestratorTests {
 
         var config = AppConfig()
         config.pipeline["pre-process"] = ["com.test.skip-plugin"]
-        config.autoDiscoverPlugins = false
 
         let orchestrator = PipelineOrchestrator(
             config: config, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore()

@@ -22,11 +22,20 @@ struct PipelineOrchestrator: Sendable {
         // Create temp folder and copy images
         let temp = try TempFolder.create()
         logger.info("Temp folder: \(temp.url.path)")
+        let copyResult: TempFolder.CopyResult
         do {
-            try temp.copyImages(from: sourceURL)
+            copyResult = try temp.copyImages(from: sourceURL)
         } catch {
             try? temp.delete()
             throw error
+        }
+        for skipped in copyResult.skippedFiles {
+            logger.warning("Skipping '\(skipped)': unsupported format")
+        }
+        if copyResult.copiedCount == 0 {
+            logger.error("No supported image files found in \(sourceURL.path)")
+            try? temp.delete()
+            return false
         }
 
         let blocklist = PluginBlocklist()
