@@ -76,6 +76,14 @@ struct PluginRulesEditCommand: AsyncParsableCommand {
             originalStages: stages
         )
 
+        guard ProcessInfo.processInfo.environment["TERM"] != nil else {
+            throw ValidationError(
+                "No TERM environment variable set. "
+                    + "The rule editor requires an interactive terminal. "
+                    + "Try setting TERM=xterm-256color or run from a standard terminal."
+            )
+        }
+
         await RulesWizardApp.run(context: context, writeBack: writeBack)
     }
 }
