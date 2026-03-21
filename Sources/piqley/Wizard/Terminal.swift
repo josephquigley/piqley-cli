@@ -241,7 +241,7 @@ extension RawTerminal {
     }
 
     /// Prompt for text input. Returns nil if cancelled.
-    func promptForInput(title: String, hint: String, defaultValue: String? = nil) -> String? {
+    func promptForInput(title: String, hint: String, defaultValue: String? = nil, allowEmpty: Bool = false) -> String? {
         var input = defaultValue ?? ""
         let size = ANSI.terminalSize()
 
@@ -265,7 +265,7 @@ extension RawTerminal {
             case .backspace:
                 if !input.isEmpty { input.removeLast() }
             case .enter:
-                if !input.isEmpty { return input }
+                if !input.isEmpty || allowEmpty { return input }
             case .escape, .ctrlC:
                 return nil
             default: break

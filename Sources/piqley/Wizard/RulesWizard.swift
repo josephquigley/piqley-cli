@@ -347,7 +347,7 @@ final class RulesWizard {
 
             let action = actions[actionIdx]
 
-            guard let config = promptForEmitConfig(action: action) else { break }
+            guard let config = promptForEmitConfig(action: action) else { continue }
             let result = isWrite ? builder.addWrite(config) : builder.addEmit(config)
             if case let .failure(error) = result {
                 showError(error)
@@ -409,10 +409,18 @@ final class RulesWizard {
             var values: [String] = []
             while true {
                 let ordinal = values.isEmpty ? "first" : "next"
+                let hint = values.isEmpty
+                    ? "e.g. sony  or  regex:.*\\d+mm.*"
+                    : "Enter another value, or press Enter to finish"
                 guard let value = terminal.promptForInput(
-                    title: "Enter \(ordinal) value (empty to finish)",
-                    hint: "e.g. sony  or  regex:.*\\d+mm.*"
-                ) else { return nil }
+                    title: "Enter \(ordinal) value",
+                    hint: hint,
+                    allowEmpty: !values.isEmpty
+                ) else {
+                    // Esc pressed: cancel if no values yet, otherwise finish with what we have
+                    if values.isEmpty { return nil }
+                    break
+                }
                 if value.isEmpty { break }
                 values.append(value)
             }
