@@ -16,7 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules wizard: Enter on empty finishes value entry after first value; Escape mid-value returns to action selection instead of proceeding to write stage
 - Rules wizard: declining a new field name returns to the field prompt instead of the action selector
 - Save indicator ("Saved") now appears in the footer for 2 seconds on all wizards, auto-dismisses via poll timeout instead of waiting for keypress
-- Both editors show all canonical stages even when stage files are missing; stage files are only written when they have rules or a non-empty command
+- Both editors clean up empty stage files on exit (even without saving); uses `StageConfig.isEffectivelyEmpty` for consistent emptiness checks
+- Empty stage files are logged at debug level instead of warning in PluginDiscovery
 - Rules editor now shows pre-rules and post-rules as separate slots within each stage instead of only editing pre-rules; labels use "command" instead of "binary"
 - `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands
 - `piqley plugin command <identifier>` interactive wizard for editing binary command, args, timeout, fork, and environment variable mappings per stage; shows all canonical stages including missing ones

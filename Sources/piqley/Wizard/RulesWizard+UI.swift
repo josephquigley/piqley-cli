@@ -52,8 +52,9 @@ extension RulesWizard {
         }
     }
 
-    /// Exit the wizard cleanly.
+    /// Exit the wizard cleanly, removing any empty stage files.
     func quit() {
+        RulesWizard.cleanupEmptyStageFiles(stages: context.stages, pluginDir: pluginDir)
         terminal.restore()
         Foundation.exit(0)
     }
@@ -169,13 +170,7 @@ extension RulesWizard {
             let stageFile = pluginDir
                 .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
 
-            let hasCommand = stageConfig.binary?.command != nil
-                && !(stageConfig.binary?.command?.isEmpty ?? true)
-            let isEmpty = (stageConfig.preRules ?? []).isEmpty
-                && !hasCommand
-                && (stageConfig.postRules ?? []).isEmpty
-
-            if isEmpty {
+            if stageConfig.isEffectivelyEmpty {
                 // Remove empty stage files rather than writing them
                 if FileManager.default.fileExists(atPath: stageFile.path) {
                     try FileManager.default.removeItem(at: stageFile)
@@ -185,6 +180,19 @@ extension RulesWizard {
 
             let data = try encoder.encode(stageConfig)
             try data.write(to: stageFile, options: .atomic)
+        }
+    }
+
+    /// Remove stage files on disk that are effectively empty, without writing anything.
+    /// Call on exit even when no changes were made, to clean up stale empty files.
+    static func cleanupEmptyStageFiles(stages: [String: StageConfig], pluginDir: URL) {
+        for (hookName, stageConfig) in stages {
+            guard stageConfig.isEffectivelyEmpty else { continue }
+            let stageFile = pluginDir
+                .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
+            if FileManager.default.fileExists(atPath: stageFile.path) {
+                try? FileManager.default.removeItem(at: stageFile)
+            }
         }
     }
 }

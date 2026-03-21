@@ -231,6 +231,7 @@ final class CommandEditWizard {
     }
 
     private func quit() {
+        RulesWizard.cleanupEmptyStageFiles(stages: stages, pluginDir: pluginDir)
         terminal.restore()
         Foundation.exit(0)
     }

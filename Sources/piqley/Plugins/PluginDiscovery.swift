@@ -114,8 +114,8 @@ struct PluginDiscovery: Sendable {
             do {
                 let data = try Data(contentsOf: file)
                 let config = try JSONDecoder().decode(StageConfig.self, from: data)
-                if config.isEmpty {
-                    logger.warning("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' is empty — ignored")
+                if config.isEffectivelyEmpty {
+                    logger.debug("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' is empty — ignored")
                     continue
                 }
                 if let binary = config.binary, binary.batchProxy != nil {
