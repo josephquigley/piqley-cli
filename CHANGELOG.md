@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- BinaryProbe utility that detects whether a plugin binary is a piqley SDK plugin or a regular CLI tool via `--piqley-info` probe
+- Command wizard auto-configures protocol and batch mode based on binary detection
+- Pre-flight binary validation in pipeline orchestrator catches missing, non-executable, or protocol-mismatched binaries before any images are processed
 - `ForkManager` actor for COW (copy-on-write) image isolation per plugin
 - `ImageConverter` for format conversion using CoreGraphics/ImageIO
 - Fork/DAG-based source resolution in pipeline orchestrator
