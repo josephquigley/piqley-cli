@@ -70,7 +70,7 @@ struct PluginRunnerEnvironmentTests {
     // MARK: - resolveTemplate unit tests
 
     @Test("resolves simple field reference")
-    func testResolveSimpleField() throws {
+    func testResolveSimpleField() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -83,12 +83,12 @@ struct PluginRunnerEnvironmentTests {
         let state: [String: [String: JSONValue]] = [
             "original": ["EXIF:CameraMake": .string("Canon")]
         ]
-        let result = runner.resolveTemplate("{{original:EXIF:CameraMake}}", imageState: state)
+        let result = await runner.resolveTemplate("{{original:EXIF:CameraMake}}", imageState: state, imageName: nil)
         #expect(result == "Canon")
     }
 
     @Test("resolves self namespace to plugin identifier")
-    func testResolveSelfNamespace() throws {
+    func testResolveSelfNamespace() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -101,12 +101,12 @@ struct PluginRunnerEnvironmentTests {
         let state: [String: [String: JSONValue]] = [
             "com.test.myplugin": ["tags": .array([.string("landscape"), .string("sunset")])]
         ]
-        let result = runner.resolveTemplate("{{self:tags}}", imageState: state)
+        let result = await runner.resolveTemplate("{{self:tags}}", imageState: state, imageName: nil)
         #expect(result == "landscape,sunset")
     }
 
     @Test("resolves multiple templates in one string")
-    func testResolveMultipleTemplates() throws {
+    func testResolveMultipleTemplates() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -122,15 +122,15 @@ struct PluginRunnerEnvironmentTests {
                 "EXIF:LensModel": .string("RF 24-70mm")
             ]
         ]
-        let result = runner.resolveTemplate(
+        let result = await runner.resolveTemplate(
             "{{original:EXIF:CameraMake}} with {{original:EXIF:LensModel}}",
-            imageState: state
+            imageState: state, imageName: nil
         )
         #expect(result == "Canon with RF 24-70mm")
     }
 
     @Test("missing field resolves to empty string")
-    func testMissingFieldResolvesToEmpty() throws {
+    func testMissingFieldResolvesToEmpty() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -140,12 +140,12 @@ struct PluginRunnerEnvironmentTests {
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = runner.resolveTemplate("{{original:EXIF:Missing}}", imageState: [:])
+        let result = await runner.resolveTemplate("{{original:EXIF:Missing}}", imageState: [:], imageName: nil)
         #expect(result == "")
     }
 
     @Test("literal string without templates passes through unchanged")
-    func testLiteralPassthrough() throws {
+    func testLiteralPassthrough() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -155,12 +155,12 @@ struct PluginRunnerEnvironmentTests {
         defer { try? FileManager.default.removeItem(at: plugin.directory) }
 
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let result = runner.resolveTemplate("https://example.com", imageState: nil)
+        let result = await runner.resolveTemplate("https://example.com", imageState: nil, imageName: nil)
         #expect(result == "https://example.com")
     }
 
     @Test("number values resolve correctly")
-    func testNumberResolution() throws {
+    func testNumberResolution() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -173,12 +173,12 @@ struct PluginRunnerEnvironmentTests {
         let state: [String: [String: JSONValue]] = [
             "original": ["EXIF:FocalLength": .number(50)]
         ]
-        let result = runner.resolveTemplate("{{original:EXIF:FocalLength}}", imageState: state)
+        let result = await runner.resolveTemplate("{{original:EXIF:FocalLength}}", imageState: state, imageName: nil)
         #expect(result == "50")
     }
 
     @Test("bool values resolve correctly")
-    func testBoolResolution() throws {
+    func testBoolResolution() async throws {
         let script = try makeTempScript("exit 0")
         defer { try? FileManager.default.removeItem(at: script) }
 
@@ -191,7 +191,7 @@ struct PluginRunnerEnvironmentTests {
         let state: [String: [String: JSONValue]] = [
             "original": ["EXIF:Flash": .bool(true)]
         ]
-        let result = runner.resolveTemplate("{{original:EXIF:Flash}}", imageState: state)
+        let result = await runner.resolveTemplate("{{original:EXIF:Flash}}", imageState: state, imageName: nil)
         #expect(result == "true")
     }
 

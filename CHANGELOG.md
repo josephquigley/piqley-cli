@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Environment templates (`{{original:*}}`) now resolve correctly: the `original` namespace was missing from the state payload dependency list
+- Environment templates now work even when a plugin has no manifest dependencies and rules produce no state changes
+- The `read` namespace is now supported in environment templates (previously only worked in rules)
 - Rules wizard now prompts for values one at a time instead of comma-separated, preventing breakage with regex patterns containing commas
 - Rules editor auto-creates empty stage files when a plugin has none, instead of aborting
 - Runtime errors in rules editor use ExitCode instead of ValidationError to avoid showing usage text

@@ -231,11 +231,16 @@ final class CommandEditWizard {
                                 command = val
                                 // Auto-configure for CLI tool
                                 pluginProtocol = .pipe
-                                // Ask about batch mode
-                                if terminal.confirm("Run once per image (batch mode)?") {
-                                    batchProxy = BatchProxyConfig(sort: nil)
-                                } else {
-                                    batchProxy = nil
+                                // Ask about invocation mode
+                                let modeItems = [
+                                    "Once per image",
+                                    "Once per pipeline \(ANSI.italic)(batch mode)\(ANSI.reset)",
+                                ]
+                                if let choice = terminal.selectFromList(
+                                    title: "Run once per image or once per pipeline across all source images?",
+                                    items: modeItems
+                                ) {
+                                    batchProxy = choice == 0 ? BatchProxyConfig(sort: nil) : nil
                                 }
                                 changed = true
                             }

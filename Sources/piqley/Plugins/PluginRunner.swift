@@ -7,7 +7,15 @@ struct PluginRunner: Sendable {
     let plugin: LoadedPlugin
     let secrets: [String: String]
     let pluginConfig: PluginConfig
-    private let logger = Logger(label: "piqley.runner")
+    let metadataBuffer: MetadataBuffer?
+    let logger = Logger(label: "piqley.runner")
+
+    init(plugin: LoadedPlugin, secrets: [String: String], pluginConfig: PluginConfig, metadataBuffer: MetadataBuffer? = nil) {
+        self.plugin = plugin
+        self.secrets = secrets
+        self.pluginConfig = pluginConfig
+        self.metadataBuffer = metadataBuffer
+    }
 
     static let defaultTimeoutSeconds = 30
 
@@ -64,9 +72,10 @@ struct PluginRunner: Sendable {
         )
         // Resolve environment mapping templates against state for the first image
         // (JSON protocol has full state on stdin; pipe has no per-image context)
-        let firstImageState = state?.first?.value
-        resolveEnvironmentMapping(
-            hookConfig: hookConfig, imageState: firstImageState, into: &environment
+        let firstImageEntry = state?.first
+        await resolveEnvironmentMapping(
+            hookConfig: hookConfig, imageState: firstImageEntry?.value,
+            imageName: firstImageEntry?.key, into: &environment
         )
         let args = substitute(args: hookConfig.args, environment: environment)
         let executable = resolveExecutable(command)
@@ -292,8 +301,9 @@ struct PluginRunner: Sendable {
             )
             let imageName = image.lastPathComponent
             let imageState = context.state?[imageName]
-            resolveEnvironmentMapping(
-                hookConfig: context.hookConfig, imageState: imageState, into: &environment
+            await resolveEnvironmentMapping(
+                hookConfig: context.hookConfig, imageState: imageState,
+                imageName: imageName, into: &environment
             )
             let args = substitute(args: context.hookConfig.args, environment: environment)
             let executable = resolveExecutable(context.hookConfig.command!)
@@ -350,82 +360,6 @@ struct PluginRunner: Sendable {
             env[envKey] = jsonValueToString(value)
         }
         return env
-    }
-
-    private func jsonValueToString(_ value: JSONValue) -> String {
-        switch value {
-        case let .string(str): str
-        case let .number(num):
-            if num.truncatingRemainder(dividingBy: 1) == 0 {
-                String(Int(num))
-            } else {
-                String(num)
-            }
-        case let .bool(flag): String(flag)
-        case let .array(arr):
-            arr.map { jsonValueToString($0) }.joined(separator: ",")
-        default: ""
-        }
-    }
-
-    // MARK: - Environment Template Resolution
-
-    /// Resolves `{{namespace:field}}` templates in the hookConfig environment mapping
-    /// against the resolved state for a given image, and merges results into the
-    /// process environment.
-    func resolveEnvironmentMapping(
-        hookConfig: HookConfig,
-        imageState: [String: [String: JSONValue]]?,
-        into env: inout [String: String]
-    ) {
-        guard let mapping = hookConfig.environment else { return }
-        for (envKey, template) in mapping {
-            env[envKey] = resolveTemplate(template, imageState: imageState)
-        }
-    }
-
-    /// Resolves a single template string, replacing all `{{namespace:field}}` references
-    /// with their values from the image state. `self` is expanded to the current
-    /// plugin's identifier.
-    func resolveTemplate(
-        _ template: String,
-        imageState: [String: [String: JSONValue]]?
-    ) -> String {
-        var result = template
-        while let openRange = result.range(of: "{{"),
-              let closeRange = result.range(of: "}}", range: openRange.upperBound ..< result.endIndex)
-        {
-            let reference = String(result[openRange.upperBound ..< closeRange.lowerBound])
-            let resolved = resolveFieldReference(reference, imageState: imageState)
-            result.replaceSubrange(openRange.lowerBound ..< closeRange.upperBound, with: resolved)
-        }
-        return result
-    }
-
-    private func resolveFieldReference(
-        _ reference: String,
-        imageState: [String: [String: JSONValue]]?
-    ) -> String {
-        guard let colonIndex = reference.firstIndex(of: ":") else {
-            logger.warning("Invalid environment template reference '\(reference)' — missing ':'")
-            return ""
-        }
-        var namespace = String(reference[reference.startIndex ..< colonIndex])
-        let field = String(reference[reference.index(after: colonIndex)...])
-
-        if namespace == "self" {
-            namespace = plugin.identifier
-        }
-
-        guard let namespaceState = imageState?[namespace],
-              let value = namespaceState[field]
-        else {
-            logger.warning(
-                "[\(plugin.name)] Environment template '{{\(reference)}}' resolved to empty — field not found in state"
-            )
-            return ""
-        }
-        return jsonValueToString(value)
     }
 
     private func buildJSONPayload(

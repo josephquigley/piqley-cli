@@ -363,7 +363,6 @@ extension ConfigWizard {
     func pluginActions(entry: PluginEntry) {
         let allStages = Hook.canonicalOrder.map(\.rawValue)
         let identifier = entry.identifier
-        let isMissing = if case .missing = entry { true } else { false }
 
         while true {
             let stagesContaining = allStages.filter { stage in

@@ -281,7 +281,8 @@ struct PipelineOrchestrator: Sendable {
                     hookConfig: stageConfig.binary, manifestDeps: manifestDeps,
                     rulesDidRun: preRulesDidRun, execLogPath: execLogPath,
                     skipped: skipRecords,
-                    imageFolderURL: imageFolderURL
+                    imageFolderURL: imageFolderURL,
+                    metadataBuffer: buffer
                 )
                 switch result {
                 case .success, .warning:

@@ -13,13 +13,13 @@ extension PipelineOrchestrator {
         rulesDidRun: Bool,
         stateStore: StateStore
     ) async -> [String: [String: [String: JSONValue]]]? {
-        let needsState = (proto == .json || hasEnvironmentMapping) && (!manifestDeps.isEmpty || rulesDidRun)
+        let needsState = hasEnvironmentMapping || (proto == .json && (!manifestDeps.isEmpty || rulesDidRun))
         guard needsState else { return nil }
 
         var statePayload: [String: [String: [String: JSONValue]]] = [:]
         let allDeps = rulesDidRun
-            ? manifestDeps + [pluginIdentifier, ReservedName.skip]
-            : manifestDeps + [ReservedName.skip]
+            ? manifestDeps + [ReservedName.original, pluginIdentifier, ReservedName.skip]
+            : manifestDeps + [ReservedName.original, ReservedName.skip]
         for imageName in await stateStore.allImageNames {
             let resolved = await stateStore.resolve(
                 image: imageName, dependencies: allDeps
@@ -199,10 +199,12 @@ extension PipelineOrchestrator {
         rulesDidRun: Bool,
         execLogPath: URL,
         skipped: [SkipRecord] = [],
-        imageFolderURL: URL? = nil
+        imageFolderURL: URL? = nil,
+        metadataBuffer: MetadataBuffer? = nil
     ) async throws -> HookResult {
         let runner = PluginRunner(
-            plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig
+            plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig,
+            metadataBuffer: metadataBuffer
         )
 
         // Build state payload for plugins that need it:
