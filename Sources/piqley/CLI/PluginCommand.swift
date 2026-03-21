@@ -367,12 +367,18 @@ struct PluginCommand: ParsableCommand {
         // MARK: - Example stage files
 
         private static func writeExampleStageFiles(to pluginDir: URL, identifier: String) throws {
+            let binaryConfig: [String: Any] = [
+                "_comment": "Command to run for this stage. Remove or leave as-is if this stage is declarative-only.",
+                "command": "./bin/\(identifier)",
+            ]
+
             // Pre-process stage
             let preProcessStage: [String: Any] = [
                 "_comment": """
                 Pre-process rules run before any binary. Match against original image \
                 metadata and emit tags/keywords to your plugin's namespace.
                 """,
+                "binary": binaryConfig,
                 "preRules": [
                     [
                         "_comment": "Tag images shot on a Canon EOS R5",
@@ -405,6 +411,7 @@ struct PluginCommand: ParsableCommand {
                 plugin's output from pre-process using '<plugin-identifier>:<field>' syntax. \
                 Write actions modify the image file's metadata directly.
                 """,
+                "binary": binaryConfig,
                 "postRules": [
                     [
                         "_comment": "Replace 'Kodak' tag with fake Piqley brand name (demonstrates remove + add)",
@@ -424,21 +431,23 @@ struct PluginCommand: ParsableCommand {
             ]
             try Self.writeStageJSON(postProcessStage, to: pluginDir, fileName: "stage-post-process.json")
 
-            // Empty stage files for remaining stages
+            // Publish stage
             let publishStage: [String: Any] = [
                 "_comment": """
                 Publish stage. Runs after post-process. Typically used for uploading or \
-                exporting processed images. Add preRules, a binary, or postRules as needed.
+                exporting processed images.
                 """,
+                "binary": binaryConfig,
             ]
             try Self.writeStageJSON(publishStage, to: pluginDir, fileName: "stage-publish.json")
 
+            // Post-publish stage
             let postPublishStage: [String: Any] = [
                 "_comment": """
                 Post-publish stage. Runs after publish. Typically used for cleanup, \
-                notifications, or logging after images have been exported. Add preRules, \
-                a binary, or postRules as needed.
+                notifications, or logging after images have been exported.
                 """,
+                "binary": binaryConfig,
             ]
             try Self.writeStageJSON(postPublishStage, to: pluginDir, fileName: "stage-post-publish.json")
         }
