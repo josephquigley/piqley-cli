@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Extracted `StageFileManager` for shared stage file save/cleanup logic
 - Rules editor now shows pre-rules and post-rules as separate slots within each stage instead of only editing pre-rules; labels use "command" instead of "binary"
 - `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands
-- `piqley plugin command <identifier>` interactive wizard for editing binary command, args, timeout, fork, and environment variable mappings per stage; shows all canonical stages including missing ones
+- `piqley plugin command <identifier>` menu-driven wizard for editing environment mappings, command, args, timeout, and fork per stage; env var names ($VAR) autocomplete in the args editor; shows all canonical stages including missing ones
 
 ### Added
 

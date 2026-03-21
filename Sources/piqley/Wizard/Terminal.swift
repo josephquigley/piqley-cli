@@ -283,7 +283,8 @@ extension RawTerminal {
     /// a selectable list to pick from. Returns nil if cancelled.
     func promptWithAutocomplete(
         title: String, hint: String, completions: [String],
-        browsableList: [String]? = nil, defaultValue: String? = nil
+        browsableList: [String]? = nil, defaultValue: String? = nil,
+        allowEmpty: Bool = false
     ) -> String? {
         var input = defaultValue ?? ""
         let size = ANSI.terminalSize()
@@ -341,7 +342,7 @@ extension RawTerminal {
                     input = first
                 }
             case .enter:
-                if !input.isEmpty { return input }
+                if !input.isEmpty || allowEmpty { return input }
             case .escape, .ctrlC:
                 return nil
             default: break

@@ -72,80 +72,128 @@ final class CommandEditWizard {
         guard let stage = stages[stageName] else { return }
         let currentBinary = stage.binary
 
-        // Prompt for command
-        guard let command = terminal.promptForInput(
-            title: "\(stageName): binary command",
-            hint: "Path to executable (e.g. ./bin/my-plugin)",
-            defaultValue: currentBinary?.command,
-            allowEmpty: true
-        ) else { return }
+        var command = currentBinary?.command ?? ""
+        var args = currentBinary?.args ?? []
+        var timeout = currentBinary?.timeout
+        var fork = currentBinary?.fork ?? false
+        var environment = currentBinary?.environment ?? [:]
 
-        // Prompt for args one at a time
+        var cursor = 0
+        var changed = false
+        while true {
+            let envSummary = environment.isEmpty
+                ? "(none)"
+                : environment.keys.sorted().joined(separator: ", ")
+            let argsSummary = args.isEmpty ? "(none)" : args.joined(separator: " ")
+            let timeoutStr = timeout.map { "\($0)s" } ?? "30s (default)"
+            let items = [
+                "Environment  \(ANSI.dim)\(envSummary)\(ANSI.reset)",
+                "Command      \(ANSI.dim)\(command.isEmpty ? "(not set)" : command)\(ANSI.reset)",
+                "Arguments    \(ANSI.dim)\(argsSummary)\(ANSI.reset)",
+                "Timeout      \(ANSI.dim)\(timeoutStr)\(ANSI.reset)",
+                "Fork         \(ANSI.dim)\(fork ? "yes" : "no")\(ANSI.reset)",
+            ]
+
+            let hint = "Note: command paths are relative to the plugin directory (not shell PATH)"
+            terminal.drawScreen(
+                title: "\(stageName) command config\n\(ANSI.dim)\(hint)\(ANSI.reset)",
+                items: items,
+                cursor: cursor,
+                footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  Esc done"
+            )
+
+            let key = terminal.readKey()
+            switch key {
+            case .cursorUp: cursor = max(0, cursor - 1)
+            case .cursorDown: cursor = min(items.count - 1, cursor + 1)
+            case .enter:
+                switch cursor {
+                case 0: // Environment
+                    environment = editEnvironment(stageName: stageName, current: environment)
+                    changed = true
+                case 1: // Command
+                    if let val = terminal.promptForInput(
+                        title: "\(stageName): command",
+                        hint: "Relative to plugin dir (e.g. ./bin/my-plugin) or absolute path",
+                        defaultValue: command.isEmpty ? nil : command,
+                        allowEmpty: true
+                    ) {
+                        command = val
+                        changed = true
+                    }
+                case 2: // Arguments
+                    args = editArgs(stageName: stageName, existing: args, envKeys: environment.keys.sorted())
+                    changed = true
+                case 3: // Timeout
+                    let timeoutDefault = timeout.map { String($0) }
+                    if let val = terminal.promptForInput(
+                        title: "\(stageName): timeout (seconds)",
+                        hint: "Default: 30. Press Enter to keep default.",
+                        defaultValue: timeoutDefault,
+                        allowEmpty: true
+                    ) {
+                        timeout = val.isEmpty ? nil : Int(val) ?? timeout
+                        changed = true
+                    }
+                case 4: // Fork
+                    fork = terminal.confirm("Enable fork (copy-on-write image isolation)?")
+                    changed = true
+                default: break
+                }
+            case .escape:
+                if changed {
+                    let newBinary = HookConfig(
+                        command: command.isEmpty ? nil : command,
+                        args: args,
+                        timeout: timeout,
+                        pluginProtocol: currentBinary?.pluginProtocol,
+                        successCodes: currentBinary?.successCodes,
+                        warningCodes: currentBinary?.warningCodes,
+                        criticalCodes: currentBinary?.criticalCodes,
+                        batchProxy: currentBinary?.batchProxy,
+                        environment: environment.isEmpty ? nil : environment,
+                        fork: fork ? true : nil
+                    )
+                    let newStage = StageConfig(
+                        preRules: stage.preRules,
+                        binary: newBinary,
+                        postRules: stage.postRules
+                    )
+                    stages[stageName] = newStage
+                    modified = true
+                }
+                return
+            default: break
+            }
+        }
+    }
+
+    // MARK: - Args Editor
+
+    private func editArgs(stageName: String, existing: [String], envKeys: [String]) -> [String] {
         var args: [String] = []
-        let existingArgs = currentBinary?.args ?? []
+        let completions = envKeys.map { "$\($0)" }
         var argIndex = 0
         while true {
-            let defaultArg = argIndex < existingArgs.count ? existingArgs[argIndex] : nil
+            let defaultArg = argIndex < existing.count ? existing[argIndex] : nil
             let ordinal = args.isEmpty ? "first" : "next"
             let hint = args.isEmpty
-                ? "e.g. --verbose  (Enter to skip args)"
+                ? "e.g. --verbose  or  $MY_VAR"
                 : "Enter another arg, or press Enter to finish"
-            guard let arg = terminal.promptForInput(
+            guard let arg = terminal.promptWithAutocomplete(
                 title: "\(stageName): \(ordinal) argument",
                 hint: hint,
+                completions: completions,
                 defaultValue: defaultArg,
                 allowEmpty: !args.isEmpty
             ) else {
-                if args.isEmpty { break }
                 break
             }
             if arg.isEmpty { break }
             args.append(arg)
             argIndex += 1
         }
-
-        // Prompt for timeout
-        let currentTimeout = currentBinary?.timeout
-        let timeoutDefault = currentTimeout.map { String($0) }
-        let timeoutStr = terminal.promptForInput(
-            title: "\(stageName): timeout (seconds)",
-            hint: "Default: 30. Press Enter to keep default.",
-            defaultValue: timeoutDefault,
-            allowEmpty: true
-        )
-        let timeout: Int? = timeoutStr.flatMap { $0.isEmpty ? nil : Int($0) } ?? currentTimeout
-
-        // Prompt for fork
-        let fork = terminal.confirm("Enable fork (copy-on-write image isolation)?")
-
-        // Prompt for environment variable mappings
-        let environment = editEnvironment(
-            stageName: stageName,
-            current: currentBinary?.environment
-        )
-
-        // Build new HookConfig
-        let newBinary = HookConfig(
-            command: command.isEmpty ? nil : command,
-            args: args,
-            timeout: timeout,
-            pluginProtocol: currentBinary?.pluginProtocol,
-            successCodes: currentBinary?.successCodes,
-            warningCodes: currentBinary?.warningCodes,
-            criticalCodes: currentBinary?.criticalCodes,
-            batchProxy: currentBinary?.batchProxy,
-            environment: environment.isEmpty ? nil : environment,
-            fork: fork ? true : nil
-        )
-
-        // Reconstruct StageConfig (binary is let)
-        let newStage = StageConfig(
-            preRules: stage.preRules,
-            binary: newBinary,
-            postRules: stage.postRules
-        )
-        stages[stageName] = newStage
-        modified = true
+        return args
     }
 
     // MARK: - Environment Editor
