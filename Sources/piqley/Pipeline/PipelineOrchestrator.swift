@@ -240,7 +240,10 @@ struct PipelineOrchestrator: Sendable {
 
         // Binary
         var binaryDidRun = false
-        if stageConfig.binary?.command != nil {
+        if let binaryCommand = stageConfig.binary?.command, binaryCommand.isEmpty {
+            logger.warning("[\(loadedPlugin.name)] hook '\(ctx.hook)': binary command is empty, skipping binary")
+        }
+        if let binaryCommand = stageConfig.binary?.command, !binaryCommand.isEmpty {
             // Skip binary entirely if all images are skipped
             let allImageNames = Set(forkImageFiles.map(\.lastPathComponent))
             if allImageNames.isSubset(of: skippedImages) {

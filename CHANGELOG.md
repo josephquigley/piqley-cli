@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules wizard: declining a new field name returns to the field prompt instead of the action selector
 - Save indicator ("Saved") now appears in the footer for 2 seconds on both wizards instead of blocking with a modal
 - Rules editor no longer writes empty stage files to disk; removes existing empty stage files on save
-- `plugin init` now seeds each stage file with a binary config pointing to `./bin/<identifier>`
+- `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands
 
 ### Added
 

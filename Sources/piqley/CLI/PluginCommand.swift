@@ -368,8 +368,8 @@ struct PluginCommand: ParsableCommand {
 
         private static func writeExampleStageFiles(to pluginDir: URL, identifier: String) throws {
             let binaryConfig: [String: Any] = [
-                "_comment": "Command to run for this stage. Remove or leave as-is if this stage is declarative-only.",
-                "command": "./bin/\(identifier)",
+                "command": "",
+                "args": [String](),
             ]
 
             // Pre-process stage
