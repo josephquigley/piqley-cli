@@ -248,9 +248,12 @@ extension RawTerminal {
     /// Prompt for text input. Returns nil if cancelled.
     func promptForInput(title: String, hint: String, defaultValue: String? = nil, allowEmpty: Bool = false) -> String? {
         var input = defaultValue ?? ""
+        var cursorPos = input.count
         let size = ANSI.terminalSize()
 
         while true {
+            let before = String(input.prefix(cursorPos))
+            let after = String(input.suffix(input.count - cursorPos))
             var buf = ""
             buf += ANSI.clearScreen()
             buf += ANSI.moveTo(row: 1, col: 1)
@@ -258,17 +261,25 @@ extension RawTerminal {
             buf += ANSI.moveTo(row: 2, col: 1)
             buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
             buf += ANSI.moveTo(row: 4, col: 1)
-            buf += "\u{25B8} \(input)\u{2588}"
+            buf += "\u{25B8} \(before)\u{2588}\(after)"
             buf += ANSI.moveTo(row: size.rows, col: 1)
-            buf += "\(ANSI.dim)Enter to confirm  Esc to cancel\(ANSI.reset)"
+            buf += "\(ANSI.dim)\u{2190}\u{2192} move cursor  Enter to confirm  Esc to cancel\(ANSI.reset)"
             write(buf)
 
             let key = readKey()
             switch key {
             case let .char(char):
-                input.append(char)
+                input.insert(char, at: input.index(input.startIndex, offsetBy: cursorPos))
+                cursorPos += 1
             case .backspace:
-                if !input.isEmpty { input.removeLast() }
+                if cursorPos > 0 {
+                    input.remove(at: input.index(input.startIndex, offsetBy: cursorPos - 1))
+                    cursorPos -= 1
+                }
+            case .cursorLeft:
+                if cursorPos > 0 { cursorPos -= 1 }
+            case .cursorRight:
+                if cursorPos < input.count { cursorPos += 1 }
             case .enter:
                 if !input.isEmpty || allowEmpty { return input }
             case .escape, .ctrlC:
@@ -294,6 +305,7 @@ extension RawTerminal {
         allowEmpty: Bool = false, insertCompletions: [String]? = nil
     ) -> String? {
         var input = defaultValue ?? ""
+        var cursorPos = input.count
         let size = ANSI.terminalSize()
         let maxSuggestions = 5
         let hasList = browsableList != nil
@@ -306,6 +318,8 @@ extension RawTerminal {
             }
             let matches = matchedIndices.map { completions[$0] }
 
+            let before = String(input.prefix(cursorPos))
+            let after = String(input.suffix(input.count - cursorPos))
             var buf = ""
             buf += ANSI.clearScreen()
             buf += ANSI.moveTo(row: 1, col: 1)
@@ -313,7 +327,7 @@ extension RawTerminal {
             buf += ANSI.moveTo(row: 2, col: 1)
             buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
             buf += ANSI.moveTo(row: 4, col: 1)
-            buf += "\u{25B8} \(input)\u{2588}"
+            buf += "\u{25B8} \(before)\u{2588}\(after)"
 
             // Show suggestions
             for (displayIdx, match) in matches.prefix(maxSuggestions).enumerated() {
@@ -331,7 +345,7 @@ extension RawTerminal {
 
             buf += ANSI.moveTo(row: size.rows, col: 1)
             let listHint = hasList ? "  Ctrl+L browse list" : ""
-            buf += "\(ANSI.dim)Tab autocomplete\(listHint)  Enter confirm  Esc cancel\(ANSI.reset)"
+            buf += "\(ANSI.dim)\u{2190}\u{2192} move  Tab autocomplete\(listHint)  Enter confirm  Esc cancel\(ANSI.reset)"
             write(buf)
 
             let key = readKey()
@@ -341,14 +355,24 @@ extension RawTerminal {
                    let idx = selectFromList(title: "Select field", items: list)
                 {
                     input = list[idx]
+                    cursorPos = input.count
                 }
             case let .char(char):
-                input.append(char)
+                input.insert(char, at: input.index(input.startIndex, offsetBy: cursorPos))
+                cursorPos += 1
             case .backspace:
-                if !input.isEmpty { input.removeLast() }
+                if cursorPos > 0 {
+                    input.remove(at: input.index(input.startIndex, offsetBy: cursorPos - 1))
+                    cursorPos -= 1
+                }
+            case .cursorLeft:
+                if cursorPos > 0 { cursorPos -= 1 }
+            case .cursorRight:
+                if cursorPos < input.count { cursorPos += 1 }
             case .tab:
                 if let firstIdx = matchedIndices.first {
                     input = insertCompletions?[firstIdx] ?? completions[firstIdx]
+                    cursorPos = input.count
                 }
             case .enter:
                 if !input.isEmpty || allowEmpty { return input }

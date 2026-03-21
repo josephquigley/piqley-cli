@@ -159,13 +159,35 @@ final class CommandEditWizard {
                 title: "\(stageName) command config\n\(ANSI.dim)\(hint)\(ANSI.reset)",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  Esc done"
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} edit  s save  Esc done")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
+            case .char("s"):
+                // Apply pending changes before saving
+                if changed {
+                    let newBinary = HookConfig(
+                        command: command.isEmpty ? nil : command,
+                        args: args, timeout: timeout,
+                        pluginProtocol: currentBinary?.pluginProtocol,
+                        successCodes: currentBinary?.successCodes,
+                        warningCodes: currentBinary?.warningCodes,
+                        criticalCodes: currentBinary?.criticalCodes,
+                        batchProxy: currentBinary?.batchProxy,
+                        environment: environment.isEmpty ? nil : environment,
+                        fork: fork ? true : nil
+                    )
+                    stages[stageName] = StageConfig(
+                        preRules: stage.preRules, binary: newBinary, postRules: stage.postRules
+                    )
+                    modified = true
+                    changed = false
+                }
+                save()
             case .enter:
                 switch cursor {
                 case 0: // Environment
@@ -271,11 +293,12 @@ final class CommandEditWizard {
                 title: "\(stageName): environment variables",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  d delete  Esc done"
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} edit  d delete  Esc done")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .enter:
