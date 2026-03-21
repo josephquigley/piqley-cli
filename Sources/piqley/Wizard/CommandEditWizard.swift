@@ -295,7 +295,7 @@ final class CommandEditWizard {
                         let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
                             title: "Value for \(input)",
-                            hint: "Press Enter to accept pre-filled template",
+                            hint: "Wrap variables in {{}}. Literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
                             completions: templateCompletions,
                             defaultValue: match.templateValue
                         ) {
@@ -306,7 +306,7 @@ final class CommandEditWizard {
                         let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
                             title: "Value for \(input)",
-                            hint: "Use {{namespace:field}} for state templates",
+                            hint: "Wrap variables in {{}}. Literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
                             completions: templateCompletions
                         ) {
                             env[input] = value
@@ -318,7 +318,7 @@ final class CommandEditWizard {
                     let templateCompletions = fieldCompletions.map(\.templateValue)
                     guard let value = terminal.promptWithAutocomplete(
                         title: "Value for \(existingKey)",
-                        hint: "Use {{namespace:field}} for state template variables",
+                        hint: "Wrap variables in {{}}. Literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
                         completions: templateCompletions,
                         defaultValue: env[existingKey]
                     ) else { continue }
