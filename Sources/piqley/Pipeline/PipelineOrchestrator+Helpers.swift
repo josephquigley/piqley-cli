@@ -67,6 +67,49 @@ extension PipelineOrchestrator {
         )
     }
 
+    // MARK: - Binary Validation
+
+    func validateBinaries(pipeline: [String: [String]]) throws {
+        for hook in Hook.canonicalOrder.map(\.rawValue) {
+            for pluginEntry in pipeline[hook] ?? [] {
+                guard let loadedPlugin = try loadPlugin(named: pluginEntry) else { continue }
+                guard let stageConfig = loadedPlugin.stages[hook] else { continue }
+                guard let binary = stageConfig.binary,
+                      let command = binary.command,
+                      !command.isEmpty else { continue }
+
+                let probeResult = BinaryProbe.probe(
+                    command: command, pluginDirectory: loadedPlugin.directory
+                )
+
+                switch probeResult {
+                case .notFound:
+                    let resolved = BinaryProbe.resolveExecutable(command, pluginDirectory: loadedPlugin.directory)
+                    logger.error("Binary not found for plugin '\(pluginEntry)': \(resolved)")
+                    throw PipelineError.binaryValidationFailed(pluginEntry)
+                case .notExecutable:
+                    let resolved = BinaryProbe.resolveExecutable(command, pluginDirectory: loadedPlugin.directory)
+                    logger.error("Binary not executable for plugin '\(pluginEntry)': \(resolved)")
+                    throw PipelineError.binaryValidationFailed(pluginEntry)
+                case .piqleyPlugin:
+                    let configuredProto = binary.pluginProtocol ?? .json
+                    if configuredProto != .json {
+                        let msg = "Protocol mismatch for plugin '\(pluginEntry)': "
+                            + "binary is a piqley plugin but protocol is configured as '\(configuredProto.rawValue)'"
+                        logger.error("\(msg)")
+                        throw PipelineError.binaryValidationFailed(pluginEntry)
+                    }
+                case .cliTool:
+                    let configuredProto = binary.pluginProtocol ?? .json
+                    if configuredProto == .json {
+                        logger.error("Protocol mismatch for plugin '\(pluginEntry)': binary is a CLI tool but protocol is configured as 'json'")
+                        throw PipelineError.binaryValidationFailed(pluginEntry)
+                    }
+                }
+            }
+        }
+    }
+
     /// Fetches all declared secrets for a plugin from the secret store.
     func fetchSecrets(for plugin: LoadedPlugin) throws -> [String: String] {
         var result: [String: String] = [:]
@@ -226,11 +269,14 @@ extension PipelineOrchestrator {
 
 enum PipelineError: Error, LocalizedError {
     case dependencyValidationFailed(String)
+    case binaryValidationFailed(String)
 
     var errorDescription: String? {
         switch self {
         case let .dependencyValidationFailed(msg):
             "Dependency validation failed: \(msg)"
+        case let .binaryValidationFailed(plugin):
+            "Binary validation failed for plugin: \(plugin)"
         }
     }
 }

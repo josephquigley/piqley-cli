@@ -65,6 +65,14 @@ struct PipelineOrchestrator: Sendable {
             return false
         }
 
+        // Validate all binaries before starting
+        do {
+            try validateBinaries(pipeline: pipeline)
+        } catch is PipelineError {
+            try? temp.delete()
+            return false
+        }
+
         defer {
             do {
                 try temp.delete()

@@ -1,6 +1,7 @@
 import Foundation
 import PiqleyCore
 
+// swiftlint:disable:next type_body_length
 final class CommandEditWizard {
     let pluginID: String
     var stages: [String: StageConfig]
@@ -11,6 +12,9 @@ final class CommandEditWizard {
 
     /// Field completions for env var editor: display name -> (envVarName, templateValue)
     let fieldCompletions: [EnvFieldCompletion]
+
+    // swiftlint:disable:next line_length
+    private static let envValueHint = "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)"
 
     struct EnvFieldCompletion {
         /// What the user types/searches: e.g. "IPTC:Keywords"
@@ -137,6 +141,8 @@ final class CommandEditWizard {
         var timeout = currentBinary?.timeout
         var fork = currentBinary?.fork ?? false
         var environment = currentBinary?.environment ?? [:]
+        var pluginProtocol = currentBinary?.pluginProtocol
+        var batchProxy = currentBinary?.batchProxy
 
         var cursor = 0
         var changed = false
@@ -173,11 +179,11 @@ final class CommandEditWizard {
                     let newBinary = HookConfig(
                         command: command.isEmpty ? nil : command,
                         args: args, timeout: timeout,
-                        pluginProtocol: currentBinary?.pluginProtocol,
+                        pluginProtocol: pluginProtocol,
                         successCodes: currentBinary?.successCodes,
                         warningCodes: currentBinary?.warningCodes,
                         criticalCodes: currentBinary?.criticalCodes,
-                        batchProxy: currentBinary?.batchProxy,
+                        batchProxy: batchProxy,
                         environment: environment.isEmpty ? nil : environment,
                         fork: fork ? true : nil
                     )
@@ -200,8 +206,40 @@ final class CommandEditWizard {
                         defaultValue: command.isEmpty ? nil : command,
                         allowEmpty: true
                     ) {
-                        command = val
-                        changed = true
+                        if val.isEmpty {
+                            command = val
+                            changed = true
+                        } else {
+                            // Validate binary exists and probe it
+                            let probeResult = BinaryProbe.probe(
+                                command: val, pluginDirectory: pluginDir
+                            )
+                            switch probeResult {
+                            case .notFound:
+                                let resolved = BinaryProbe.resolveExecutable(val, pluginDirectory: pluginDir)
+                                terminal.showMessage("Command not found at \(resolved)")
+                            case .notExecutable:
+                                let resolved = BinaryProbe.resolveExecutable(val, pluginDirectory: pluginDir)
+                                terminal.showMessage("Command exists but is not executable: \(resolved)")
+                            case let .piqleyPlugin(version):
+                                command = val
+                                // Auto-configure for piqley plugin
+                                pluginProtocol = .json
+                                terminal.showMessage("Detected piqley plugin (schema v\(version)). Protocol set to JSON.")
+                                changed = true
+                            case .cliTool:
+                                command = val
+                                // Auto-configure for CLI tool
+                                pluginProtocol = .pipe
+                                // Ask about batch mode
+                                if terminal.confirm("Run once per image (batch mode)?") {
+                                    batchProxy = BatchProxyConfig(sort: nil)
+                                } else {
+                                    batchProxy = nil
+                                }
+                                changed = true
+                            }
+                        }
                     }
                 case 2: // Arguments
                     args = editArgs(stageName: stageName, existing: args, envKeys: environment.keys.sorted())
@@ -228,11 +266,11 @@ final class CommandEditWizard {
                         command: command.isEmpty ? nil : command,
                         args: args,
                         timeout: timeout,
-                        pluginProtocol: currentBinary?.pluginProtocol,
+                        pluginProtocol: pluginProtocol,
                         successCodes: currentBinary?.successCodes,
                         warningCodes: currentBinary?.warningCodes,
                         criticalCodes: currentBinary?.criticalCodes,
-                        batchProxy: currentBinary?.batchProxy,
+                        batchProxy: batchProxy,
                         environment: environment.isEmpty ? nil : environment,
                         fork: fork ? true : nil
                     )
@@ -323,18 +361,18 @@ final class CommandEditWizard {
                         let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
                             title: "Value for \(input)",
-                            hint: "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
+                            hint: Self.envValueHint,
                             completions: templateCompletions,
                             defaultValue: match.templateValue
                         ) {
                             env[input] = value
                         }
                     } else {
-                        // Custom variable name — no pre-fill
+                        // Custom variable name, no pre-fill
                         let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
                             title: "Value for \(input)",
-                            hint: "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
+                            hint: Self.envValueHint,
                             completions: templateCompletions
                         ) {
                             env[input] = value
@@ -346,7 +384,7 @@ final class CommandEditWizard {
                     let templateCompletions = fieldCompletions.map(\.templateValue)
                     guard let value = terminal.promptWithAutocomplete(
                         title: "Value for \(existingKey)",
-                        hint: "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
+                        hint: Self.envValueHint,
                         completions: templateCompletions,
                         defaultValue: env[existingKey]
                     ) else { continue }
