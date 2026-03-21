@@ -30,8 +30,8 @@ enum BinaryProbe {
         process.executableURL = URL(fileURLWithPath: resolvedPath)
         process.arguments = ["--piqley-info"]
 
-        let stdout = Pipe()
-        process.standardOutput = stdout
+        let stdoutPipe = Pipe()
+        process.standardOutput = stdoutPipe
         process.standardError = FileHandle.nullDevice
         process.standardInput = FileHandle.nullDevice
 
@@ -41,16 +41,16 @@ enum BinaryProbe {
             return .cliTool
         }
 
-        // 5 second timeout
-        let deadline = DispatchTime.now() + .seconds(5)
-        let group = DispatchGroup()
-        group.enter()
+        // Wait with 5 second timeout using a semaphore
+        let semaphore = DispatchSemaphore(value: 0)
+        let proc = process // capture immutable ref for Sendable closure
         DispatchQueue.global().async {
-            process.waitUntilExit()
-            group.leave()
+            proc.waitUntilExit()
+            semaphore.signal()
         }
-        if group.wait(timeout: deadline) == .timedOut {
+        if semaphore.wait(timeout: .now() + .seconds(5)) == .timedOut {
             process.terminate()
+            process.waitUntilExit()
             return .cliTool
         }
 
@@ -58,7 +58,7 @@ enum BinaryProbe {
             return .cliTool
         }
 
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        let data = stdoutPipe.fileHandleForReading.availableData
         guard !data.isEmpty,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               json["piqleyPlugin"] as? Bool == true,
