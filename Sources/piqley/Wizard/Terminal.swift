@@ -39,8 +39,13 @@ final class RawTerminal {
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved)
     }
 
-    /// Read a single keypress, handling escape sequences for special keys.
-    func readKey() -> Key {
+    /// Read a single keypress with optional timeout.
+    /// Returns `.timeout` if no key is pressed within `timeoutMs` milliseconds.
+    /// Pass `nil` for no timeout (blocks indefinitely).
+    func readKey(timeoutMs: Int32? = nil) -> Key {
+        if let timeout = timeoutMs {
+            guard stdinHasData(timeoutMs: timeout) else { return .timeout }
+        }
         var buf = [UInt8](repeating: 0, count: 1)
         let bytesRead = read(STDIN_FILENO, &buf, 1)
         guard bytesRead == 1 else { return .unknown }
@@ -397,6 +402,7 @@ enum Key: Equatable {
     case pageDown
     case ctrlC
     case ctrlL
+    case timeout
     case unknown
 }
 

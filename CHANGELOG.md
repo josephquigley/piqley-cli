@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules wizard confirms with user when a target field name doesn't match any known field
 - Rules wizard: Enter on empty finishes value entry after first value; Escape mid-value returns to action selection instead of proceeding to write stage
 - Rules wizard: declining a new field name returns to the field prompt instead of the action selector
-- Save indicator ("Saved") now appears in the footer for 2 seconds on both wizards instead of blocking with a modal
+- Save indicator ("Saved") now appears in the footer for 2 seconds on all wizards, auto-dismisses via poll timeout instead of waiting for keypress
 - Both editors show all canonical stages even when stage files are missing; stage files are only written when they have rules or a non-empty command
 - Rules editor now shows pre-rules and post-rules as separate slots within each stage instead of only editing pre-rules; labels use "command" instead of "binary"
 - `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands

@@ -50,8 +50,9 @@ final class CommandEditWizard {
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} edit  s save  Esc quit")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .enter:
@@ -272,5 +273,21 @@ final class CommandEditWizard {
             return "\(ANSI.green)\(ANSI.bold)Saved\(ANSI.reset)  \(base)"
         }
         return base
+    }
+
+    func readKeyWithSaveTimeout() -> Key {
+        if let savedAt {
+            let remaining = 2.0 - Date().timeIntervalSince(savedAt)
+            if remaining > 0 {
+                let key = terminal.readKey(timeoutMs: Int32(remaining * 1000))
+                if key == .timeout {
+                    self.savedAt = nil
+                    return .timeout
+                }
+                return key
+            }
+            self.savedAt = nil
+        }
+        return terminal.readKey()
     }
 }

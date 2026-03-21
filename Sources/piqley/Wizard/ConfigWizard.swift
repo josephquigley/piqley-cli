@@ -41,8 +41,9 @@ final class ConfigWizard {
         while true {
             drawStageScreen(stages: stages, menuItems: menuItems, cursor: cursor)
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(menuItems.count - 1, cursor + 1)
             case .enter:
@@ -152,8 +153,9 @@ final class ConfigWizard {
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  \(removeLabel)  r reorder  s save  Esc back")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(max(items.count - 1, 0), cursor + 1)
             case .pageUp: cursor = max(0, cursor - 10)
@@ -283,6 +285,22 @@ final class ConfigWizard {
             return "\(ANSI.green)\(ANSI.bold)Saved\(ANSI.reset)  \(base)"
         }
         return base
+    }
+
+    func readKeyWithSaveTimeout() -> Key {
+        if let savedAt {
+            let remaining = 2.0 - Date().timeIntervalSince(savedAt)
+            if remaining > 0 {
+                let key = terminal.readKey(timeoutMs: Int32(remaining * 1000))
+                if key == .timeout {
+                    self.savedAt = nil
+                    return .timeout
+                }
+                return key
+            }
+            self.savedAt = nil
+        }
+        return terminal.readKey()
     }
 
     private func applyRemovals() {

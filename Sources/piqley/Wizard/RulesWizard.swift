@@ -32,6 +32,23 @@ final class RulesWizard {
         return base
     }
 
+    /// Read a key, using a timeout to clear the save indicator if one is active.
+    func readKeyWithSaveTimeout() -> Key {
+        if let savedAt {
+            let remaining = 2.0 - Date().timeIntervalSince(savedAt)
+            if remaining > 0 {
+                let key = terminal.readKey(timeoutMs: Int32(remaining * 1000))
+                if key == .timeout {
+                    self.savedAt = nil
+                    return .timeout
+                }
+                return key
+            }
+            self.savedAt = nil
+        }
+        return terminal.readKey()
+    }
+
     // MARK: - Stage Select
 
     private func stageSelect() {
@@ -63,8 +80,9 @@ final class RulesWizard {
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .enter:
@@ -112,8 +130,9 @@ final class RulesWizard {
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  Esc back")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .pageUp: cursor = max(0, cursor - 10)

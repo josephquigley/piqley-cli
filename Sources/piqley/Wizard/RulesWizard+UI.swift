@@ -21,8 +21,9 @@ extension RulesWizard {
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc back")
             )
 
-            let key = terminal.readKey()
+            let key = readKeyWithSaveTimeout()
             switch key {
+            case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .enter:
