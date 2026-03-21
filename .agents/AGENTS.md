@@ -30,3 +30,8 @@ See [architecture.md](architecture.md) for detailed guidelines. Key rules:
 - Prefer `async/await` for async operations
 - No force unwraps in production code
 - All config values should be `Codable`
+
+## Git Commits
+
+- Always write commit messages to a temp file using the native file writer tool (Write), then commit with `git commit -F <path>`. Never use `git commit -m` with inline messages, heredocs, `cat`, `printf`, or any other bash file-writing commands for commit messages.
+- Delete the temp file after the commit succeeds.
