@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules wizard: declining a new field name returns to the field prompt instead of the action selector
 - Save indicator ("Saved") now appears in the footer for 2 seconds on both wizards instead of blocking with a modal
 - Both editors show all canonical stages even when stage files are missing; stage files are only written when they have rules or a non-empty command
-- Rules editor now shows pre-rules and post-rules as separate slots within each stage instead of only editing pre-rules
+- Rules editor now shows pre-rules and post-rules as separate slots within each stage instead of only editing pre-rules; labels use "command" instead of "binary"
 - `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands
 - `piqley plugin command <identifier>` interactive wizard for editing binary command, args, timeout, fork, and environment variable mappings per stage; shows all canonical stages including missing ones
 

@@ -10,8 +10,8 @@ extension RulesWizard {
             let preCount = context.rules(forStage: stageName, slot: .pre).count
             let postCount = context.rules(forStage: stageName, slot: .post).count
             let items = [
-                "Pre-rules (\(preCount) rules)  \(ANSI.dim)run before binary\(ANSI.reset)",
-                "Post-rules (\(postCount) rules)  \(ANSI.dim)run after binary\(ANSI.reset)",
+                "Pre-rules (\(preCount) rules)  \(ANSI.dim)run before command\(ANSI.reset)",
+                "Post-rules (\(postCount) rules)  \(ANSI.dim)run after command\(ANSI.reset)",
             ]
 
             terminal.drawScreen(
