@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Save indicator ("Saved") now appears in the footer for 2 seconds on both wizards instead of blocking with a modal
 - Rules editor no longer writes empty stage files to disk; removes existing empty stage files on save
 - `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands
-- `piqley plugin command <identifier>` interactive wizard for editing binary command, args, timeout, and fork per stage
+- `piqley plugin command <identifier>` interactive wizard for editing binary command, args, timeout, fork, and environment variable mappings per stage; shows all canonical stages including missing ones
 
 ### Added
 

@@ -115,8 +115,13 @@ final class CommandEditWizard {
         let timeout: Int? = timeoutStr.flatMap { $0.isEmpty ? nil : Int($0) } ?? currentTimeout
 
         // Prompt for fork
-        let currentFork = currentBinary?.fork ?? false
         let fork = terminal.confirm("Enable fork (copy-on-write image isolation)?")
+
+        // Prompt for environment variable mappings
+        let environment = editEnvironment(
+            stageName: stageName,
+            current: currentBinary?.environment
+        )
 
         // Build new HookConfig
         let newBinary = HookConfig(
@@ -128,7 +133,7 @@ final class CommandEditWizard {
             warningCodes: currentBinary?.warningCodes,
             criticalCodes: currentBinary?.criticalCodes,
             batchProxy: currentBinary?.batchProxy,
-            environment: currentBinary?.environment,
+            environment: environment.isEmpty ? nil : environment,
             fork: fork ? true : nil
         )
 
@@ -140,6 +145,76 @@ final class CommandEditWizard {
         )
         stages[stageName] = newStage
         modified = true
+    }
+
+    // MARK: - Environment Editor
+
+    private func editEnvironment(stageName: String, current: [String: String]?) -> [String: String] {
+        var env = current ?? [:]
+
+        if env.isEmpty {
+            guard terminal.confirm("\(stageName): Add environment variable mappings?") else {
+                return env
+            }
+        } else {
+            // Show existing and offer to edit
+            let summary = env.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", ")
+            guard terminal.confirm("\(stageName): Edit environment mappings? (\(summary))") else {
+                return env
+            }
+        }
+
+        var cursor = 0
+        while true {
+            let entries = env.keys.sorted().map { key in
+                "\(key) = \(env[key] ?? "")"
+            }
+            let items = entries + ["+ Add new variable"]
+
+            terminal.drawScreen(
+                title: "\(stageName): environment variables",
+                items: items,
+                cursor: cursor,
+                footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  d delete  Esc done"
+            )
+
+            let key = terminal.readKey()
+            switch key {
+            case .cursorUp: cursor = max(0, cursor - 1)
+            case .cursorDown: cursor = min(items.count - 1, cursor + 1)
+            case .enter:
+                if cursor == entries.count {
+                    // Add new
+                    guard let name = terminal.promptForInput(
+                        title: "Variable name",
+                        hint: "e.g. MY_API_URL"
+                    ) else { continue }
+                    guard let value = terminal.promptForInput(
+                        title: "Value for \(name)",
+                        hint: "Use {{namespace:field}} for state template variables"
+                    ) else { continue }
+                    env[name] = value
+                } else {
+                    // Edit existing
+                    let existingKey = env.keys.sorted()[cursor]
+                    guard let value = terminal.promptForInput(
+                        title: "Value for \(existingKey)",
+                        hint: "Use {{namespace:field}} for state template variables",
+                        defaultValue: env[existingKey]
+                    ) else { continue }
+                    env[existingKey] = value
+                }
+            case .char("d"):
+                if cursor < entries.count {
+                    let keyToRemove = env.keys.sorted()[cursor]
+                    env.removeValue(forKey: keyToRemove)
+                    cursor = min(cursor, max(0, entries.count - 2))
+                }
+            case .escape:
+                return env
+            default: break
+            }
+        }
     }
 
     // MARK: - Save / Quit
