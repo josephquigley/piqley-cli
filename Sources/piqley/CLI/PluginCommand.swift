@@ -22,11 +22,11 @@ struct PluginCommand: ParsableCommand {
         )
 
         func run() throws {
-            let config: AppConfig
+            let workflows: [Workflow]
             do {
-                config = try AppConfig.load()
+                workflows = try WorkflowStore.loadAll()
             } catch {
-                throw ValidationError("Failed to load config: \(formatError(error))\nRun 'piqley setup' first.")
+                throw ValidationError("Failed to load workflows: \(formatError(error))\nRun 'piqley setup' first.")
             }
 
             let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
@@ -39,19 +39,20 @@ struct PluginCommand: ParsableCommand {
             }
 
             for plugin in allPlugins {
-                let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "—"
-                let pipelineStages = config.pipeline.compactMap { stage, plugins in
-                    plugins.contains(plugin.identifier) ? stage : nil
-                }.sorted()
-                let stageInfo = pipelineStages.isEmpty ? "not in pipeline" : pipelineStages.joined(separator: ", ")
+                let version = plugin.manifest.pluginVersion.map { "\($0)" } ?? "-"
+                // Show which workflows contain this plugin
+                let workflowNames = workflows.filter { workflow in
+                    workflow.pipeline.values.flatMap(\.self).contains(plugin.identifier)
+                }.map(\.name)
+                let workflowInfo = workflowNames.isEmpty ? "not in any workflow" : workflowNames.joined(separator: ", ")
 
                 print("\(plugin.identifier)")
-                print("  Name:     \(plugin.name)")
-                print("  Version:  \(version)")
+                print("  Name:      \(plugin.name)")
+                print("  Version:   \(version)")
                 if let desc = plugin.manifest.description, !desc.isEmpty {
-                    print("  About:    \(desc)")
+                    print("  About:     \(desc)")
                 }
-                print("  Pipeline: \(stageInfo)")
+                print("  Workflows: \(workflowInfo)")
                 print()
             }
 
@@ -72,11 +73,9 @@ struct PluginCommand: ParsableCommand {
         var force = false
 
         func run() throws {
-            let config: AppConfig
-            do {
-                config = try AppConfig.load()
-            } catch {
-                throw ValidationError("Failed to load config: \(formatError(error))\nRun 'piqley setup' first.")
+            let workflows = try WorkflowStore.list()
+            if workflows.isEmpty {
+                throw ValidationError("No workflows found. Run 'piqley setup' first.")
             }
 
             let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory

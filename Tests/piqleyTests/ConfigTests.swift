@@ -2,43 +2,45 @@ import Foundation
 import Testing
 @testable import piqley
 
-@Suite("AppConfig")
+@Suite("Workflow")
 struct ConfigTests {
-    @Test("decodes pipeline-only config from JSON")
-    func testDecodePipelineConfig() throws {
+    @Test("decodes workflow from JSON")
+    func testDecodeWorkflow() throws {
         let json = """
         {
+          "name": "test",
+          "displayName": "Test",
+          "description": "A test workflow",
+          "schemaVersion": 1,
           "pipeline": {
             "pre-process": ["piqley-metadata", "piqley-resize"],
             "publish": ["ghost"]
           }
         }
         """
-        let config = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
-        #expect(config.pipeline["pre-process"] == ["piqley-metadata", "piqley-resize"])
-        #expect(config.pipeline["publish"] == ["ghost"])
+        let workflow = try JSONDecoder().decode(Workflow.self, from: Data(json.utf8))
+        #expect(workflow.name == "test")
+        #expect(workflow.pipeline["pre-process"] == ["piqley-metadata", "piqley-resize"])
+        #expect(workflow.pipeline["publish"] == ["ghost"])
     }
 
-    @Test("decodes empty JSON with empty pipeline")
-    func testEmptyDefaults() throws {
-        let json = "{}"
-        let config = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
-        #expect(config.pipeline.isEmpty)
+    @Test("empty workflow has all four hooks")
+    func testEmptyWorkflow() {
+        let workflow = Workflow.empty(name: "default")
+        #expect(workflow.pipeline.count == 4)
+        #expect(workflow.pipeline["pre-process"] == [])
+        #expect(workflow.pipeline["post-process"] == [])
+        #expect(workflow.pipeline["publish"] == [])
+        #expect(workflow.pipeline["post-publish"] == [])
     }
 
     @Test("encodes and decodes round-trip")
     func testRoundTrip() throws {
-        var config = AppConfig()
-        config.pipeline["publish"] = ["ghost"]
-        let data = try JSONEncoder().encode(config)
-        let decoded = try JSONDecoder().decode(AppConfig.self, from: data)
+        var workflow = Workflow.empty(name: "test", displayName: "Test")
+        workflow.pipeline["publish"] = ["ghost"]
+        let data = try JSONEncoder().encode(workflow)
+        let decoded = try JSONDecoder().decode(Workflow.self, from: data)
         #expect(decoded.pipeline["publish"] == ["ghost"])
-    }
-
-    @Test("configURL points to ~/.config/piqley/config.json")
-    func testConfigURL() {
-        let url = AppConfig.configURL
-        #expect(url.lastPathComponent == "config.json")
-        #expect(url.deletingLastPathComponent().lastPathComponent == "piqley")
+        #expect(decoded.name == "test")
     }
 }

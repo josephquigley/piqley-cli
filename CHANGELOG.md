@@ -25,6 +25,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Named workflow system: replace single config.json pipeline with multiple named workflows stored in `~/.config/piqley/workflows/`
+- `piqley workflow edit [name]` command with TUI for browsing and managing workflows
+- `piqley workflow create [name]`, `clone`, `delete`, `add-plugin`, `remove-plugin`, `open` subcommands
+- Automatic workflow selection in `piqley process`: uses the only workflow when one exists, requires explicit name when multiple exist
 - BinaryProbe utility that detects whether a plugin binary is a piqley SDK plugin or a regular CLI tool via `--piqley-info` probe
 - Command wizard auto-configures protocol (JSON/pipe) and batch mode based on binary detection results
 - Pre-flight binary validation in pipeline orchestrator catches missing, non-executable, or protocol-mismatched binaries before any images are processed
@@ -94,3 +98,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Keychain-based secret storage for API keys and plugin credentials
 - Interactive setup command with config creation and Keychain storage
 - Homebrew formula with bottle support and GitHub Actions CI
+
+### Changed
+
+- `piqley setup` now seeds a default workflow and opens the workflow editor instead of auto-populating the pipeline
+- `piqley plugin list` shows which workflows each plugin appears in instead of pipeline stages
+
+### Removed
+
+- `AppConfig` and `config.json`: replaced entirely by the workflow system
+- `piqley config` command group: replaced by `piqley workflow`

@@ -10,7 +10,7 @@ struct Piqley: AsyncParsableCommand {
         version: AppConstants.version,
         subcommands: [
             ProcessCommand.self, SetupCommand.self, ClearCacheCommand.self,
-            SecretCommand.self, PluginCommand.self, ConfigCommand.self,
+            SecretCommand.self, PluginCommand.self, WorkflowCommand.self,
             UninstallCommand.self,
         ]
     )

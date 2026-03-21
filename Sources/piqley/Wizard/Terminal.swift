@@ -39,6 +39,18 @@ final class RawTerminal {
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved)
     }
 
+    /// Re-enter raw mode after a `restore()` call (e.g. after a nested wizard).
+    func reenter() {
+        var raw = termios()
+        tcgetattr(STDIN_FILENO, &raw)
+        raw.c_lflag &= ~UInt(ECHO | ICANON | ISIG)
+        raw.c_cc.16 = 1 // VMIN
+        raw.c_cc.17 = 1 // VTIME
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)
+        write("\u{1b}[?1049h")
+        write("\u{1b}[?25l")
+    }
+
     /// Read a single keypress with optional timeout.
     /// Returns `.timeout` if no key is pressed within `timeoutMs` milliseconds.
     /// Pass `nil` for no timeout (blocks indefinitely).

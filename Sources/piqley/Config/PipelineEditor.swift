@@ -33,7 +33,7 @@ enum PipelineEditor {
     static func validateAdd(
         pluginId: String,
         stage: String,
-        config: AppConfig,
+        workflow: Workflow,
         discoveredPlugins: [LoadedPlugin]
     ) throws {
         let validStages = Set(Hook.allCases.map(\.rawValue))
@@ -46,7 +46,7 @@ enum PipelineEditor {
         guard plugin.stages[stage] != nil else {
             throw AddError.noStageFile(plugin: pluginId, stage: stage)
         }
-        let current = Set(config.pipeline[stage] ?? [])
+        let current = Set(workflow.pipeline[stage] ?? [])
         guard !current.contains(pluginId) else {
             throw AddError.alreadyInStage(plugin: pluginId, stage: stage)
         }
@@ -55,13 +55,13 @@ enum PipelineEditor {
     static func validateRemove(
         pluginId: String,
         stage: String,
-        config: AppConfig
+        workflow: Workflow
     ) throws {
         let validStages = Set(Hook.allCases.map(\.rawValue))
         guard validStages.contains(stage) else {
             throw RemoveError.invalidStage(stage)
         }
-        let current = config.pipeline[stage] ?? []
+        let current = workflow.pipeline[stage] ?? []
         guard current.contains(pluginId) else {
             throw RemoveError.pluginNotInStage(plugin: pluginId, stage: stage)
         }
@@ -70,13 +70,13 @@ enum PipelineEditor {
     /// Find plugins that depend on the given plugin in any stage.
     static func dependents(
         of pluginId: String,
-        in config: AppConfig,
+        in workflow: Workflow,
         discoveredPlugins: [LoadedPlugin]
     ) -> [String] {
         discoveredPlugins
             .filter { $0.manifest.dependencyIdentifiers.contains(pluginId) }
             .filter { plugin in
-                config.pipeline.values.flatMap(\.self).contains(plugin.identifier)
+                workflow.pipeline.values.flatMap(\.self).contains(plugin.identifier)
             }
             .map(\.identifier)
     }

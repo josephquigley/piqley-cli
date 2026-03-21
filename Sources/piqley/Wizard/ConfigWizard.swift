@@ -2,7 +2,7 @@ import Foundation
 import PiqleyCore
 
 final class ConfigWizard {
-    var config: AppConfig
+    var workflow: Workflow
     let discoveredPlugins: [LoadedPlugin]
     let terminal: RawTerminal
     var modified = false
@@ -13,8 +13,8 @@ final class ConfigWizard {
     /// Identifiers of plugins that exist on disk.
     let discoveredIdentifiers: Set<String>
 
-    init(config: AppConfig, discoveredPlugins: [LoadedPlugin]) {
-        self.config = config
+    init(workflow: Workflow, discoveredPlugins: [LoadedPlugin]) {
+        self.workflow = workflow
         self.discoveredPlugins = discoveredPlugins
         discoveredIdentifiers = Set(discoveredPlugins.map(\.identifier))
         terminal = RawTerminal()
@@ -57,6 +57,7 @@ final class ConfigWizard {
                 save()
             case .escape, .ctrlC:
                 promptUnsavedAndExit()
+                if shouldQuit { return }
             default: break
             }
         }
@@ -67,11 +68,11 @@ final class ConfigWizard {
         var buf = ""
         buf += ANSI.clearScreen()
         buf += ANSI.moveTo(row: 1, col: 1)
-        buf += "\(ANSI.bold)Edit Pipeline\(ANSI.reset)"
+        buf += "\(ANSI.bold)Edit Workflow: \(workflow.name)\(ANSI.reset)"
 
         // Stage items (rows 3..6)
         for (idx, stage) in stages.enumerated() {
-            let plugins = config.pipeline[stage] ?? []
+            let plugins = workflow.pipeline[stage] ?? []
             let count = plugins.count
             let label = count == 1 ? "plugin" : "plugins"
             let missingCount = plugins.filter { !discoveredIdentifiers.contains($0) }.count
@@ -99,7 +100,7 @@ final class ConfigWizard {
         }
 
         // Plugin count metadata
-        let pipelineIdentifiers = Set(config.pipeline.values.flatMap(\.self))
+        let pipelineIdentifiers = Set(workflow.pipeline.values.flatMap(\.self))
         let activeCount = discoveredPlugins.filter { pipelineIdentifiers.contains($0.identifier) }.count
         let missingCount = pipelineIdentifiers.subtracting(discoveredIdentifiers).count
         buf += ANSI.moveTo(row: allPluginsRow + 1, col: 4)
@@ -128,7 +129,7 @@ final class ConfigWizard {
         var cursor = 0
 
         while true {
-            let plugins = config.pipeline[stageName] ?? []
+            let plugins = workflow.pipeline[stageName] ?? []
             let items: [String] = plugins.isEmpty
                 ? ["(no plugins)"]
                 : plugins.map { plugin in
@@ -190,7 +191,7 @@ final class ConfigWizard {
     // MARK: - Add Plugin
 
     private func addPlugin(stageName: String) {
-        let currentPlugins = Set(config.pipeline[stageName] ?? [])
+        let currentPlugins = Set(workflow.pipeline[stageName] ?? [])
         let available = discoveredPlugins
             .filter { !currentPlugins.contains($0.identifier) && $0.stages[stageName] != nil }
             .map(\.identifier)
@@ -205,9 +206,9 @@ final class ConfigWizard {
             return
         }
 
-        var list = config.pipeline[stageName] ?? []
+        var list = workflow.pipeline[stageName] ?? []
         list.append(available[idx])
-        config.pipeline[stageName] = list
+        workflow.pipeline[stageName] = list
         modified = true
     }
 
@@ -215,11 +216,11 @@ final class ConfigWizard {
 
     private func interactiveReorder(stageName: String, startIndex: Int) -> Int? {
         var position = startIndex
-        let originalList = config.pipeline[stageName] ?? []
+        let originalList = workflow.pipeline[stageName] ?? []
         let count = originalList.count
 
         while true {
-            let plugins = config.pipeline[stageName] ?? []
+            let plugins = workflow.pipeline[stageName] ?? []
             let items: [String] = plugins.enumerated().map { idx, plugin in
                 let key = removalKey(stage: stageName, plugin: plugin)
                 let missing = !discoveredIdentifiers.contains(plugin)
@@ -244,23 +245,23 @@ final class ConfigWizard {
             switch key {
             case .cursorUp:
                 if position > 0 {
-                    var list = config.pipeline[stageName] ?? []
+                    var list = workflow.pipeline[stageName] ?? []
                     list.swapAt(position, position - 1)
-                    config.pipeline[stageName] = list
+                    workflow.pipeline[stageName] = list
                     position -= 1
                 }
             case .cursorDown:
                 if position < count - 1 {
-                    var list = config.pipeline[stageName] ?? []
+                    var list = workflow.pipeline[stageName] ?? []
                     list.swapAt(position, position + 1)
-                    config.pipeline[stageName] = list
+                    workflow.pipeline[stageName] = list
                     position += 1
                 }
             case .enter:
                 if position != startIndex { modified = true }
                 return position
             case .escape:
-                config.pipeline[stageName] = originalList
+                workflow.pipeline[stageName] = originalList
                 return nil
             default: break
             }
@@ -272,7 +273,7 @@ final class ConfigWizard {
     private func save() {
         applyRemovals()
         do {
-            try config.save()
+            try WorkflowStore.save(workflow)
             modified = false
             savedAt = Date()
         } catch {
@@ -309,18 +310,20 @@ final class ConfigWizard {
             guard parts.count == 2 else { continue }
             let stage = String(parts[0])
             let plugin = String(parts[1])
-            config.pipeline[stage]?.removeAll { $0 == plugin }
+            workflow.pipeline[stage]?.removeAll { $0 == plugin }
         }
         removedPlugins.removeAll()
     }
 
+    private var shouldQuit = false
+
     private func quit() {
         terminal.restore()
-        Foundation.exit(0)
+        shouldQuit = true
     }
 
     private func promptUnsavedAndExit() {
-        if !modified { quit() }
+        if !modified { quit(); return }
 
         let size = ANSI.terminalSize()
         var buf = ""
@@ -343,8 +346,10 @@ final class ConfigWizard {
             case .char("s"):
                 save()
                 quit()
+                return
             case .char("d"):
                 quit()
+                return
             case .escape:
                 return
             default: break

@@ -8,8 +8,11 @@ struct ProcessCommand: AsyncParsableCommand {
         abstract: "Process and publish photos via plugins"
     )
 
-    @Argument(help: "Path to folder containing images to process")
-    var folderPath: String
+    @Argument(help: "Workflow name (required when multiple workflows exist) or folder path")
+    var firstArg: String
+
+    @Argument(help: "Folder path (when first argument is a workflow name)")
+    var secondArg: String?
 
     @Flag(help: "Preview without uploading or modifying anything")
     var dryRun = false
@@ -29,6 +32,8 @@ struct ProcessCommand: AsyncParsableCommand {
     private var logger: Logger { Logger(label: "piqley.process") }
 
     func run() async throws {
+        let (workflow, folderPath) = try resolveArguments()
+
         let sourceURL = URL(fileURLWithPath: folderPath, isDirectory: true)
         guard FileManager.default.fileExists(atPath: sourceURL.path) else {
             throw ValidationError("Folder not found: \(folderPath)")
@@ -39,16 +44,9 @@ struct ProcessCommand: AsyncParsableCommand {
         let lock = try ProcessLock(path: lockPath)
         defer { lock.release() }
 
-        let config: AppConfig
-        do {
-            config = try AppConfig.load()
-        } catch {
-            throw ValidationError("Failed to load config: \(formatError(error))\nRun 'piqley setup' to create a config.")
-        }
-
         let secretStore = makeDefaultSecretStore()
         let orchestrator = PipelineOrchestrator(
-            config: config,
+            workflow: workflow,
             pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory,
             secretStore: secretStore
         )
@@ -76,5 +74,40 @@ struct ProcessCommand: AsyncParsableCommand {
         if !succeeded {
             throw ExitCode(1)
         }
+    }
+
+    // MARK: - Argument Resolution
+
+    private func resolveArguments() throws -> (Workflow, String) {
+        // Two args provided: first is workflow name, second is folder path
+        if let path = secondArg {
+            let workflow = try WorkflowStore.load(name: firstArg)
+            return (workflow, path)
+        }
+
+        // One arg: check if it matches a workflow name first
+        let workflows = try WorkflowStore.list()
+
+        if WorkflowStore.exists(name: firstArg) {
+            throw ValidationError(
+                "Workflow '\(firstArg)' found but no folder path provided.\n"
+                    + "Usage: piqley process \(firstArg) <folder-path>"
+            )
+        }
+
+        // Treat firstArg as the folder path
+        if workflows.count == 1 {
+            let workflow = try WorkflowStore.load(name: workflows[0])
+            return (workflow, firstArg)
+        }
+
+        if workflows.isEmpty {
+            throw ValidationError("No workflows found. Run 'piqley setup' first.")
+        }
+
+        throw ValidationError(
+            "Multiple workflows found: \(workflows.joined(separator: ", "))\n"
+                + "Specify which workflow to use: piqley process <workflow> <folder-path>"
+        )
     }
 }

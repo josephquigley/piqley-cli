@@ -96,11 +96,11 @@ struct PipelineOrchestratorTests {
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
-        var config = AppConfig()
-        config.pipeline["publish"] = ["com.test.test-plugin"]
+        var workflow = Workflow.empty(name: "test")
+        workflow.pipeline["publish"] = ["com.test.test-plugin"]
 
         let orchestrator = PipelineOrchestrator(
-            config: config,
+            workflow: workflow,
             pluginsDirectory: pluginsDir,
             secretStore: FakeSecretStore()
         )
@@ -143,11 +143,11 @@ struct PipelineOrchestratorTests {
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
-        var config = AppConfig()
-        config.pipeline["publish"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
+        var workflow = Workflow.empty(name: "test")
+        workflow.pipeline["publish"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
 
         let orchestrator = PipelineOrchestrator(
-            config: config,
+            workflow: workflow,
             pluginsDirectory: pluginsDir,
             secretStore: FakeSecretStore()
         )
@@ -183,11 +183,11 @@ struct PipelineOrchestratorTests {
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
-        var config = AppConfig()
-        config.pipeline["publish"] = ["com.test.secret-plugin"]
+        var workflow = Workflow.empty(name: "test")
+        workflow.pipeline["publish"] = ["com.test.secret-plugin"]
 
         let orchestrator = PipelineOrchestrator(
-            config: config,
+            workflow: workflow,
             pluginsDirectory: pluginsDir,
             secretStore: FakeSecretStore() // no secrets configured
         )
@@ -214,11 +214,11 @@ struct PipelineOrchestratorTests {
             keywords: ["Draft-Photo"]
         )
 
-        var config = AppConfig()
-        config.pipeline["pre-process"] = ["com.test.skip-plugin"]
+        var workflow = Workflow.empty(name: "test")
+        workflow.pipeline["pre-process"] = ["com.test.skip-plugin"]
 
         let orchestrator = PipelineOrchestrator(
-            config: config, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore()
+            workflow: workflow, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore()
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == true)

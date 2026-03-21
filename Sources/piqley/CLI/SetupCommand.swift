@@ -32,33 +32,37 @@ struct SetupCommand: AsyncParsableCommand {
         print(Self.logo)
         print()
 
-        var config = AppConfig()
-
         // Install bundled plugins first so we can discover them
         installBundledPlugins()
 
-        // Discover all plugins and seed the pipeline
+        // Seed workflows directory with default workflow
+        try WorkflowStore.seedDefault()
+
+        // Discover all plugins
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
         let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
         let plugins = try discovery.loadManifests()
 
-        // Seed pipeline from discovered plugins: add each plugin to the stages it supports
-        for plugin in plugins {
-            for hookName in Hook.canonicalOrder.map(\.rawValue) {
-                guard plugin.stages[hookName] != nil else { continue }
-                var list = config.pipeline[hookName] ?? []
-                if !list.contains(plugin.identifier) {
-                    list.append(plugin.identifier)
-                    config.pipeline[hookName] = list
-                }
-            }
-        }
-
-        // Save config
-        try config.save()
-        print("\nConfig saved to \(AppConfig.configURL.path)")
-
         if !plugins.isEmpty {
+            // Prompt for workflow name
+            let workflowName = prompt("Workflow name [default]: ", default: "default")
+
+            // Load or create the workflow
+            var workflow: Workflow
+            if WorkflowStore.exists(name: workflowName) {
+                workflow = try WorkflowStore.load(name: workflowName)
+            } else {
+                workflow = .empty(name: workflowName, displayName: workflowName)
+                try WorkflowStore.save(workflow)
+            }
+
+            print("\nOpening workflow editor...\n")
+
+            // Drop into the workflow editor
+            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins)
+            wizard.run()
+
+            // Run plugin setup scanners
             print("\nConfiguring plugins...\n")
             let secretStore = makeDefaultSecretStore()
             var scanner = PluginSetupScanner(
@@ -68,6 +72,9 @@ struct SetupCommand: AsyncParsableCommand {
             for plugin in plugins {
                 try scanner.scan(plugin: plugin)
             }
+        } else {
+            print("Workflows directory created at \(WorkflowStore.workflowsDirectory.path)")
+            print("Default workflow saved.")
         }
 
         print("\nSetup complete.")

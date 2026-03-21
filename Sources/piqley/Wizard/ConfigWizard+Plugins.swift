@@ -19,7 +19,7 @@ extension ConfigWizard {
     }
 
     func allPluginEntries() -> [PluginEntry] {
-        let pipelineIdentifiers = Set(config.pipeline.values.flatMap(\.self))
+        let pipelineIdentifiers = Set(workflow.pipeline.values.flatMap(\.self))
         let missingIdentifiers = pipelineIdentifiers.subtracting(discoveredIdentifiers)
 
         var entries: [PluginEntry] = discoveredPlugins.map { .discovered($0) }
@@ -92,7 +92,7 @@ extension ConfigWizard {
         cursor: Int, filter: String, totalCount: Int
     ) {
         let size = ANSI.terminalSize()
-        let activeSet = Set(config.pipeline.values.flatMap(\.self))
+        let activeSet = Set(workflow.pipeline.values.flatMap(\.self))
 
         var buf = ""
         buf += ANSI.clearScreen()
@@ -158,7 +158,7 @@ extension ConfigWizard {
         plugin: LoadedPlugin, activeSet: Set<String>,
         nameRow: Int, isCursor: Bool
     ) -> String {
-        let pipelineStages = config.pipeline.compactMap { stage, list in
+        let pipelineStages = workflow.pipeline.compactMap { stage, list in
             list.contains(plugin.identifier) ? stage : nil
         }.sorted()
         let stageInfo = pipelineStages.isEmpty
@@ -185,7 +185,7 @@ extension ConfigWizard {
     private func drawMissingEntry(
         identifier: String, nameRow: Int, isCursor: Bool
     ) -> String {
-        let pipelineStages = config.pipeline.compactMap { stage, list in
+        let pipelineStages = workflow.pipeline.compactMap { stage, list in
             list.contains(identifier) ? stage : nil
         }.sorted()
 
@@ -221,7 +221,7 @@ extension ConfigWizard {
 
         while true {
             let pipelineStages = allStages.filter { stage in
-                (config.pipeline[stage] ?? []).contains(plugin.identifier)
+                (workflow.pipeline[stage] ?? []).contains(plugin.identifier)
             }
 
             let size = ANSI.terminalSize()
@@ -367,7 +367,7 @@ extension ConfigWizard {
 
         while true {
             let stagesContaining = allStages.filter { stage in
-                (config.pipeline[stage] ?? []).contains(identifier)
+                (workflow.pipeline[stage] ?? []).contains(identifier)
             }
 
             var menuItems: [(label: String, action: PluginAction)] = []
@@ -375,7 +375,7 @@ extension ConfigWizard {
             if case let .discovered(plugin) = entry {
                 let pluginStages = Set(plugin.stages.keys)
                 let addableStages = allStages.filter { stage in
-                    !(config.pipeline[stage] ?? []).contains(identifier)
+                    !(workflow.pipeline[stage] ?? []).contains(identifier)
                         && pluginStages.contains(stage)
                 }
                 for stage in addableStages {
@@ -429,12 +429,12 @@ extension ConfigWizard {
     func applyAction(_ action: PluginAction, identifier: String) {
         switch action {
         case let .addToStage(stage):
-            var list = config.pipeline[stage] ?? []
+            var list = workflow.pipeline[stage] ?? []
             list.append(identifier)
-            config.pipeline[stage] = list
+            workflow.pipeline[stage] = list
             modified = true
         case let .removeFromStage(stage):
-            config.pipeline[stage]?.removeAll { $0 == identifier }
+            workflow.pipeline[stage]?.removeAll { $0 == identifier }
             modified = true
         }
     }

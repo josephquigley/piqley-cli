@@ -3,7 +3,7 @@ import Logging
 import PiqleyCore
 
 struct PipelineOrchestrator: Sendable {
-    let config: AppConfig
+    let workflow: Workflow
     let pluginsDirectory: URL
     let secretStore: any SecretStore
     let logger = Logger(label: "piqley.pipeline")
@@ -17,7 +17,7 @@ struct PipelineOrchestrator: Sendable {
     /// Runs the full pipeline for a source folder.
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
     func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
-        let pipeline = config.pipeline
+        let pipeline = workflow.pipeline
 
         // Create temp folder and copy images
         let temp = try TempFolder.create()
