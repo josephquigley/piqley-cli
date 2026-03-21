@@ -312,7 +312,7 @@ extension ConfigWizard {
         buf += "\(ANSI.dim)Schema:\(ANSI.reset)   \(manifest.pluginSchemaVersion)"
         row += 1
 
-        let stageNames = plugin.stages.keys.sorted()
+        let stageNames = Hook.canonicalOrder.map(\.rawValue).filter { plugin.stages.keys.contains($0) }
         buf += ANSI.moveTo(row: row, col: 1)
         let stagesStr = stageNames.isEmpty ? "none" : stageNames.joined(separator: ", ")
         buf += "\(ANSI.dim)Stages:\(ANSI.reset)   \(stagesStr)"
