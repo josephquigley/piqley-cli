@@ -26,7 +26,8 @@ struct PluginRulesEditCommand: ParsableCommand {
         let pluginDir = PipelineOrchestrator.defaultPluginsDirectory
             .appendingPathComponent(pluginID)
         guard FileManager.default.fileExists(atPath: pluginDir.path) else {
-            throw ValidationError("Plugin '\(pluginID)' not found at \(pluginDir.path)")
+            print("Error: Plugin '\(pluginID)' not found at \(pluginDir.path)")
+            throw ExitCode(1)
         }
 
         // 2. Load manifest
@@ -34,18 +35,25 @@ struct PluginRulesEditCommand: ParsableCommand {
         let manifestData = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
 
-        // 3. Load stages
+        // 3. Load stages (create empty ones if none exist)
         let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
-        let stages = PluginDiscovery.loadStages(
+        var stages = PluginDiscovery.loadStages(
             from: pluginDir,
             knownHooks: knownHooks,
             logger: Logger(label: "piqley.rules")
         )
 
-        guard !stages.isEmpty else {
-            throw ValidationError(
-                "Plugin '\(pluginID)' has no stage files. Create stage files first."
-            )
+        if stages.isEmpty {
+            print("Plugin '\(pluginID)' has no stage files. Creating empty stages...")
+            for hook in Hook.canonicalOrder {
+                let stageFile = pluginDir.appendingPathComponent("stage-\(hook.rawValue).json")
+                let emptyStage = StageConfig(preRules: nil, binary: nil, postRules: nil)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(emptyStage)
+                try data.write(to: stageFile)
+                stages[hook.rawValue] = emptyStage
+            }
         }
 
         // 4. Build dependency info

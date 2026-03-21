@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - Rules wizard now prompts for values one at a time instead of comma-separated, preventing breakage with regex patterns containing commas
+- Rules editor auto-creates empty stage files when a plugin has none, instead of aborting
+- Runtime errors in rules editor use ExitCode instead of ValidationError to avoid showing usage text
 
 ### Added
 
