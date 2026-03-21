@@ -11,7 +11,7 @@ struct PluginCommand: ParsableCommand {
         subcommands: [
             ListSubcommand.self, SetupSubcommand.self, InitSubcommand.self,
             CreateSubcommand.self, InstallSubcommand.self, ConfigSubcommand.self,
-            PluginRulesCommand.self,
+            PluginRulesCommand.self, PluginCommandEditCommand.self,
         ]
     )
 
