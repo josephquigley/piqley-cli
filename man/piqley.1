@@ -7,17 +7,38 @@
 .Sh SYNOPSIS
 .Nm
 .Cm process
+.Op Ar workflow-name
 .Ar folder-path
 .Op Fl -dry-run
 .Op Fl -delete-source-contents
 .Op Fl -delete-source-folder
+.Op Fl -overwrite-source
 .Op Fl -non-interactive
 .Nm
 .Cm setup
 .Nm
-.Cm config edit
+.Cm workflow edit
+.Op Ar workflow-name
 .Nm
-.Cm config open
+.Cm workflow create
+.Op Ar name
+.Nm
+.Cm workflow clone
+.Ar source destination
+.Nm
+.Cm workflow delete
+.Ar name
+.Op Fl -force
+.Nm
+.Cm workflow open
+.Ar name
+.Nm
+.Cm workflow add-plugin
+.Ar workflow plugin stage
+.Op Fl -position Ar N
+.Nm
+.Cm workflow remove-plugin
+.Ar workflow plugin stage
 .Nm
 .Cm clear-cache
 .Op Fl -plugin Ar name
@@ -59,8 +80,8 @@ destroy them.
 The temporary directory is automatically cleaned up when processing
 finishes.
 .Pp
-The plugin pipeline is defined in
-.Pa ~/.config/piqley/config.json
+The plugin pipeline is defined in named workflow files stored in
+.Pa ~/.config/piqley/workflows/
 and consists of named hooks that plugins can subscribe to.
 Each plugin declares its hooks in a
 .Pa manifest.json
@@ -101,28 +122,45 @@ Has no effect during a dry run.
 Delete the source folder and its contents after a successful run.
 The entire directory is removed from disk.
 Has no effect during a dry run.
+.It Fl -overwrite-source
+Overwrite source images with processed versions after a successful run.
 .It Fl -non-interactive
 Skip interactive prompts; drop invalid rules with warnings instead of
 asking for confirmation.
 .El
 .Ss setup
 Interactive configuration wizard.
-Prompts for core settings and writes them to
-.Pa ~/.config/piqley/config.json .
-Installs bundled plugins from the distribution into the plugins
-directory and runs plugin setup for all discovered plugins.
+Creates the workflows directory, seeds a default workflow, and installs
+bundled plugins from the distribution into the plugins directory.
+If plugins are found, prompts for a workflow name and opens the workflow
+editor.
 .Pp
 Run this command before using
 .Cm process
 for the first time, or to update an existing configuration.
-.Ss config edit
-Open the interactive pipeline configuration wizard.
-The wizard displays all pipeline stages with their plugin counts
-and allows adding, removing, and reordering plugins per stage.
-.Ss config open
-Open the main configuration file
-.Pa ( ~/.config/piqley/config.json )
-in the editor specified by the
+.Ss workflow edit Op workflow-name
+Open the workflow list wizard when no name is given, or edit a specific
+workflow directly.
+The wizard supports creating, deleting, cloning, and editing workflows.
+.Ss workflow create Op name
+Create a new empty workflow and open it in the editor.
+When
+.Ar name
+is omitted, the command prompts for a name interactively.
+.Ss workflow clone source destination
+Clone a workflow under a new name.
+Errors if
+.Ar source
+does not exist or
+.Ar destination
+already exists.
+.Ss workflow delete name
+Delete a workflow file.
+Prompts for confirmation unless
+.Fl -force
+is passed.
+.Ss workflow open name
+Open a workflow file in the editor specified by the
 .Ev EDITOR
 environment variable.
 On macOS, falls back to the system
@@ -130,6 +168,15 @@ On macOS, falls back to the system
 command if
 .Ev EDITOR
 is not set.
+.Ss workflow add-plugin workflow plugin stage
+Add a plugin to a workflow's pipeline stage.
+.Bl -tag -width Ds
+.It Fl -position Ar N
+Insertion index within the stage's plugin list.
+When omitted, the plugin is appended to the end.
+.El
+.Ss workflow remove-plugin workflow plugin stage
+Remove a plugin from a workflow's pipeline stage.
 .Ss clear-cache
 Delete plugin execution logs.
 .Pp
@@ -249,16 +296,31 @@ Available flags:
 Skip the confirmation prompt.
 .El
 .Sh CONFIGURATION
-Non-secret configuration is stored in
-.Pa ~/.config/piqley/config.json
-as a JSON object.
+Workflows are stored as individual JSON files in
+.Pa ~/.config/piqley/workflows/ .
 The
 .Cm setup
-command creates and populates this file interactively.
+command creates the directory and seeds a default workflow.
 Use
-.Cm config
-to open it directly in your editor.
+.Cm workflow edit
+to modify workflows interactively or
+.Cm workflow open
+to edit them directly in your editor.
+.Pp
+Each workflow file contains the following fields:
 .Bl -tag -width Ds
+.It name
+.Pq string
+Internal identifier for the workflow, matching the filename.
+.It displayName
+.Pq string
+Human-readable name shown in the workflow list.
+.It description
+.Pq string
+Short description of the workflow's purpose.
+.It schemaVersion
+.Pq integer
+Schema version for forward compatibility.
 .It pipeline
 .Pq object, default: {}
 Maps hook names to ordered arrays of plugin identifiers.
@@ -334,10 +396,12 @@ On Linux, they are stored in
 .Pa ~/.config/piqley/secrets.json .
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa ~/.config/piqley/config.json
-Main configuration file (JSON).
-Created and populated by the
+.It Pa ~/.config/piqley/workflows/
+Directory containing named workflow files (JSON).
+Each file defines a pipeline and is created by the
 .Cm setup
+or
+.Cm workflow create
 command.
 .It Pa ~/.config/piqley/plugins/
 Plugin directory.
@@ -355,7 +419,7 @@ Advisory lock file to prevent concurrent execution.
 .Bl -tag -width Ds
 .It Ev EDITOR
 Editor used by
-.Cm config
+.Cm workflow open
 and
 .Cm plugin config
 to open JSON files.
@@ -385,14 +449,14 @@ Preview what would happen without uploading:
 piqley process ~/Photos/export --dry-run
 .Ed
 .Pp
-Edit the pipeline configuration interactively:
+Edit a workflow interactively:
 .Bd -literal -offset indent
-piqley config edit
+piqley workflow edit
 .Ed
 .Pp
-Open the main config file in your editor:
+Open a workflow file in your editor:
 .Bd -literal -offset indent
-piqley config open
+piqley workflow open default
 .Ed
 .Pp
 Open a plugin's config file:

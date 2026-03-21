@@ -46,7 +46,7 @@ piqley process /path/to/exported/photos
 | Command | Description |
 |---------|-------------|
 | `piqley setup` | Interactive configuration and bundled plugin installation |
-| `piqley process <path>` | Process and publish photos from a folder |
+| `piqley process [workflow] <path>` | Process and publish photos (workflow name required when multiple exist) |
 | `piqley plugin list` | List all installed plugins with active/inactive status |
 | `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
 | `piqley plugin init [id] [name]` | Create a new declarative-only plugin interactively |
@@ -57,8 +57,13 @@ piqley process /path/to/exported/photos
 | `piqley secret set <key>` | Store a secret in the macOS Keychain |
 | `piqley secret delete <key>` | Remove a secret from the Keychain |
 | `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
-| `piqley config edit` | Edit the pipeline configuration interactively |
-| `piqley config open` | Open the main config file in your editor |
+| `piqley workflow edit [name]` | Edit a workflow interactively (lists all workflows if name omitted) |
+| `piqley workflow create [name]` | Create a new workflow |
+| `piqley workflow clone <src> <dst>` | Clone an existing workflow |
+| `piqley workflow delete <name>` | Delete a workflow (`--force` to skip prompt) |
+| `piqley workflow open <name>` | Open a workflow file in your editor |
+| `piqley workflow add-plugin <workflow> <plugin> <stage>` | Add a plugin to a workflow stage |
+| `piqley workflow remove-plugin <workflow> <plugin> <stage>` | Remove a plugin from a workflow stage |
 | `piqley uninstall` | Remove all piqley configuration and plugins (`--force` to skip prompt) |
 
 ### Process Options
@@ -66,6 +71,7 @@ piqley process /path/to/exported/photos
 - `--dry-run` - Preview actions without uploading
 - `--delete-source-contents` - Delete the contents of the source folder after a successful run
 - `--delete-source-folder` - Delete the source folder and its contents after a successful run
+- `--overwrite-source` - Overwrite source images with processed versions after a successful run
 - `--non-interactive` - Skip interactive prompts; drop invalid rules with warnings
 
 ## Plugin System
@@ -97,10 +103,14 @@ Plugins register for hooks in a four-stage pipeline:
 | `publish` | Upload or distribute processed images |
 | `post-publish` | Clean up, notify, or log after publishing |
 
-The pipeline order is configured in `~/.config/piqley/config.json`:
+Workflows are stored in `~/.config/piqley/workflows/` as named JSON files. Each workflow defines its own pipeline. `piqley setup` creates a default workflow.
 
 ```json
 {
+  "name": "default",
+  "displayName": "Default Workflow",
+  "description": "Main photo processing workflow",
+  "schemaVersion": 1,
   "pipeline": {
     "pre-process": ["privacy-strip", "ghost-tagger"],
     "publish": ["ghost-publisher"]
