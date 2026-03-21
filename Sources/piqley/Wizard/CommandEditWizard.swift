@@ -9,11 +9,66 @@ final class CommandEditWizard {
     var modified = false
     var savedAt: Date?
 
-    init(pluginID: String, stages: [String: StageConfig], pluginDir: URL) {
+    /// Field completions for env var editor: display name -> (envVarName, templateValue)
+    let fieldCompletions: [EnvFieldCompletion]
+
+    struct EnvFieldCompletion {
+        /// What the user types/searches: e.g. "IPTC:Keywords"
+        let displayName: String
+        /// Suggested env var name: e.g. "PQY_IPTC_KEYWORDS"
+        let envVarName: String
+        /// Template value: e.g. "{{original:IPTC:Keywords}}"
+        let templateValue: String
+    }
+
+    init(
+        pluginID: String, stages: [String: StageConfig], pluginDir: URL,
+        availableFields: [String: [FieldInfo]] = [:]
+    ) {
         self.pluginID = pluginID
         self.stages = stages
         self.pluginDir = pluginDir
         terminal = RawTerminal()
+        fieldCompletions = Self.buildFieldCompletions(from: availableFields)
+    }
+
+    private static func buildFieldCompletions(from fields: [String: [FieldInfo]]) -> [EnvFieldCompletion] {
+        var seen = Set<String>()
+        var result: [EnvFieldCompletion] = []
+        for (_, fieldInfos) in fields.sorted(by: { $0.key < $1.key }) {
+            for field in fieldInfos {
+                guard !seen.contains(field.qualifiedName) else { continue }
+                seen.insert(field.qualifiedName)
+                let envName = fieldToEnvVar(field.name)
+                result.append(EnvFieldCompletion(
+                    displayName: field.name,
+                    envVarName: envName,
+                    templateValue: "{{\(field.qualifiedName)}}"
+                ))
+            }
+        }
+        return result.sorted { $0.displayName < $1.displayName }
+    }
+
+    /// Convert "IPTC:Keywords" -> "PQY_IPTC_KEYWORDS"
+    private static func fieldToEnvVar(_ fieldName: String) -> String {
+        let parts = fieldName.split(separator: ":")
+        let transformed = parts.map { part in
+            // Split PascalCase/camelCase into words, join with _
+            var words: [String] = []
+            var current = ""
+            for char in part {
+                if char.isUppercase, !current.isEmpty {
+                    words.append(current.uppercased())
+                    current = String(char)
+                } else {
+                    current.append(char)
+                }
+            }
+            if !current.isEmpty { words.append(current.uppercased()) }
+            return words.joined(separator: "_")
+        }
+        return "PQY_\(transformed.joined(separator: "_"))"
     }
 
     func run() throws {
@@ -233,22 +288,55 @@ final class CommandEditWizard {
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .enter:
                 if cursor == entries.count {
-                    // Add new
-                    guard let name = terminal.promptForInput(
-                        title: "Variable name",
-                        hint: "e.g. MY_API_URL"
+                    // Add new — autocomplete from available fields
+                    let fieldNames = fieldCompletions.map(\.displayName)
+                    guard let input = terminal.promptWithAutocomplete(
+                        title: "Field or variable name",
+                        hint: "Type to search fields (e.g. Keywords), or enter a custom name",
+                        completions: fieldNames
                     ) else { continue }
-                    guard let value = terminal.promptForInput(
-                        title: "Value for \(name)",
-                        hint: "Use {{namespace:field}} for state template variables"
-                    ) else { continue }
-                    env[name] = value
+
+                    // Check if this matches a known field completion
+                    if let match = fieldCompletions.first(where: { $0.displayName == input }) {
+                        // Pre-fill env var name and template value
+                        let envName: String
+                        if let customName = terminal.promptForInput(
+                            title: "Environment variable name",
+                            hint: "Press Enter to accept suggested name",
+                            defaultValue: match.envVarName
+                        ) {
+                            envName = customName
+                        } else {
+                            continue
+                        }
+                        let templateCompletions = fieldCompletions.map { "{{\($0.displayName)}}" }
+                        if let value = terminal.promptWithAutocomplete(
+                            title: "Value for \(envName)",
+                            hint: "Press Enter to accept pre-filled template",
+                            completions: templateCompletions,
+                            defaultValue: match.templateValue
+                        ) {
+                            env[envName] = value
+                        }
+                    } else {
+                        // Custom variable name — no pre-fill
+                        let templateCompletions = fieldCompletions.map(\.templateValue)
+                        if let value = terminal.promptWithAutocomplete(
+                            title: "Value for \(input)",
+                            hint: "Use {{namespace:field}} for state templates",
+                            completions: templateCompletions
+                        ) {
+                            env[input] = value
+                        }
+                    }
                 } else {
-                    // Edit existing
+                    // Edit existing value
                     let existingKey = env.keys.sorted()[cursor]
-                    guard let value = terminal.promptForInput(
+                    let templateCompletions = fieldCompletions.map(\.templateValue)
+                    guard let value = terminal.promptWithAutocomplete(
                         title: "Value for \(existingKey)",
                         hint: "Use {{namespace:field}} for state template variables",
+                        completions: templateCompletions,
                         defaultValue: env[existingKey]
                     ) else { continue }
                     env[existingKey] = value
