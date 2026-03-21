@@ -281,10 +281,17 @@ extension RawTerminal {
     /// Prompt for text input with autocomplete suggestions.
     /// Tab completes the top match. If `browsableList` is provided, Ctrl+L opens
     /// a selectable list to pick from. Returns nil if cancelled.
+    /// Prompt for text input with autocomplete suggestions.
+    /// Tab completes the top match. If `browsableList` is provided, Ctrl+L opens
+    /// a selectable list to pick from. Returns nil if cancelled.
+    ///
+    /// - Parameter insertCompletions: When provided, Tab inserts the value at the
+    ///   same index from this array instead of the display completion. Must be the
+    ///   same length as `completions`.
     func promptWithAutocomplete(
         title: String, hint: String, completions: [String],
         browsableList: [String]? = nil, defaultValue: String? = nil,
-        allowEmpty: Bool = false
+        allowEmpty: Bool = false, insertCompletions: [String]? = nil
     ) -> String? {
         var input = defaultValue ?? ""
         let size = ANSI.terminalSize()
@@ -293,9 +300,11 @@ extension RawTerminal {
 
         while true {
             let query = input.lowercased()
-            let matches = query.isEmpty ? [] : completions.filter {
-                $0.lowercased().contains(query)
+            // Track matched indices so we can map to insertCompletions
+            let matchedIndices: [Int] = query.isEmpty ? [] : completions.enumerated().compactMap { idx, completion in
+                completion.lowercased().contains(query) ? idx : nil
             }
+            let matches = matchedIndices.map { completions[$0] }
 
             var buf = ""
             buf += ANSI.clearScreen()
@@ -307,9 +316,9 @@ extension RawTerminal {
             buf += "\u{25B8} \(input)\u{2588}"
 
             // Show suggestions
-            for (idx, match) in matches.prefix(maxSuggestions).enumerated() {
-                buf += ANSI.moveTo(row: 6 + idx, col: 3)
-                if idx == 0 {
+            for (displayIdx, match) in matches.prefix(maxSuggestions).enumerated() {
+                buf += ANSI.moveTo(row: 6 + displayIdx, col: 3)
+                if displayIdx == 0 {
                     buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(match)"
                 } else {
                     buf += "\(ANSI.dim)  \(match)\(ANSI.reset)"
@@ -338,8 +347,8 @@ extension RawTerminal {
             case .backspace:
                 if !input.isEmpty { input.removeLast() }
             case .tab:
-                if let first = matches.first {
-                    input = first
+                if let firstIdx = matchedIndices.first {
+                    input = insertCompletions?[firstIdx] ?? completions[firstIdx]
                 }
             case .enter:
                 if !input.isEmpty || allowEmpty { return input }

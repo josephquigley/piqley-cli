@@ -276,34 +276,30 @@ final class CommandEditWizard {
             case .enter:
                 if cursor == entries.count {
                     // Add new — autocomplete from available fields
-                    let fieldNames = fieldCompletions.map(\.displayName)
+                    // Display: "IPTC:Keywords -> $PQY_IPTC_KEYWORDS", Tab inserts "PQY_IPTC_KEYWORDS"
+                    let displayCompletions = fieldCompletions.map {
+                        "\($0.displayName) \u{2192} $\($0.envVarName)"
+                    }
+                    let insertCompletions = fieldCompletions.map(\.envVarName)
+
                     guard let input = terminal.promptWithAutocomplete(
-                        title: "Field or variable name",
-                        hint: "Type to search fields (e.g. Keywords), or enter a custom name",
-                        completions: fieldNames
+                        title: "Variable name",
+                        hint: "Type to search fields (Tab to insert mapped name), or enter a custom name",
+                        completions: displayCompletions,
+                        insertCompletions: insertCompletions
                     ) else { continue }
 
-                    // Check if this matches a known field completion
-                    if let match = fieldCompletions.first(where: { $0.displayName == input }) {
-                        // Pre-fill env var name and template value
-                        let envName: String
-                        if let customName = terminal.promptForInput(
-                            title: "Environment variable name",
-                            hint: "Press Enter to accept suggested name",
-                            defaultValue: match.envVarName
-                        ) {
-                            envName = customName
-                        } else {
-                            continue
-                        }
-                        let templateCompletions = fieldCompletions.map { "{{\($0.displayName)}}" }
+                    // Check if the input matches a known env var name
+                    if let match = fieldCompletions.first(where: { $0.envVarName == input }) {
+                        // Pre-fill template value
+                        let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
-                            title: "Value for \(envName)",
+                            title: "Value for \(input)",
                             hint: "Press Enter to accept pre-filled template",
                             completions: templateCompletions,
                             defaultValue: match.templateValue
                         ) {
-                            env[envName] = value
+                            env[input] = value
                         }
                     } else {
                         // Custom variable name — no pre-fill
