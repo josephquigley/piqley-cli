@@ -6,6 +6,7 @@ final class ConfigWizard {
     let discoveredPlugins: [LoadedPlugin]
     let terminal: RawTerminal
     var modified = false
+    var savedAt: Date?
     /// Tracks plugins marked for removal, keyed by "stage:pluginIdentifier"
     var removedPlugins: Set<String> = []
 
@@ -110,7 +111,8 @@ final class ConfigWizard {
 
         // Footer
         buf += ANSI.moveTo(row: size.rows, col: 1)
-        buf += "\(ANSI.dim)\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit\(ANSI.reset)"
+        let footerText = footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit")
+        buf += "\(ANSI.dim)\(footerText)\(ANSI.reset)"
 
         terminal.write(buf)
     }
@@ -147,7 +149,7 @@ final class ConfigWizard {
                 title: "\(stageName) plugins",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  a add  \(removeLabel)  r reorder  s save  Esc back"
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  \(removeLabel)  r reorder  s save  Esc back")
             )
 
             let key = terminal.readKey()
@@ -270,10 +272,17 @@ final class ConfigWizard {
         do {
             try config.save()
             modified = false
-            terminal.showMessage("Config saved.")
+            savedAt = Date()
         } catch {
             terminal.showMessage("Error saving: \(error.localizedDescription)")
         }
+    }
+
+    func footerWithSaveIndicator(_ base: String) -> String {
+        if let savedAt, Date().timeIntervalSince(savedAt) < 2 {
+            return "\(ANSI.green)\(ANSI.bold)Saved\(ANSI.reset)  \(base)"
+        }
+        return base
     }
 
     private func applyRemovals() {

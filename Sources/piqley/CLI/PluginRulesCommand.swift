@@ -44,15 +44,8 @@ struct PluginRulesEditCommand: ParsableCommand {
         )
 
         if stages.isEmpty {
-            print("Plugin '\(pluginID)' has no stage files. Creating empty stages...")
             for hook in Hook.canonicalOrder {
-                let stageFile = pluginDir.appendingPathComponent("stage-\(hook.rawValue).json")
-                let emptyStage = StageConfig(preRules: nil, binary: nil, postRules: nil)
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                let data = try encoder.encode(emptyStage)
-                try data.write(to: stageFile)
-                stages[hook.rawValue] = emptyStage
+                stages[hook.rawValue] = StageConfig(preRules: nil, binary: nil, postRules: nil)
             }
         }
 

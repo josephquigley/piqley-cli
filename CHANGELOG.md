@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules wizard confirms with user when a target field name doesn't match any known field
 - Rules wizard: Enter on empty finishes value entry after first value; Escape mid-value returns to action selection instead of proceeding to write stage
 - Rules wizard: declining a new field name returns to the field prompt instead of the action selector
+- Save indicator ("Saved") now appears in the footer for 2 seconds on both wizards instead of blocking with a modal
+- Rules editor no longer writes empty stage files to disk; removes existing empty stage files on save
 
 ### Added
 

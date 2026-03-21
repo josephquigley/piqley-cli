@@ -10,6 +10,7 @@ extension RulesWizard {
         do {
             try RulesWizard.saveStages(context.stages, to: pluginDir)
             modified = false
+            savedAt = Date()
         } catch {
             terminal.showMessage("Error saving: \(error.localizedDescription)")
         }
@@ -129,9 +130,22 @@ extension RulesWizard {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         for (hookName, stageConfig) in stages {
-            let data = try encoder.encode(stageConfig)
             let stageFile = pluginDir
                 .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
+
+            let isEmpty = (stageConfig.preRules ?? []).isEmpty
+                && stageConfig.binary == nil
+                && (stageConfig.postRules ?? []).isEmpty
+
+            if isEmpty {
+                // Remove empty stage files rather than writing them
+                if FileManager.default.fileExists(atPath: stageFile.path) {
+                    try FileManager.default.removeItem(at: stageFile)
+                }
+                continue
+            }
+
+            let data = try encoder.encode(stageConfig)
             try data.write(to: stageFile, options: .atomic)
         }
     }

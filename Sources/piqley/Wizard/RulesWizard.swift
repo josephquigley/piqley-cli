@@ -8,6 +8,7 @@ final class RulesWizard {
     let pluginDir: URL
     let terminal: RawTerminal
     var modified = false
+    var savedAt: Date?
 
     /// Tracks which rules are marked for deletion (by stage + slot + index).
     /// Deleted rules are shown struck-through and removed on save.
@@ -22,6 +23,13 @@ final class RulesWizard {
     func run() throws {
         defer { terminal.restore() }
         stageSelect()
+    }
+
+    func footerWithSaveIndicator(_ base: String) -> String {
+        if let savedAt, Date().timeIntervalSince(savedAt) < 2 {
+            return "\(ANSI.green)\(ANSI.bold)Saved\(ANSI.reset)  \(base)"
+        }
+        return base
     }
 
     // MARK: - Stage Select
@@ -52,7 +60,7 @@ final class RulesWizard {
                 title: "Edit Rules: \(context.pluginIdentifier)",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit"
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit")
             )
 
             let key = terminal.readKey()
@@ -102,7 +110,7 @@ final class RulesWizard {
                 title: "\(stageName) rules",
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  Esc back"
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  Esc back")
             )
 
             let key = terminal.readKey()
