@@ -398,6 +398,12 @@ final class RulesWizard {
             browsableList: uniqueFields
         ) else { return nil }
 
+        if !uniqueFields.contains(field) {
+            guard terminal.confirm("'\(field)' is a new field name. Use it anyway?") else {
+                return nil
+            }
+        }
+
         switch action {
         case "add", "remove":
             var values: [String] = []

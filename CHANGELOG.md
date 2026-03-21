@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules editor auto-creates empty stage files when a plugin has none, instead of aborting
 - Runtime errors in rules editor use ExitCode instead of ValidationError to avoid showing usage text
 - Stage names in ConfigWizard plugin detail view now display in canonical pipeline order
+- Rules wizard confirms with user when a target field name doesn't match any known field
 
 ### Added
 
