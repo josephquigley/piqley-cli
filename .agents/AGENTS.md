@@ -33,5 +33,6 @@ See [architecture.md](architecture.md) for detailed guidelines. Key rules:
 
 ## Git Commits
 
-- Always write commit messages to a temp file using the native file writer tool (Write), then commit with `git commit -F <path>`. Never use `git commit -m` with inline messages, heredocs, `cat`, `printf`, or any other bash file-writing commands for commit messages.
+- Always write commit messages to a temp file in the project working directory using the native file writer tool (Write). Use a random filename (e.g., `.commit-msg-<random>.txt`). Then commit with `git commit -F <path>`. Never use `git commit -m` with inline messages, heredocs, `cat`, `printf`, or any other bash file-writing commands for commit messages.
 - Delete the temp file after the commit succeeds.
+- The temp file must be gitignored or deleted before staging. Do not commit the temp file itself.
