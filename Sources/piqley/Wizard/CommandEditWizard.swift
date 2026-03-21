@@ -255,19 +255,6 @@ final class CommandEditWizard {
 
     private func editEnvironment(stageName: String, current: [String: String]?) -> [String: String] {
         var env = current ?? [:]
-
-        if env.isEmpty {
-            guard terminal.confirm("\(stageName): Add environment variable mappings?") else {
-                return env
-            }
-        } else {
-            // Show existing and offer to edit
-            let summary = env.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: ", ")
-            guard terminal.confirm("\(stageName): Edit environment mappings? (\(summary))") else {
-                return env
-            }
-        }
-
         var cursor = 0
         while true {
             let entries = env.keys.sorted().map { key in
