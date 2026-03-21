@@ -18,6 +18,7 @@ struct PipelineOrchestrator: Sendable {
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
     func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
         let pipeline = workflow.pipeline
+        let pipelineRunId = UUID().uuidString
 
         // Create temp folder and copy images
         let temp = try TempFolder.create()
@@ -83,38 +84,103 @@ struct PipelineOrchestrator: Sendable {
         }
 
         // Execute hooks in order
+        logger.info("Pipeline run \(pipelineRunId) starting")
         var skippedImages: Set<String> = []
         var executedPlugins: [(hook: String, pluginId: String)] = []
-        for hook in Hook.canonicalOrder.map(\.rawValue) {
-            for pluginEntry in pipeline[hook] ?? [] {
-                let pluginIdentifier = pluginEntry
+        var pipelineFailed = false
 
-                guard !blocklist.isBlocked(pluginIdentifier) else {
-                    logger.debug("[\(pluginIdentifier)] skipped (blocklisted)")
-                    continue
-                }
+        // Separate lifecycle hooks from processing hooks
+        let processingHooks = Hook.canonicalOrder.filter {
+            $0 != .pipelineStart && $0 != .pipelineFinished
+        }
 
-                let ctx = HookContext(
-                    pluginIdentifier: pluginIdentifier, pluginName: pluginIdentifier,
-                    hook: hook, temp: temp,
-                    stateStore: stateStore, imageFiles: imageFiles,
-                    dryRun: dryRun, nonInteractive: nonInteractive,
-                    skippedImages: skippedImages,
-                    forkManager: forkManager,
-                    executedPlugins: executedPlugins
-                )
-                let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
-                skippedImages = updatedSkipped
+        // Execute pipeline-start hook
+        for pluginEntry in pipeline[Hook.pipelineStart.rawValue] ?? [] {
+            guard !blocklist.isBlocked(pluginEntry) else { continue }
+            let ctx = HookContext(
+                pluginIdentifier: pluginEntry, pluginName: pluginEntry,
+                hook: Hook.pipelineStart.rawValue, temp: temp,
+                stateStore: stateStore, imageFiles: imageFiles,
+                dryRun: dryRun, nonInteractive: nonInteractive,
+                skippedImages: skippedImages,
+                forkManager: forkManager,
+                executedPlugins: executedPlugins,
+                pipelineRunId: pipelineRunId
+            )
+            let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+            skippedImages = updatedSkipped
 
-                switch result {
-                case .success, .warning, .skipped:
-                    executedPlugins.append((hook: hook, pluginId: pluginIdentifier))
-                    continue
-                case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
-                    blocklist.block(pluginIdentifier)
-                    return false
+            switch result {
+            case .success, .warning, .skipped:
+                executedPlugins.append((hook: Hook.pipelineStart.rawValue, pluginId: pluginEntry))
+            case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
+                blocklist.block(pluginEntry)
+                pipelineFailed = true
+            }
+        }
+
+        // Execute processing hooks (pre-process through post-publish)
+        if !pipelineFailed {
+            for hook in processingHooks.map(\.rawValue) {
+                for pluginEntry in pipeline[hook] ?? [] {
+                    let pluginIdentifier = pluginEntry
+
+                    guard !blocklist.isBlocked(pluginIdentifier) else {
+                        logger.debug("[\(pluginIdentifier)] skipped (blocklisted)")
+                        continue
+                    }
+
+                    let ctx = HookContext(
+                        pluginIdentifier: pluginIdentifier, pluginName: pluginIdentifier,
+                        hook: hook, temp: temp,
+                        stateStore: stateStore, imageFiles: imageFiles,
+                        dryRun: dryRun, nonInteractive: nonInteractive,
+                        skippedImages: skippedImages,
+                        forkManager: forkManager,
+                        executedPlugins: executedPlugins,
+                        pipelineRunId: pipelineRunId
+                    )
+                    let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+                    skippedImages = updatedSkipped
+
+                    switch result {
+                    case .success, .warning, .skipped:
+                        executedPlugins.append((hook: hook, pluginId: pluginIdentifier))
+                        continue
+                    case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
+                        blocklist.block(pluginIdentifier)
+                        pipelineFailed = true
+                    }
                 }
             }
+        }
+
+        // Execute pipeline-finished hook (best-effort, even on partial failure)
+        for pluginEntry in pipeline[Hook.pipelineFinished.rawValue] ?? [] {
+            let ctx = HookContext(
+                pluginIdentifier: pluginEntry, pluginName: pluginEntry,
+                hook: Hook.pipelineFinished.rawValue, temp: temp,
+                stateStore: stateStore, imageFiles: imageFiles,
+                dryRun: dryRun, nonInteractive: nonInteractive,
+                skippedImages: skippedImages,
+                forkManager: forkManager,
+                executedPlugins: executedPlugins,
+                pipelineRunId: pipelineRunId
+            )
+            let (result, _) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+
+            switch result {
+            case .success, .warning, .skipped:
+                executedPlugins.append((hook: Hook.pipelineFinished.rawValue, pluginId: pluginEntry))
+            case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
+                logger.warning("[\(pluginEntry)] pipeline-finished hook failed (best-effort)")
+            }
+        }
+
+        logger.info("Pipeline run \(pipelineRunId) finished")
+
+        if pipelineFailed {
+            return false
         }
 
         // Copy processed images back to source if requested
@@ -140,6 +206,7 @@ struct PipelineOrchestrator: Sendable {
         let skippedImages: Set<String>
         let forkManager: ForkManager
         let executedPlugins: [(hook: String, pluginId: String)]
+        let pipelineRunId: String
     }
 
     enum HookResult {
@@ -282,7 +349,8 @@ struct PipelineOrchestrator: Sendable {
                     rulesDidRun: preRulesDidRun, execLogPath: execLogPath,
                     skipped: skipRecords,
                     imageFolderURL: imageFolderURL,
-                    metadataBuffer: buffer
+                    metadataBuffer: buffer,
+                    pipelineRunId: ctx.pipelineRunId
                 )
                 switch result {
                 case .success, .warning:

@@ -29,7 +29,8 @@ struct PluginRunner: Sendable {
         dryRun: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
         skipped: [SkipRecord] = [],
-        imageFolderOverride: URL? = nil
+        imageFolderOverride: URL? = nil,
+        pipelineRunId: String? = nil
     ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
         guard let hookConfig else {
             logger.error("Plugin '\(plugin.identifier)' has no hook config for hook '\(hook)'")
@@ -58,7 +59,8 @@ struct PluginRunner: Sendable {
                 executionLogPath: executionLogPath,
                 dryRun: dryRun,
                 state: state,
-                imageFolderOverride: imageFolderOverride
+                imageFolderOverride: imageFolderOverride,
+                pipelineRunId: pipelineRunId
             ))
             return (result, nil)
         }
@@ -68,7 +70,8 @@ struct PluginRunner: Sendable {
             folderPath: effectiveFolderURL,
             imagePath: nil,
             executionLogPath: executionLogPath,
-            dryRun: dryRun
+            dryRun: dryRun,
+            pipelineRunId: pipelineRunId
         )
         // Resolve environment mapping templates against state for the first image
         // (JSON protocol has full state on stdin; pipe has no per-image context)
@@ -92,7 +95,8 @@ struct PluginRunner: Sendable {
                 executionLogPath: executionLogPath,
                 dryRun: dryRun,
                 state: state,
-                skipped: skipped
+                skipped: skipped,
+                pipelineRunId: pipelineRunId
             ))
         case .pipe:
             let result = try await runPipe(
@@ -119,6 +123,7 @@ struct PluginRunner: Sendable {
         let dryRun: Bool
         let state: [String: [String: [String: JSONValue]]]?
         let skipped: [SkipRecord]
+        let pipelineRunId: String?
     }
 
     private func runJSON(
@@ -146,7 +151,8 @@ struct PluginRunner: Sendable {
             executionLogPath: context.executionLogPath,
             dryRun: context.dryRun,
             state: context.state,
-            skipped: context.skipped
+            skipped: context.skipped,
+            pipelineRunId: context.pipelineRunId
         )
         if let data = try? JSONEncoder().encode(payload) {
             stdinPipe.fileHandleForWriting.write(data)
@@ -285,6 +291,7 @@ struct PluginRunner: Sendable {
         let dryRun: Bool
         let state: [String: [String: [String: JSONValue]]]?
         let imageFolderOverride: URL?
+        let pipelineRunId: String?
     }
 
     private func runBatchProxy(context: BatchRunContext) async throws -> ExitCodeResult {
@@ -297,7 +304,8 @@ struct PluginRunner: Sendable {
                 folderPath: effectiveFolder,
                 imagePath: image,
                 executionLogPath: context.executionLogPath,
-                dryRun: context.dryRun
+                dryRun: context.dryRun,
+                pipelineRunId: context.pipelineRunId
             )
             let imageName = image.lastPathComponent
             let imageState = context.state?[imageName]
@@ -341,7 +349,8 @@ struct PluginRunner: Sendable {
         folderPath: URL,
         imagePath: URL?,
         executionLogPath: URL,
-        dryRun: Bool
+        dryRun: Bool,
+        pipelineRunId: String? = nil
     ) -> [String: String] {
         var env: [String: String] = [
             PluginEnvironment.folderPath: folderPath.path,
@@ -351,6 +360,9 @@ struct PluginRunner: Sendable {
         ]
         if let imagePath {
             env[PluginEnvironment.imagePath] = imagePath.path
+        }
+        if let pipelineRunId {
+            env[PluginEnvironment.pipelineRunId] = pipelineRunId
         }
         for (key, value) in secrets {
             env[PluginEnvironment.secretPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")] = value
@@ -368,7 +380,8 @@ struct PluginRunner: Sendable {
         executionLogPath: URL,
         dryRun: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
-        skipped: [SkipRecord] = []
+        skipped: [SkipRecord] = [],
+        pipelineRunId: String? = nil
     ) -> PluginInputPayload {
         let dataPath = plugin.directory.appendingPathComponent(PluginDirectory.data).path
         let logPath = plugin.directory.appendingPathComponent(PluginDirectory.logs).path
@@ -385,7 +398,8 @@ struct PluginRunner: Sendable {
             state: state,
             pluginVersion: pluginVersion,
             lastExecutedVersion: nil,
-            skipped: skipped
+            skipped: skipped,
+            pipelineRunId: pipelineRunId
         )
     }
 

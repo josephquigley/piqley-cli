@@ -6,4 +6,5 @@ enum PluginEnvironment {
     static let imagePath = "PIQLEY_IMAGE_PATH"
     static let secretPrefix = "PIQLEY_SECRET_"
     static let configPrefix = "PIQLEY_CONFIG_"
+    static let pipelineRunId = "PIQLEY_PIPELINE_RUN_ID"
 }

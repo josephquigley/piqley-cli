@@ -200,7 +200,8 @@ extension PipelineOrchestrator {
         execLogPath: URL,
         skipped: [SkipRecord] = [],
         imageFolderURL: URL? = nil,
-        metadataBuffer: MetadataBuffer? = nil
+        metadataBuffer: MetadataBuffer? = nil,
+        pipelineRunId: String? = nil
     ) async throws -> HookResult {
         let runner = PluginRunner(
             plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig,
@@ -228,7 +229,8 @@ extension PipelineOrchestrator {
             dryRun: ctx.dryRun,
             state: pluginState,
             skipped: skipped,
-            imageFolderOverride: imageFolderURL
+            imageFolderOverride: imageFolderURL,
+            pipelineRunId: pipelineRunId
         )
 
         // Store returned state under the plugin's namespace

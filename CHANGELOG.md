@@ -28,6 +28,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Pipeline lifecycle hooks: `pipeline-start` runs before `pre-process` and `pipeline-finished` runs after `post-publish` (best-effort, even on partial failure)
+- Pipeline run ID (UUID) generated per pipeline run, passed to plugins via `pipelineRunId` in JSON payload and `PIQLEY_PIPELINE_RUN_ID` environment variable
+- New workflows automatically include `pipeline-start` and `pipeline-finished` stages
 - Named workflow system: replace single config.json pipeline with multiple named workflows stored in `~/.config/piqley/workflows/`
 - `piqley workflow edit [name]` command with TUI for browsing and managing workflows
 - `piqley workflow create [name]`, `clone`, `delete`, `add-plugin`, `remove-plugin`, `open` subcommands

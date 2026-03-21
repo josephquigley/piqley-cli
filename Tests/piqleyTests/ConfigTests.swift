@@ -24,14 +24,16 @@ struct ConfigTests {
         #expect(workflow.pipeline["publish"] == ["ghost"])
     }
 
-    @Test("empty workflow has all four hooks")
+    @Test("empty workflow has all six hooks")
     func testEmptyWorkflow() {
         let workflow = Workflow.empty(name: "default")
-        #expect(workflow.pipeline.count == 4)
+        #expect(workflow.pipeline.count == 6)
+        #expect(workflow.pipeline["pipeline-start"] == [])
         #expect(workflow.pipeline["pre-process"] == [])
         #expect(workflow.pipeline["post-process"] == [])
         #expect(workflow.pipeline["publish"] == [])
         #expect(workflow.pipeline["post-publish"] == [])
+        #expect(workflow.pipeline["pipeline-finished"] == [])
     }
 
     @Test("encodes and decodes round-trip")
