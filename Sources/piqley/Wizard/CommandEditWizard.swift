@@ -142,7 +142,7 @@ final class CommandEditWizard {
             let argsSummary = args.isEmpty ? "(none)" : args.joined(separator: " ")
             let timeoutStr = timeout.map { "\($0)s" } ?? "30s (default)"
             let items = [
-                "Environment  \(ANSI.dim)\(envSummary)\(ANSI.reset)",
+                "Environment Variables  \(ANSI.dim)\(envSummary)\(ANSI.reset)",
                 "Command      \(ANSI.dim)\(command.isEmpty ? "(not set)" : command)\(ANSI.reset)",
                 "Arguments    \(ANSI.dim)\(argsSummary)\(ANSI.reset)",
                 "Timeout      \(ANSI.dim)\(timeoutStr)\(ANSI.reset)",
