@@ -222,7 +222,7 @@ final class CommandEditWizard {
 
     private func save() {
         do {
-            try RulesWizard.saveStages(stages, to: pluginDir)
+            try StageFileManager.saveStages(stages, to: pluginDir)
             modified = false
             savedAt = Date()
         } catch {
@@ -231,7 +231,7 @@ final class CommandEditWizard {
     }
 
     private func quit() {
-        RulesWizard.cleanupEmptyStageFiles(stages: stages, pluginDir: pluginDir)
+        StageFileManager.cleanupEmptyStageFiles(stages: stages, pluginDir: pluginDir)
         terminal.restore()
         Foundation.exit(0)
     }

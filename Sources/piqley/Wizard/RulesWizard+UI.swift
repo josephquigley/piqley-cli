@@ -44,7 +44,7 @@ extension RulesWizard {
     func save() {
         applyDeletions()
         do {
-            try RulesWizard.saveStages(context.stages, to: pluginDir)
+            try StageFileManager.saveStages(context.stages, to: pluginDir)
             modified = false
             savedAt = Date()
         } catch {
@@ -54,7 +54,7 @@ extension RulesWizard {
 
     /// Exit the wizard cleanly, removing any empty stage files.
     func quit() {
-        RulesWizard.cleanupEmptyStageFiles(stages: context.stages, pluginDir: pluginDir)
+        StageFileManager.cleanupEmptyStageFiles(stages: context.stages, pluginDir: pluginDir)
         terminal.restore()
         Foundation.exit(0)
     }
@@ -159,40 +159,5 @@ extension RulesWizard {
         }.joined(separator: "; ")
         let writeSummary = rule.write.isEmpty ? "" : " +write"
         return "\(index + 1). \(field) ~ \(pattern) \u{2192} \(emitSummary)\(writeSummary)"
-    }
-
-    // MARK: - File I/O
-
-    static func saveStages(_ stages: [String: StageConfig], to pluginDir: URL) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        for (hookName, stageConfig) in stages {
-            let stageFile = pluginDir
-                .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
-
-            if stageConfig.isEffectivelyEmpty {
-                // Remove empty stage files rather than writing them
-                if FileManager.default.fileExists(atPath: stageFile.path) {
-                    try FileManager.default.removeItem(at: stageFile)
-                }
-                continue
-            }
-
-            let data = try encoder.encode(stageConfig)
-            try data.write(to: stageFile, options: .atomic)
-        }
-    }
-
-    /// Remove stage files on disk that are effectively empty, without writing anything.
-    /// Call on exit even when no changes were made, to clean up stale empty files.
-    static func cleanupEmptyStageFiles(stages: [String: StageConfig], pluginDir: URL) {
-        for (hookName, stageConfig) in stages {
-            guard stageConfig.isEffectivelyEmpty else { continue }
-            let stageFile = pluginDir
-                .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
-            if FileManager.default.fileExists(atPath: stageFile.path) {
-                try? FileManager.default.removeItem(at: stageFile)
-            }
-        }
     }
 }
