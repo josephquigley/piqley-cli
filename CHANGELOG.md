@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Stage names in ConfigWizard plugin detail view now display in canonical pipeline order
 - Rules wizard confirms with user when a target field name doesn't match any known field
 - Rules wizard: Enter on empty finishes value entry after first value; Escape mid-value returns to action selection instead of proceeding to write stage
+- Rules wizard: declining a new field name returns to the field prompt instead of the action selector
 
 ### Added
 

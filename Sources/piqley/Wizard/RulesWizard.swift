@@ -391,16 +391,18 @@ final class RulesWizard {
 
         let uniqueFields = fieldSet.sorted()
 
-        guard let field = terminal.promptWithAutocomplete(
-            title: "Target field for \(action)",
-            hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
-            completions: uniqueFields,
-            browsableList: uniqueFields
-        ) else { return nil }
+        var field: String
+        while true {
+            guard let input = terminal.promptWithAutocomplete(
+                title: "Target field for \(action)",
+                hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
+                completions: uniqueFields,
+                browsableList: uniqueFields
+            ) else { return nil }
 
-        if !uniqueFields.contains(field) {
-            guard terminal.confirm("'\(field)' is a new field name. Use it anyway?") else {
-                return nil
+            if uniqueFields.contains(input) || terminal.confirm("'\(input)' is a new field name. Use it anyway?") {
+                field = input
+                break
             }
         }
 
