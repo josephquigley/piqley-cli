@@ -51,10 +51,15 @@ final class CommandEditWizard {
     }
 
     /// Convert "IPTC:Keywords" -> "PQY_IPTC_KEYWORDS"
+    /// Namespace (before :) is uppercased as-is. Field name (after :) splits PascalCase.
     private static func fieldToEnvVar(_ fieldName: String) -> String {
-        let parts = fieldName.split(separator: ":")
-        let transformed = parts.map { part in
-            // Split PascalCase/camelCase into words, join with _
+        let parts = fieldName.split(separator: ":", maxSplits: 1)
+        let transformed = parts.enumerated().map { index, part in
+            if index == 0 {
+                // Namespace: uppercase as-is, no PascalCase splitting
+                return String(part).uppercased()
+            }
+            // Field name: split PascalCase/camelCase into words, join with _
             var words: [String] = []
             var current = ""
             for char in part {
