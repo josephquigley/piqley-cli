@@ -2,6 +2,41 @@ import Foundation
 import PiqleyCore
 
 extension RulesWizard {
+    // MARK: - Slot Select
+
+    func slotSelect(stageName: String) {
+        var cursor = 0
+        while true {
+            let preCount = context.rules(forStage: stageName, slot: .pre).count
+            let postCount = context.rules(forStage: stageName, slot: .post).count
+            let items = [
+                "Pre-rules (\(preCount) rules)  \(ANSI.dim)run before binary\(ANSI.reset)",
+                "Post-rules (\(postCount) rules)  \(ANSI.dim)run after binary\(ANSI.reset)",
+            ]
+
+            terminal.drawScreen(
+                title: "\(stageName)",
+                items: items,
+                cursor: cursor,
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc back")
+            )
+
+            let key = terminal.readKey()
+            switch key {
+            case .cursorUp: cursor = max(0, cursor - 1)
+            case .cursorDown: cursor = min(items.count - 1, cursor + 1)
+            case .enter:
+                let slot: RuleSlot = cursor == 0 ? .pre : .post
+                slotRuleList(stageName: stageName, slot: slot)
+            case .char("s"):
+                save()
+            case .escape:
+                return
+            default: break
+            }
+        }
+    }
+
     // MARK: - Save / Quit
 
     /// Save current state to disk without exiting.

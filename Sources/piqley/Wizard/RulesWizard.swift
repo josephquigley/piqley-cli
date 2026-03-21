@@ -68,7 +68,7 @@ final class RulesWizard {
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
             case .enter:
-                ruleList(stageName: stageNames[cursor])
+                slotSelect(stageName: stageNames[cursor])
             case .char("s"):
                 save()
             case .escape, .ctrlC:
@@ -84,8 +84,7 @@ final class RulesWizard {
         "\(stage):\(slot):\(index)"
     }
 
-    private func ruleList(stageName: String) {
-        let slot: RuleSlot = .pre
+    func slotRuleList(stageName: String, slot: RuleSlot) {
         var cursor = 0
 
         while true {
@@ -107,7 +106,7 @@ final class RulesWizard {
             let deleteLabel = isCurrentDeleted ? "d undelete" : "d delete"
 
             terminal.drawScreen(
-                title: "\(stageName) rules",
+                title: "\(stageName) \(slot == .pre ? "pre" : "post")-rules",
                 items: items,
                 cursor: cursor,
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  Esc back")
