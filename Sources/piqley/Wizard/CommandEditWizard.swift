@@ -295,7 +295,7 @@ final class CommandEditWizard {
                         let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
                             title: "Value for \(input)",
-                            hint: "Wrap field names in '{{' and '}}' to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
+                            hint: "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
                             completions: templateCompletions,
                             defaultValue: match.templateValue
                         ) {
@@ -306,7 +306,7 @@ final class CommandEditWizard {
                         let templateCompletions = fieldCompletions.map(\.templateValue)
                         if let value = terminal.promptWithAutocomplete(
                             title: "Value for \(input)",
-                            hint: "Wrap field names in '{{' and '}}' to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
+                            hint: "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
                             completions: templateCompletions
                         ) {
                             env[input] = value
@@ -318,7 +318,7 @@ final class CommandEditWizard {
                     let templateCompletions = fieldCompletions.map(\.templateValue)
                     guard let value = terminal.promptWithAutocomplete(
                         title: "Value for \(existingKey)",
-                        hint: "Wrap field names in '{{' and '}}' to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
+                        hint: "Wrap field names in {{ and }} to use their values. You can use literals, variables, or a mix (e.g. https://{{original:IPTC:City}}.example.com)",
                         completions: templateCompletions,
                         defaultValue: env[existingKey]
                     ) else { continue }
