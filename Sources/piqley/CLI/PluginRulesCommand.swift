@@ -43,10 +43,9 @@ struct PluginRulesEditCommand: ParsableCommand {
             logger: Logger(label: "piqley.rules")
         )
 
-        if stages.isEmpty {
-            for hook in Hook.canonicalOrder {
-                stages[hook.rawValue] = StageConfig(preRules: nil, binary: nil, postRules: nil)
-            }
+        // Ensure all canonical stages are present (in-memory only, not written to disk)
+        for hook in Hook.canonicalOrder where stages[hook.rawValue] == nil {
+            stages[hook.rawValue] = StageConfig(preRules: nil, binary: nil, postRules: nil)
         }
 
         // 4. Build dependency info

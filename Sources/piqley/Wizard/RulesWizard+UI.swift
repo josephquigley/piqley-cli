@@ -133,8 +133,10 @@ extension RulesWizard {
             let stageFile = pluginDir
                 .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")
 
+            let hasCommand = stageConfig.binary?.command != nil
+                && !(stageConfig.binary?.command?.isEmpty ?? true)
             let isEmpty = (stageConfig.preRules ?? []).isEmpty
-                && stageConfig.binary == nil
+                && !hasCommand
                 && (stageConfig.postRules ?? []).isEmpty
 
             if isEmpty {
