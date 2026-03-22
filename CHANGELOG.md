@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Install-time tests for platform filtering (unsupported platform rejection and platform directory flattening)
 - Platform filtering during plugin install: rejects plugins that don't support the host platform and flattens platform-specific bin/ and data/ directories
 - `piqley plugin create` now sanitizes plugin names for Swift package names (e.g. "Ghost & 365 Project Publisher" becomes "ghost-365-project-publisher")
 - Pipeline lifecycle hooks: `pipeline-start` runs before `pre-process` and `pipeline-finished` runs after `post-publish` (best-effort, even on partial failure)
