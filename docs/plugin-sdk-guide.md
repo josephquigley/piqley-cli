@@ -342,6 +342,28 @@ Users install it with:
 piqley plugin install path/to/my-plugin.piqleyplugin
 ```
 
+### Multi-Platform Plugins
+
+Plugins can target multiple platforms by declaring platform-specific binaries in `piqley-build-manifest.json`. Supported platforms: `macos-arm64`, `linux-amd64`, `linux-arm64`.
+
+```json
+{
+  "pluginSchemaVersion": "2",
+  "bin": {
+    "macos-arm64": [".build/release/my-plugin"],
+    "linux-amd64": ["dist/my-plugin-amd64"],
+    "linux-arm64": ["dist/my-plugin-arm64"]
+  },
+  "data": {
+    "macos-arm64": ["models/mac-model.bin"],
+    "linux-amd64": ["models/linux-model.bin"],
+    "linux-arm64": ["models/linux-model.bin"]
+  }
+}
+```
+
+The packager bundles each platform's files into subdirectories inside the `.piqleyplugin` archive. When a user installs the plugin, piqley copies only the files for their platform and discards the rest. Interpreted plugins (Python, Node.js) use the same structure: provide a separate entry point per platform even if the scripts are identical, and factor shared logic into common files.
+
 ## Further Reading
 
 - [Getting Started](getting-started.md) for piqley basics and CLI commands

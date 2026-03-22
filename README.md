@@ -5,12 +5,12 @@
 <h1 align="center">piqley</h1>
 
 <p align="center">
-  A plugin-driven photographer workflow engine for macOS (other platforms coming soon).
+  A plugin-driven photographer workflow engine for macOS and Linux.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6.0-orange" alt="Swift 6.0"/>
-  <img src="https://img.shields.io/badge/platform-macOS-lightgrey" alt="macOS"/>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS | Linux"/>
   <img src="https://img.shields.io/github/license/josephquigley/piqley-cli" alt="License"/>
 </p>
 <p align="center">
@@ -84,13 +84,15 @@ A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` contain
 
 ```
 ~/.config/piqley/plugins/my-plugin/
-├── manifest.json           # Declarative: config schema, hooks, dependencies
+├── manifest.json           # Declarative: config schema, dependencies, supported platforms
 ├── config.json             # Mutable: resolved values (managed by piqley)
 ├── stage-pre-process.json  # Rules for pre-process hook
 ├── stage-post-process.json # Rules for post-process hook
 ├── data/                   # Plugin working directory
-└── bin/                    # Plugin executables
+└── bin/                    # Plugin executables (platform-specific at build time, flattened on install)
 ```
+
+Plugins support multiple platforms. A `.piqleyplugin` package can bundle binaries for `macos-arm64`, `linux-amd64`, and `linux-arm64`. When you install a plugin, piqley copies only the binaries for your platform.
 
 ### Pipeline
 
