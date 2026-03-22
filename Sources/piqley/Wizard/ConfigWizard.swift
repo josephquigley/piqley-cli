@@ -37,11 +37,12 @@ final class ConfigWizard {
     }
 
     private func stageSelect() {
-        let stages = registry.executionOrder
-        let menuItems: [StageMenuItem] = stages.map { .stage($0) } + [.allPlugins]
         var cursor = 0
 
         while true {
+            let stages = registry.executionOrder
+            let menuItems: [StageMenuItem] = stages.map { .stage($0) } + [.allPlugins]
+            cursor = min(cursor, menuItems.count - 1)
             drawStageScreen(stages: stages, menuItems: menuItems, cursor: cursor)
 
             let key = readKeyWithSaveTimeout()
@@ -55,6 +56,26 @@ final class ConfigWizard {
                     pluginList(stageName: name)
                 case .allPlugins:
                     showAllPlugins()
+                }
+            case .char("a"):
+                addStage()
+            case .char("u"):
+                duplicateStage(at: cursor)
+            case .char("v"):
+                activateStage()
+            case .char("x"):
+                if cursor < stages.count {
+                    removeStage(stages[cursor])
+                }
+            case .char("n"):
+                if cursor < stages.count {
+                    renameStage(stages[cursor])
+                }
+            case .char("r"):
+                if cursor < stages.count, stages.count > 1 {
+                    if let newPos = reorderStage(startIndex: cursor) {
+                        cursor = newPos
+                    }
                 }
             case .char("s"):
                 save()
@@ -116,7 +137,9 @@ final class ConfigWizard {
 
         // Footer
         buf += ANSI.moveTo(row: size.rows, col: 1)
-        let footerText = footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} select  s save  Esc quit")
+        let footerText = footerWithSaveIndicator(
+            "\u{2191}\u{2193} navigate  \u{23CE} select  a add  u dup  v activate  x remove  n rename  r reorder  s save  Esc quit"
+        )
         buf += "\(ANSI.dim)\(footerText)\(ANSI.reset)"
 
         terminal.write(buf)
@@ -277,6 +300,9 @@ final class ConfigWizard {
         applyRemovals()
         do {
             try WorkflowStore.save(workflow)
+            let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(PiqleyPath.stages)
+            try registry.save(to: stagesDir)
             modified = false
             savedAt = Date()
         } catch {

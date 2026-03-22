@@ -111,6 +111,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `PipelineOrchestrator` executes stages in flat registry order (lifecycle special-casing removed)
 - `PluginDiscovery` auto-registers unknown `stage-*.json` files into the registry's available list
 - `PipelineEditor` validates stage names against the registry (both active and available)
+- ConfigWizard stage screen now supports add, duplicate, activate, remove, rename, and reorder operations
 - `piqley setup` now seeds a default workflow and opens the workflow editor instead of auto-populating the pipeline
 - `piqley plugin list` shows which workflows each plugin appears in instead of pipeline stages
 
