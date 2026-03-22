@@ -98,10 +98,23 @@ enum TemplateFetcher {
         }
     }
 
-    /// Replace `__PLUGIN_NAME__` and `__SDK_VERSION__` in all files under a directory.
+    /// Sanitize a plugin name into a valid Swift package name.
+    /// "Ghost & 365 Project Publisher" -> "ghost-365-project-publisher"
+    static func sanitizePackageName(_ name: String) -> String {
+        let lowered = name.lowercased()
+        let sanitized = lowered.unicodeScalars.map { scalar in
+            CharacterSet.alphanumerics.contains(scalar) ? String(scalar) : "-"
+        }.joined()
+        // Collapse consecutive hyphens and trim leading/trailing hyphens
+        let collapsed = sanitized.replacing(/\-{2,}/, with: "-")
+        return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+
+    /// Replace template placeholders in all files under a directory.
     static func applyTemplateSubstitutions(
         in directory: URL, pluginName: String, sdkVersion: String
     ) throws {
+        let packageName = sanitizePackageName(pluginName)
         let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey]) else {
             return
@@ -113,6 +126,7 @@ enum TemplateFetcher {
 
             let content = try String(contentsOf: fileURL, encoding: .utf8)
             let replaced = content
+                .replacingOccurrences(of: "__PLUGIN_PACKAGE_NAME__", with: packageName)
                 .replacingOccurrences(of: "__PLUGIN_NAME__", with: pluginName)
                 .replacingOccurrences(of: "__SDK_VERSION__", with: sdkVersion)
 
