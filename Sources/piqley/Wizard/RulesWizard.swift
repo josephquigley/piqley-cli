@@ -292,41 +292,24 @@ final class RulesWizard {
     // MARK: - Build Rule (wizard flow)
 
     private func buildRule(editing existing: Rule? = nil) -> Rule? {
+        if let existing {
+            return editRuleMenu(existing: existing)
+        }
+
         var builder = RuleBuilder(context: context)
 
-        // Step 1: Select source — explain what this means
-        let sources = context.availableSources()
-        let sourceItems = sources.map { source -> String in
-            switch source {
-            case "original": return "\(source)  \(ANSI.dim)— file metadata loaded at import\(ANSI.reset)"
-            case "read": return "\(source)  \(ANSI.dim)— file metadata loaded on demand\(ANSI.reset)"
-            default: return "\(source)  \(ANSI.dim)— dependency plugin\(ANSI.reset)"
-            }
-        }
-        guard let sourceIdx = terminal.selectFromList(
-            title: "Where is the field you want to match?",
-            items: sourceItems
-        ) else { return nil }
-        let source = sources[sourceIdx]
+        // Step 1: Select source and field
+        guard let selected = selectField() else { return nil }
 
-        // Step 2: Select field — filterable list without namespace prefix
-        let fields = context.fields(in: source)
-        let fieldItems = fields.map(\.name)
-        guard let fieldIdx = terminal.selectFromFilterableList(
-            title: "Select field",
-            items: fieldItems
-        ) else { return nil }
-        let selectedField = fields[fieldIdx]
-
-        // Step 3: Enter pattern
+        // Step 2: Enter pattern
         guard let pattern = terminal.promptForInput(
-            title: "Enter match pattern for \(selectedField.name)",
+            title: "Enter match pattern for \(selected.displayName)",
             hint: "Plain text = exact match. Prefix with glob: or regex: for advanced.",
-            defaultValue: existing?.match.pattern
+            defaultValue: nil
         ) else { return nil }
 
         let matchResult = builder.setMatch(
-            field: selectedField.qualifiedName,
+            field: selected.qualifiedName,
             pattern: pattern
         )
         if case let .failure(error) = matchResult {
@@ -334,18 +317,13 @@ final class RulesWizard {
             return nil
         }
 
-        // Step 4: Actions (emit)
-        if existing != nil {
-            builder.reset()
-            _ = builder.setMatch(field: selectedField.qualifiedName, pattern: pattern)
-        }
-
-        let matchDesc = "\(selectedField.name) ~ \(pattern)"
+        // Step 3: Actions (emit)
+        let matchDesc = "\(selected.displayName) ~ \(pattern)"
         if !addActions(to: &builder, isWrite: false, matchContext: matchDesc) {
             return nil
         }
 
-        // Step 5: Write actions
+        // Step 4: Write actions
         if !addWriteActions(to: &builder, matchContext: matchDesc) {
             return nil
         }
@@ -390,32 +368,8 @@ final class RulesWizard {
         return addActions(to: &builder, isWrite: true, matchContext: matchContext)
     }
 
-    private func promptForEmitConfig(action: String) -> EmitConfig? {
-        // Build autocomplete from catalog fields + fields already used in existing rules
-        var fieldSet = Set<String>()
-
-        // Catalog fields (EXIF:ISO, TIFF:Make, IPTC:Keywords, etc.)
-        for source in context.availableSources() {
-            for field in context.fields(in: source) {
-                fieldSet.insert(field.name)
-            }
-        }
-
-        // Fields already used in existing rules (emit + write targets, match fields)
-        for stageName in context.stageNames() {
-            for slot in [RuleSlot.pre, .post] {
-                for rule in context.rules(forStage: stageName, slot: slot) {
-                    for emit in rule.emit {
-                        if let field = emit.field { fieldSet.insert(field) }
-                    }
-                    for write in rule.write {
-                        if let field = write.field { fieldSet.insert(field) }
-                    }
-                }
-            }
-        }
-
-        let uniqueFields = fieldSet.sorted()
+    func promptForEmitConfig(action: String) -> EmitConfig? {
+        let uniqueFields = buildFieldCompletions()
 
         var field: String
         while true {

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Rule edit menu handlers use correct double-optional semantics to stay in menu loop after editing fields
 - Environment templates (`{{original:*}}`) now resolve correctly: the `original` namespace was missing from the state payload dependency list
 - Environment templates now work even when a plugin has no manifest dependencies and rules produce no state changes
 - The `read` namespace is now supported in environment templates (previously only worked in rules)
@@ -30,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Install-time tests for platform filtering (unsupported platform rejection and platform directory flattening)
 - Platform filtering during plugin install: rejects plugins that don't support the host platform and flattens platform-specific bin/ and data/ directories
+- Rules wizard: `editAction` sub-menu for editing individual emit/write actions (type, field, negated, values/replacements/source)
+- Rules wizard: editing an existing rule now routes a navigable edit menu with inline editing of field, pattern, negated flag, emit actions, and write actions
 - `piqley plugin create` now sanitizes plugin names for Swift package names (e.g. "Ghost & 365 Project Publisher" becomes "ghost-365-project-publisher")
 - Pipeline lifecycle hooks: `pipeline-start` runs before `pre-process` and `pipeline-finished` runs after `post-publish` (best-effort, even on partial failure)
 - Pipeline run ID (UUID) generated per pipeline run, passed to plugins via `pipelineRunId` in JSON payload and `PIQLEY_PIPELINE_RUN_ID` environment variable
@@ -50,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Skip rule effect: images matched by a skip rule are excluded from binary execution and skip records are included in the plugin wire payload
 - `--overwrite-source` flag on `process` command to copy processed images back to the source directory
 - Rule match negation (`not: true` on match config) inverts matching so rules fire on non-matching values
+- `formatEmitAction(_ emit: EmitConfig) -> String` method in RulesWizard+UI for formatting individual emit actions in the edit menu
 - Emit negation (`not: true` on remove/removeField) inverts filtering: remove keeps only matching values, removeField keeps only the named field
 - `writeBack` emit action compiled and forwarded to MetadataBuffer
 - Image format support expanded: png, tiff, tif, heic, heif, webp now recognized alongside jpg, jpeg, jxl
