@@ -45,7 +45,7 @@ extension PipelineOrchestrator {
                 }
             }
         }
-        if let error = DependencyValidator.validate(manifests: allManifests, pipeline: pipeline) {
+        if let error = DependencyValidator.validate(manifests: allManifests, pipeline: pipeline, stageOrder: registry.executionOrder) {
             logger.error("Dependency validation failed: \(error)")
             throw PipelineError.dependencyValidationFailed(error)
         }

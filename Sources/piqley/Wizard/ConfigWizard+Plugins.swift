@@ -217,7 +217,7 @@ extension ConfigWizard {
 
     func showDiscoveredPluginDetail(plugin: LoadedPlugin) {
         let manifest = plugin.manifest
-        let allStages = Hook.canonicalOrder.map(\.rawValue)
+        let allStages = registry.executionOrder
 
         while true {
             let pipelineStages = allStages.filter { stage in
@@ -312,7 +312,7 @@ extension ConfigWizard {
         buf += "\(ANSI.dim)Schema:\(ANSI.reset)   \(manifest.pluginSchemaVersion)"
         row += 1
 
-        let stageNames = Hook.canonicalOrder.map(\.rawValue).filter { plugin.stages.keys.contains($0) }
+        let stageNames = registry.executionOrder.filter { plugin.stages.keys.contains($0) }
         buf += ANSI.moveTo(row: row, col: 1)
         let stagesStr = stageNames.isEmpty ? "none" : stageNames.joined(separator: ", ")
         buf += "\(ANSI.dim)Stages:\(ANSI.reset)   \(stagesStr)"
@@ -361,7 +361,7 @@ extension ConfigWizard {
     // MARK: - Plugin Actions (missing plugins)
 
     func pluginActions(entry: PluginEntry) {
-        let allStages = Hook.canonicalOrder.map(\.rawValue)
+        let allStages = registry.executionOrder
         let identifier = entry.identifier
 
         while true {

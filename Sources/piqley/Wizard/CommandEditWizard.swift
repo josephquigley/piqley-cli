@@ -88,7 +88,7 @@ final class CommandEditWizard {
     // MARK: - Stage Select
 
     private func stageSelect() {
-        let stageNames = Hook.canonicalOrder.map(\.rawValue).filter { stages.keys.contains($0) }
+        let stageNames = stages.keys.sorted()
         guard !stageNames.isEmpty else {
             terminal.restore()
             print("No stages found for plugin '\(pluginID)'.")

@@ -20,7 +20,7 @@ struct DependencyValidatorTests {
     func testNoDependencies() throws {
         let manifests = [manifest(name: "a", hook: "publish")]
         let pipeline: [String: [String]] = ["publish": ["a"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result == nil)
     }
 
@@ -28,7 +28,7 @@ struct DependencyValidatorTests {
     func testOriginalDependency() throws {
         let manifests = [manifest(name: "a", hook: "publish", dependencies: ["original"])]
         let pipeline: [String: [String]] = ["publish": ["a"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result == nil)
     }
 
@@ -39,7 +39,7 @@ struct DependencyValidatorTests {
             manifest(name: "flickr", hook: "post-process", dependencies: ["hashtag"]),
         ]
         let pipeline: [String: [String]] = ["post-process": ["hashtag", "flickr"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result == nil)
     }
 
@@ -53,7 +53,7 @@ struct DependencyValidatorTests {
             "post-process": ["hashtag"],
             "publish": ["flickr"],
         ]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result == nil)
     }
 
@@ -64,7 +64,7 @@ struct DependencyValidatorTests {
             manifest(name: "hashtag", hook: "post-process"),
         ]
         let pipeline: [String: [String]] = ["post-process": ["flickr", "hashtag"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result != nil)
         #expect(result!.contains("hashtag"))
     }
@@ -79,7 +79,7 @@ struct DependencyValidatorTests {
             "pre-process": ["hashtag"],
             "publish": ["flickr"],
         ]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result != nil)
     }
 
@@ -89,7 +89,7 @@ struct DependencyValidatorTests {
             manifest(name: "flickr", hook: "publish", dependencies: ["ghost"]),
         ]
         let pipeline: [String: [String]] = ["publish": ["flickr"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result != nil)
         #expect(result!.contains("ghost"))
     }
@@ -98,7 +98,7 @@ struct DependencyValidatorTests {
     func testOriginalNameRejected() throws {
         let manifests = [manifest(name: "original", hook: "publish")]
         let pipeline: [String: [String]] = ["publish": ["original"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result != nil)
         #expect(result!.contains("reserved"))
     }
@@ -107,7 +107,7 @@ struct DependencyValidatorTests {
     func testSkipNameRejected() throws {
         let manifests = [manifest(name: "skip", hook: "publish")]
         let pipeline: [String: [String]] = ["publish": ["skip"]]
-        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline)
+        let result = DependencyValidator.validate(manifests: manifests, pipeline: pipeline, stageOrder: Hook.defaultStageNames)
         #expect(result != nil)
         #expect(result!.contains("reserved"))
     }

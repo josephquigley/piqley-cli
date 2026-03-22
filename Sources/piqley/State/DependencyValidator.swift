@@ -6,7 +6,8 @@ enum DependencyValidator {
     /// Returns nil if valid, or an error message string if invalid.
     static func validate(
         manifests: [PluginManifest],
-        pipeline: [String: [String]]
+        pipeline: [String: [String]],
+        stageOrder: [String]
     ) -> String? {
         // Check for reserved identifiers
         let reservedNames: Set<String> = [ReservedName.original, ReservedName.skip]
@@ -15,7 +16,7 @@ enum DependencyValidator {
         }
 
         // Build a position map: identifier → (hookIndex, positionInHook)
-        let canonicalHooks = Hook.canonicalOrder.map(\.rawValue)
+        let canonicalHooks = stageOrder
         var positionMap: [String: (hookIndex: Int, position: Int)] = [:]
         for (hookIndex, hookName) in canonicalHooks.enumerated() {
             let plugins = pipeline[hookName] ?? []
