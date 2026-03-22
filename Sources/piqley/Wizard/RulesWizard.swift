@@ -338,11 +338,6 @@ final class RulesWizard {
         }
     }
 
-    /// Stub — will be implemented in Task 5.
-    private func editRuleMenu(existing _: Rule) -> Rule? {
-        nil
-    }
-
     private func addActions(to builder: inout RuleBuilder, isWrite: Bool, matchContext: String) -> Bool {
         let actions = ["add", "remove", "replace", "removeField", "clone"]
         let label = isWrite ? "write action" : "action"
@@ -373,7 +368,7 @@ final class RulesWizard {
         return addActions(to: &builder, isWrite: true, matchContext: matchContext)
     }
 
-    private func promptForEmitConfig(action: String) -> EmitConfig? {
+    func promptForEmitConfig(action: String) -> EmitConfig? {
         let uniqueFields = buildFieldCompletions()
 
         var field: String
