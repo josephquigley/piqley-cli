@@ -96,13 +96,14 @@ struct PipelineOrchestratorTests {
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
-        var workflow = Workflow.empty(name: "test")
+        var workflow = Workflow.empty(name: "test", activeStages: Hook.defaultStageNames)
         workflow.pipeline["publish"] = ["com.test.test-plugin"]
 
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: pluginsDir,
-            secretStore: FakeSecretStore()
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: Hook.defaultStageNames.map { StageEntry(name: $0) })
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == true)
@@ -143,13 +144,14 @@ struct PipelineOrchestratorTests {
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
-        var workflow = Workflow.empty(name: "test")
+        var workflow = Workflow.empty(name: "test", activeStages: Hook.defaultStageNames)
         workflow.pipeline["publish"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
 
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: pluginsDir,
-            secretStore: FakeSecretStore()
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: Hook.defaultStageNames.map { StageEntry(name: $0) })
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == false)
@@ -183,13 +185,14 @@ struct PipelineOrchestratorTests {
         let sourceDir = try makeSourceDir()
         defer { try? FileManager.default.removeItem(at: sourceDir) }
 
-        var workflow = Workflow.empty(name: "test")
+        var workflow = Workflow.empty(name: "test", activeStages: Hook.defaultStageNames)
         workflow.pipeline["publish"] = ["com.test.secret-plugin"]
 
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: pluginsDir,
-            secretStore: FakeSecretStore() // no secrets configured
+            secretStore: FakeSecretStore(), // no secrets configured
+            registry: StageRegistry(active: Hook.defaultStageNames.map { StageEntry(name: $0) })
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == false)
@@ -214,11 +217,12 @@ struct PipelineOrchestratorTests {
             keywords: ["Draft-Photo"]
         )
 
-        var workflow = Workflow.empty(name: "test")
+        var workflow = Workflow.empty(name: "test", activeStages: Hook.defaultStageNames)
         workflow.pipeline["pre-process"] = ["com.test.skip-plugin"]
 
         let orchestrator = PipelineOrchestrator(
-            workflow: workflow, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore()
+            workflow: workflow, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: Hook.defaultStageNames.map { StageEntry(name: $0) })
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == true)

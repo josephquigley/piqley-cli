@@ -6,6 +6,7 @@ struct PipelineOrchestrator: Sendable {
     let workflow: Workflow
     let pluginsDirectory: URL
     let secretStore: any SecretStore
+    let registry: StageRegistry
     let logger = Logger(label: "piqley.pipeline")
 
     /// Resolves the default plugins directory.
@@ -83,97 +84,41 @@ struct PipelineOrchestrator: Sendable {
             }
         }
 
-        // Execute hooks in order
+        // Execute hooks in order from registry
         logger.info("Pipeline run \(pipelineRunId) starting")
         var skippedImages: Set<String> = []
         var executedPlugins: [(hook: String, pluginId: String)] = []
         var pipelineFailed = false
 
-        // Separate lifecycle hooks from processing hooks
-        let processingHooks = Hook.canonicalOrder.filter {
-            $0 != .pipelineStart && $0 != .pipelineFinished
-        }
+        for stage in registry.executionOrder {
+            guard !pipelineFailed else { break }
 
-        // Execute pipeline-start hook
-        for pluginEntry in pipeline[Hook.pipelineStart.rawValue] ?? [] {
-            guard !blocklist.isBlocked(pluginEntry) else { continue }
-            let ctx = HookContext(
-                pluginIdentifier: pluginEntry, pluginName: pluginEntry,
-                hook: Hook.pipelineStart.rawValue, temp: temp,
-                stateStore: stateStore, imageFiles: imageFiles,
-                dryRun: dryRun, nonInteractive: nonInteractive,
-                skippedImages: skippedImages,
-                forkManager: forkManager,
-                executedPlugins: executedPlugins,
-                pipelineRunId: pipelineRunId
-            )
-            let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
-            skippedImages = updatedSkipped
-
-            switch result {
-            case .success, .warning, .skipped:
-                executedPlugins.append((hook: Hook.pipelineStart.rawValue, pluginId: pluginEntry))
-            case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
-                blocklist.block(pluginEntry)
-                pipelineFailed = true
-            }
-        }
-
-        // Execute processing hooks (pre-process through post-publish)
-        if !pipelineFailed {
-            for hook in processingHooks.map(\.rawValue) {
-                for pluginEntry in pipeline[hook] ?? [] {
-                    let pluginIdentifier = pluginEntry
-
-                    guard !blocklist.isBlocked(pluginIdentifier) else {
-                        logger.debug("[\(pluginIdentifier)] skipped (blocklisted)")
-                        continue
-                    }
-
-                    let ctx = HookContext(
-                        pluginIdentifier: pluginIdentifier, pluginName: pluginIdentifier,
-                        hook: hook, temp: temp,
-                        stateStore: stateStore, imageFiles: imageFiles,
-                        dryRun: dryRun, nonInteractive: nonInteractive,
-                        skippedImages: skippedImages,
-                        forkManager: forkManager,
-                        executedPlugins: executedPlugins,
-                        pipelineRunId: pipelineRunId
-                    )
-                    let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
-                    skippedImages = updatedSkipped
-
-                    switch result {
-                    case .success, .warning, .skipped:
-                        executedPlugins.append((hook: hook, pluginId: pluginIdentifier))
-                        continue
-                    case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
-                        blocklist.block(pluginIdentifier)
-                        pipelineFailed = true
-                    }
+            for pluginEntry in pipeline[stage] ?? [] {
+                guard !blocklist.isBlocked(pluginEntry) else {
+                    logger.debug("[\(pluginEntry)] skipped (blocklisted)")
+                    continue
                 }
-            }
-        }
 
-        // Execute pipeline-finished hook (best-effort, even on partial failure)
-        for pluginEntry in pipeline[Hook.pipelineFinished.rawValue] ?? [] {
-            let ctx = HookContext(
-                pluginIdentifier: pluginEntry, pluginName: pluginEntry,
-                hook: Hook.pipelineFinished.rawValue, temp: temp,
-                stateStore: stateStore, imageFiles: imageFiles,
-                dryRun: dryRun, nonInteractive: nonInteractive,
-                skippedImages: skippedImages,
-                forkManager: forkManager,
-                executedPlugins: executedPlugins,
-                pipelineRunId: pipelineRunId
-            )
-            let (result, _) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+                let ctx = HookContext(
+                    pluginIdentifier: pluginEntry, pluginName: pluginEntry,
+                    hook: stage, temp: temp,
+                    stateStore: stateStore, imageFiles: imageFiles,
+                    dryRun: dryRun, nonInteractive: nonInteractive,
+                    skippedImages: skippedImages,
+                    forkManager: forkManager,
+                    executedPlugins: executedPlugins,
+                    pipelineRunId: pipelineRunId
+                )
+                let (result, updatedSkipped) = try await runPluginHook(ctx, ruleEvaluatorCache: &ruleEvaluatorCache)
+                skippedImages = updatedSkipped
 
-            switch result {
-            case .success, .warning, .skipped:
-                executedPlugins.append((hook: Hook.pipelineFinished.rawValue, pluginId: pluginEntry))
-            case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
-                logger.warning("[\(pluginEntry)] pipeline-finished hook failed (best-effort)")
+                switch result {
+                case .success, .warning, .skipped:
+                    executedPlugins.append((hook: stage, pluginId: pluginEntry))
+                case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
+                    blocklist.block(pluginEntry)
+                    pipelineFailed = true
+                }
             }
         }
 

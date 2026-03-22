@@ -34,10 +34,10 @@ enum PipelineEditor {
         pluginId: String,
         stage: String,
         workflow: Workflow,
-        discoveredPlugins: [LoadedPlugin]
+        discoveredPlugins: [LoadedPlugin],
+        registry: StageRegistry
     ) throws {
-        let validStages = Set(Hook.allCases.map(\.rawValue))
-        guard validStages.contains(stage) else {
+        guard registry.isKnown(stage) else {
             throw AddError.invalidStage(stage)
         }
         guard let plugin = discoveredPlugins.first(where: { $0.identifier == pluginId }) else {
@@ -55,10 +55,10 @@ enum PipelineEditor {
     static func validateRemove(
         pluginId: String,
         stage: String,
-        workflow: Workflow
+        workflow: Workflow,
+        registry: StageRegistry
     ) throws {
-        let validStages = Set(Hook.allCases.map(\.rawValue))
-        guard validStages.contains(stage) else {
+        guard registry.isKnown(stage) else {
             throw RemoveError.invalidStage(stage)
         }
         let current = workflow.pipeline[stage] ?? []

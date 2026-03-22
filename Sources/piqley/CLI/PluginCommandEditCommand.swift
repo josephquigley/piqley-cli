@@ -20,16 +20,19 @@ struct PluginCommandEditCommand: ParsableCommand {
             throw ExitCode(1)
         }
 
-        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
-        var stages = PluginDiscovery.loadStages(
+        let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(PiqleyPath.stages)
+        let registry = try StageRegistry.load(from: stagesDir)
+        let knownHooks = registry.allKnownNames
+        var (stages, _) = PluginDiscovery.loadStages(
             from: pluginDir,
             knownHooks: knownHooks,
             logger: Logger(label: "piqley.command")
         )
 
-        // Ensure all canonical stages are present (in-memory only, not written to disk)
-        for hook in Hook.canonicalOrder where stages[hook.rawValue] == nil {
-            stages[hook.rawValue] = StageConfig(preRules: nil, binary: nil, postRules: nil)
+        // Ensure all active stages are present (in-memory only, not written to disk)
+        for stageName in registry.executionOrder where stages[stageName] == nil {
+            stages[stageName] = StageConfig(preRules: nil, binary: nil, postRules: nil)
         }
 
         // Load manifest and build available fields for env var autocompletion

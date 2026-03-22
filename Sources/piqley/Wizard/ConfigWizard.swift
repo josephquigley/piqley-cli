@@ -13,9 +13,12 @@ final class ConfigWizard {
     /// Identifiers of plugins that exist on disk.
     let discoveredIdentifiers: Set<String>
 
-    init(workflow: Workflow, discoveredPlugins: [LoadedPlugin]) {
+    var registry: StageRegistry
+
+    init(workflow: Workflow, discoveredPlugins: [LoadedPlugin], registry: StageRegistry) {
         self.workflow = workflow
         self.discoveredPlugins = discoveredPlugins
+        self.registry = registry
         discoveredIdentifiers = Set(discoveredPlugins.map(\.identifier))
         terminal = RawTerminal()
     }
@@ -34,7 +37,7 @@ final class ConfigWizard {
     }
 
     private func stageSelect() {
-        let stages = Hook.canonicalOrder.map(\.rawValue)
+        let stages = registry.executionOrder
         let menuItems: [StageMenuItem] = stages.map { .stage($0) } + [.allPlugins]
         var cursor = 0
 

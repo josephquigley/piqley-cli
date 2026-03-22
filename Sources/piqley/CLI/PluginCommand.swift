@@ -29,9 +29,7 @@ struct PluginCommand: ParsableCommand {
                 throw ValidationError("Failed to load workflows: \(formatError(error))\nRun 'piqley setup' first.")
             }
 
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let allPlugins = try discovery.loadManifests()
+            let (_, allPlugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
             if allPlugins.isEmpty {
                 print("No plugins installed.")
@@ -78,9 +76,7 @@ struct PluginCommand: ParsableCommand {
                 throw ValidationError("No workflows found. Run 'piqley setup' first.")
             }
 
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let plugins = try discovery.loadManifests()
+            let (_, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
             let secretStore = makeDefaultSecretStore()
             var scanner = PluginSetupScanner(

@@ -31,19 +31,21 @@ struct LoadedPlugin: Sendable {
 
 struct PluginDiscovery: Sendable {
     let pluginsDirectory: URL
+    let registry: StageRegistry
     private let logger = Logger(label: "piqley.discovery")
 
-    func loadManifests() throws -> [LoadedPlugin] {
-        guard FileManager.default.fileExists(atPath: pluginsDirectory.path) else { return [] }
+    func loadManifests() throws -> (plugins: [LoadedPlugin], registry: StageRegistry) {
+        var updatedRegistry = registry
+        guard FileManager.default.fileExists(atPath: pluginsDirectory.path) else { return ([], updatedRegistry) }
 
         let contents = try FileManager.default.contentsOfDirectory(
             at: pluginsDirectory,
             includingPropertiesForKeys: [.isDirectoryKey]
         )
 
-        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+        let knownHooks = updatedRegistry.allKnownNames
 
-        return try contents.compactMap { url -> LoadedPlugin? in
+        let plugins: [LoadedPlugin] = try contents.compactMap { url -> LoadedPlugin? in
             guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
             let dirName = url.lastPathComponent
             let manifestURL = url.appendingPathComponent(PluginFile.manifest)
@@ -51,7 +53,10 @@ struct PluginDiscovery: Sendable {
             let data = try Data(contentsOf: manifestURL)
             let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
 
-            let stages = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
+            let (stages, newStageNames) = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
+            for name in newStageNames {
+                updatedRegistry.autoRegister(name)
+            }
 
             // Validate manifest
             let validationErrors = ManifestValidator.validate(manifest)
@@ -84,17 +89,20 @@ struct PluginDiscovery: Sendable {
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
             return LoadedPlugin(identifier: manifest.identifier, name: manifest.name, directory: url, manifest: manifest, stages: stages)
         }.sorted { $0.identifier < $1.identifier }
+
+        return (plugins, updatedRegistry)
     }
 
     static func loadStages(
         from pluginDir: URL, knownHooks: Set<String>,
         logger: Logger = Logger(label: "piqley.discovery")
-    ) -> [String: StageConfig] {
+    ) -> (stages: [String: StageConfig], newStageNames: Set<String>) {
         var stages: [String: StageConfig] = [:]
+        var newStageNames: Set<String> = []
 
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: pluginDir, includingPropertiesForKeys: nil
-        ) else { return stages }
+        ) else { return (stages, newStageNames) }
 
         for file in files {
             let filename = file.lastPathComponent
@@ -106,9 +114,8 @@ struct PluginDiscovery: Sendable {
                     .dropLast(PluginFile.stageSuffix.count)
             )
 
-            guard knownHooks.contains(stageName) else {
-                logger.warning("Plugin '\(pluginDir.lastPathComponent)' has unknown stage '\(stageName)' — ignored")
-                continue
+            if !knownHooks.contains(stageName) {
+                newStageNames.insert(stageName)
             }
 
             do {
@@ -132,6 +139,6 @@ struct PluginDiscovery: Sendable {
             }
         }
 
-        return stages
+        return (stages, newStageNames)
     }
 }

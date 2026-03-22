@@ -35,7 +35,7 @@ extension PipelineOrchestrator {
 
     func validateDependencies(pipeline: [String: [String]]) throws {
         var allManifests: [PluginManifest] = []
-        for hook in Hook.canonicalOrder.map(\.rawValue) {
+        for hook in registry.executionOrder {
             for pluginEntry in pipeline[hook] ?? [] {
                 let identifier = pluginEntry
                 if let loaded = try loadPlugin(named: identifier) {
@@ -58,8 +58,8 @@ extension PipelineOrchestrator {
         let data = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
 
-        let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
-        let stages = PluginDiscovery.loadStages(from: pluginDir, knownHooks: knownHooks, logger: logger)
+        let knownHooks = registry.allKnownNames
+        let (stages, _) = PluginDiscovery.loadStages(from: pluginDir, knownHooks: knownHooks, logger: logger)
 
         return LoadedPlugin(
             identifier: manifest.identifier, name: manifest.name,
@@ -70,7 +70,7 @@ extension PipelineOrchestrator {
     // MARK: - Binary Validation
 
     func validateBinaries(pipeline: [String: [String]]) throws {
-        for hook in Hook.canonicalOrder.map(\.rawValue) {
+        for hook in registry.executionOrder {
             for pluginEntry in pipeline[hook] ?? [] {
                 guard let loadedPlugin = try loadPlugin(named: pluginEntry) else { continue }
                 guard let stageConfig = loadedPlugin.stages[hook] else { continue }

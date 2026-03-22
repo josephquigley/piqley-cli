@@ -36,12 +36,13 @@ struct SetupCommand: AsyncParsableCommand {
         installBundledPlugins()
 
         // Seed workflows directory with default workflow
-        try WorkflowStore.seedDefault()
+        let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(PiqleyPath.stages)
+        let seedRegistry = try StageRegistry.load(from: stagesDir)
+        try WorkflowStore.seedDefault(activeStages: seedRegistry.executionOrder)
 
         // Discover all plugins
-        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-        let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-        let plugins = try discovery.loadManifests()
+        let (registry, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
         if !plugins.isEmpty {
             // Prompt for workflow name
@@ -52,14 +53,14 @@ struct SetupCommand: AsyncParsableCommand {
             if WorkflowStore.exists(name: workflowName) {
                 workflow = try WorkflowStore.load(name: workflowName)
             } else {
-                workflow = .empty(name: workflowName, displayName: workflowName)
+                workflow = .empty(name: workflowName, displayName: workflowName, activeStages: registry.executionOrder)
                 try WorkflowStore.save(workflow)
             }
 
             print("\nOpening workflow editor...\n")
 
             // Drop into the workflow editor
-            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins)
+            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins, registry: registry)
             wizard.run()
 
             // Run plugin setup scanners

@@ -1,4 +1,5 @@
 import Foundation
+import PiqleyCore
 import Testing
 @testable import piqley
 
@@ -26,7 +27,7 @@ struct ConfigTests {
 
     @Test("empty workflow has all six hooks")
     func testEmptyWorkflow() {
-        let workflow = Workflow.empty(name: "default")
+        let workflow = Workflow.empty(name: "default", activeStages: Hook.defaultStageNames)
         #expect(workflow.pipeline.count == 6)
         #expect(workflow.pipeline["pipeline-start"] == [])
         #expect(workflow.pipeline["pre-process"] == [])
@@ -38,7 +39,7 @@ struct ConfigTests {
 
     @Test("encodes and decodes round-trip")
     func testRoundTrip() throws {
-        var workflow = Workflow.empty(name: "test", displayName: "Test")
+        var workflow = Workflow.empty(name: "test", displayName: "Test", activeStages: Hook.defaultStageNames)
         workflow.pipeline["publish"] = ["ghost"]
         let data = try JSONEncoder().encode(workflow)
         let decoded = try JSONDecoder().decode(Workflow.self, from: data)

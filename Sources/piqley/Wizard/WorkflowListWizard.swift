@@ -3,10 +3,12 @@ import PiqleyCore
 
 final class WorkflowListWizard {
     let discoveredPlugins: [LoadedPlugin]
+    let registry: StageRegistry
     let terminal: RawTerminal
 
-    init(discoveredPlugins: [LoadedPlugin]) {
+    init(discoveredPlugins: [LoadedPlugin], registry: StageRegistry) {
         self.discoveredPlugins = discoveredPlugins
+        self.registry = registry
         terminal = RawTerminal()
     }
 
@@ -93,7 +95,7 @@ final class WorkflowListWizard {
             let workflow = try WorkflowStore.load(name: name)
             // Temporarily restore terminal for nested wizard
             terminal.restore()
-            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: discoveredPlugins)
+            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: discoveredPlugins, registry: registry)
             wizard.run()
             // Re-enter raw mode
             terminal.reenter()
@@ -113,7 +115,7 @@ final class WorkflowListWizard {
             return
         }
 
-        let workflow = Workflow.empty(name: name, displayName: name)
+        let workflow = Workflow.empty(name: name, displayName: name, activeStages: registry.executionOrder)
         do {
             try WorkflowStore.save(workflow)
         } catch {

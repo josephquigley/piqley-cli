@@ -9,13 +9,13 @@ struct Workflow: Codable, Sendable {
     /// Hook name -> ordered plugin identifier list.
     var pipeline: [String: [String]] = [:]
 
-    /// Creates a new empty workflow with all four hooks initialized to empty arrays.
-    static func empty(name: String, displayName: String = "", description: String = "") -> Workflow {
+    /// Creates a new empty workflow with all active stages initialized to empty arrays.
+    static func empty(name: String, displayName: String = "", description: String = "", activeStages: [String]) -> Workflow {
         Workflow(
             name: name,
             displayName: displayName.isEmpty ? name : displayName,
             description: description,
-            pipeline: Dictionary(uniqueKeysWithValues: Hook.canonicalOrder.map { ($0.rawValue, [String]()) })
+            pipeline: Dictionary(uniqueKeysWithValues: activeStages.map { ($0, [String]()) })
         )
     }
 }

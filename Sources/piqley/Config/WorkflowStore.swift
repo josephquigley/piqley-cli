@@ -72,11 +72,11 @@ enum WorkflowStore {
     }
 
     /// Seed the default workflow if no workflows exist.
-    static func seedDefault() throws {
+    static func seedDefault(activeStages: [String]) throws {
         try ensureDirectory()
         let existing = try list()
         if existing.isEmpty {
-            try save(.empty(name: "default", displayName: "Default", description: "Default workflow"))
+            try save(.empty(name: "default", displayName: "Default", description: "Default workflow", activeStages: activeStages))
         }
     }
 }

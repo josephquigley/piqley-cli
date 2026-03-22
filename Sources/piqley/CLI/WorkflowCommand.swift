@@ -14,6 +14,19 @@ struct WorkflowCommand: ParsableCommand {
         ]
     )
 
+    /// Load the stage registry, discover plugins, and persist any auto-registered stages.
+    static func loadRegistryAndPlugins() throws -> (registry: StageRegistry, plugins: [LoadedPlugin]) {
+        let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(PiqleyPath.stages)
+        var registry = try StageRegistry.load(from: stagesDir)
+        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+        let discovery = PluginDiscovery(pluginsDirectory: pluginsDir, registry: registry)
+        let (plugins, updatedRegistry) = try discovery.loadManifests()
+        registry = updatedRegistry
+        try registry.save(to: stagesDir)
+        return (registry, plugins)
+    }
+
     // MARK: - Edit
 
     struct EditSubcommand: ParsableCommand {
@@ -26,19 +39,17 @@ struct WorkflowCommand: ParsableCommand {
         var name: String?
 
         func run() throws {
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let plugins = try discovery.loadManifests()
+            let (registry, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
             if let name {
                 guard WorkflowStore.exists(name: name) else {
                     throw ValidationError("Workflow '\(name)' not found")
                 }
                 let workflow = try WorkflowStore.load(name: name)
-                let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins)
+                let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins, registry: registry)
                 wizard.run()
             } else {
-                let wizard = WorkflowListWizard(discoveredPlugins: plugins)
+                let wizard = WorkflowListWizard(discoveredPlugins: plugins, registry: registry)
                 wizard.run()
             }
         }
@@ -56,9 +67,7 @@ struct WorkflowCommand: ParsableCommand {
         var name: String?
 
         func run() throws {
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let plugins = try discovery.loadManifests()
+            let (registry, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
             let workflowName: String
             if let name {
@@ -75,11 +84,11 @@ struct WorkflowCommand: ParsableCommand {
                 throw ValidationError("Workflow '\(workflowName)' already exists")
             }
 
-            let workflow = Workflow.empty(name: workflowName, displayName: workflowName)
+            let workflow = Workflow.empty(name: workflowName, displayName: workflowName, activeStages: registry.executionOrder)
             try WorkflowStore.save(workflow)
             print("Created workflow '\(workflowName)'")
 
-            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins)
+            let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins, registry: registry)
             wizard.run()
         }
     }
@@ -171,7 +180,7 @@ struct WorkflowCommand: ParsableCommand {
         @Argument(help: "Plugin identifier")
         var pluginIdentifier: String
 
-        @Argument(help: "Pipeline stage (pre-process, post-process, publish, post-publish)")
+        @Argument(help: "Pipeline stage (any active or available stage name)")
         var stage: String
 
         @Option(help: "Position in the stage (0-based index, appends if omitted)")
@@ -179,13 +188,12 @@ struct WorkflowCommand: ParsableCommand {
 
         func run() throws {
             var workflow = try WorkflowStore.load(name: workflowName)
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let plugins = try discovery.loadManifests()
+            let (registry, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
             try PipelineEditor.validateAdd(
                 pluginId: pluginIdentifier, stage: stage,
-                workflow: workflow, discoveredPlugins: plugins
+                workflow: workflow, discoveredPlugins: plugins,
+                registry: registry
             )
 
             var list = workflow.pipeline[stage] ?? []
@@ -215,17 +223,16 @@ struct WorkflowCommand: ParsableCommand {
         @Argument(help: "Plugin identifier")
         var pluginIdentifier: String
 
-        @Argument(help: "Pipeline stage (pre-process, post-process, publish, post-publish)")
+        @Argument(help: "Pipeline stage (any active or available stage name)")
         var stage: String
 
         func run() throws {
             var workflow = try WorkflowStore.load(name: workflowName)
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let discovery = PluginDiscovery(pluginsDirectory: pluginsDir)
-            let plugins = try discovery.loadManifests()
+            let (registry, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
 
             try PipelineEditor.validateRemove(
-                pluginId: pluginIdentifier, stage: stage, workflow: workflow
+                pluginId: pluginIdentifier, stage: stage,
+                workflow: workflow, registry: registry
             )
 
             let dependents = PipelineEditor.dependents(

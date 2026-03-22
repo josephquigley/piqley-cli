@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import Logging
+import PiqleyCore
 
 struct ProcessCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -45,10 +46,14 @@ struct ProcessCommand: AsyncParsableCommand {
         defer { lock.release() }
 
         let secretStore = makeDefaultSecretStore()
+        let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(PiqleyPath.stages)
+        let registry = try StageRegistry.load(from: stagesDir)
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory,
-            secretStore: secretStore
+            secretStore: secretStore,
+            registry: registry
         )
 
         let succeeded = try await orchestrator.run(
