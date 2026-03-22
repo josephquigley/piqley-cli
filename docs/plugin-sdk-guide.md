@@ -364,6 +364,28 @@ Plugins can target multiple platforms by declaring platform-specific binaries in
 
 The packager bundles each platform's files into subdirectories inside the `.piqleyplugin` archive. When a user installs the plugin, piqley copies only the files for their platform and discards the rest. Interpreted plugins (Python, Node.js) use the same structure: provide a separate entry point per platform even if the scripts are identical, and factor shared logic into common files.
 
+#### Building for Each Platform
+
+**Swift**: Cross-compile for Linux using Swift SDK bundles, or build natively on each platform via CI:
+
+```bash
+# Cross-compile from macOS to Linux
+swift build -c release --swift-sdk x86_64-swift-linux-musl
+swift build -c release --swift-sdk aarch64-swift-linux-musl
+```
+
+**Go**: Use `GOOS`/`GOARCH` environment variables to cross-compile from any platform:
+
+```bash
+GOOS=darwin GOARCH=arm64 go build -o dist/macos-arm64/my-plugin
+GOOS=linux GOARCH=amd64 go build -o dist/linux-amd64/my-plugin
+GOOS=linux GOARCH=arm64 go build -o dist/linux-arm64/my-plugin
+```
+
+**Python/Node.js**: Scripts are typically portable. Use per-platform entry points only if you depend on platform-specific native modules.
+
+See the [SDK README](https://github.com/josephquigley/piqley-plugin-sdk#multi-platform-support) for a CI build matrix example.
+
 ## Further Reading
 
 - [Getting Started](getting-started.md) for piqley basics and CLI commands
