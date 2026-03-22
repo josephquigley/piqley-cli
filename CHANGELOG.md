@@ -48,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Skip rule effect: images matched by a skip rule are excluded from binary execution and skip records are included in the plugin wire payload
 - `--overwrite-source` flag on `process` command to copy processed images back to the source directory
 - Rule match negation (`not: true` on match config) inverts matching so rules fire on non-matching values
+- `formatEmitAction(_ emit: EmitConfig) -> String` method in RulesWizard+UI for formatting individual emit actions in the edit menu
 - Emit negation (`not: true` on remove/removeField) inverts filtering: remove keeps only matching values, removeField keeps only the named field
 - `writeBack` emit action compiled and forwarded to MetadataBuffer
 - Image format support expanded: png, tiff, tif, heic, heif, webp now recognized alongside jpg, jpeg, jxl

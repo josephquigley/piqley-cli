@@ -160,4 +160,27 @@ extension RulesWizard {
         let writeSummary = rule.write.isEmpty ? "" : " +write"
         return "\(index + 1). \(field) ~ \(pattern) \u{2192} \(emitSummary)\(writeSummary)"
     }
+
+    /// Formats a single emit/write action for display in the edit menu.
+    func formatEmitAction(_ emit: EmitConfig) -> String {
+        let action = emit.action ?? "add"
+        let target = emit.field ?? "keywords"
+        switch action {
+        case "add", "remove":
+            let vals = emit.values?.joined(separator: ", ") ?? ""
+            return "\(action) \(target)=[\(vals)]"
+        case "replace":
+            if let replacements = emit.replacements {
+                let pairs = replacements.map { "\($0.pattern)\u{2192}\($0.replacement)" }
+                return "replace \(target) [\(pairs.joined(separator: ", "))]"
+            }
+            return "replace \(target)"
+        case "clone":
+            return "clone \(target) from \(emit.source ?? "?")"
+        case "removeField":
+            return "removeField \(target)"
+        default:
+            return "\(action) \(target)"
+        }
+    }
 }
