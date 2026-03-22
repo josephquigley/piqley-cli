@@ -348,7 +348,7 @@ Plugins can target multiple platforms by declaring platform-specific binaries in
 
 ```json
 {
-  "pluginSchemaVersion": "2",
+  "pluginSchemaVersion": "1",
   "bin": {
     "macos-arm64": [".build/release/my-plugin"],
     "linux-amd64": ["dist/my-plugin-amd64"],

@@ -8,21 +8,12 @@ Supported platforms: `macos-arm64`, `linux-amd64`, `linux-arm64`. Intel Macs (`m
 
 ## Build Manifest Changes
 
-The `bin` and `data` fields change from flat arrays to objects keyed by platform triple. This is a breaking change: `pluginSchemaVersion` bumps to `"2"`. The CLI and SDK will reject schema version `"1"` manifests that use the old flat format with a clear error directing the author to migrate.
+The `bin` and `data` fields change from flat arrays to objects keyed by platform triple. The `pluginSchemaVersion` remains `"1"` since there are no production consumers of the old flat format.
 
-**Before (schema v1):**
+**Build manifest format:**
 ```json
 {
   "pluginSchemaVersion": "1",
-  "bin": [".build/release/my-plugin"],
-  "data": ["models/model.bin"]
-}
-```
-
-**After (schema v2):**
-```json
-{
-  "pluginSchemaVersion": "2",
   "bin": {
     "macos-arm64": [".build/release/my-plugin"],
     "linux-amd64": ["dist/my-plugin-amd64"],
@@ -133,7 +124,7 @@ The installed plugin directory looks exactly like it does today: flat `bin/` and
 
 ## Template Updates
 
-Each language template's `piqley-build-manifest.json` updates to schema v2 with the new keyed format. Templates default to a single platform placeholder that the author expands as needed.
+Each language template's `piqley-build-manifest.json` updates to the new keyed format. Templates default to a single platform placeholder that the author expands as needed.
 
 ### Affected files
 - `piqley-plugin-sdk`: `templates/swift/piqley-build-manifest.json`, `templates/go/piqley-build-manifest.json`, `templates/node/piqley-build-manifest.json`, `templates/python/piqley-build-manifest.json`

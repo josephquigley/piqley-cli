@@ -142,7 +142,7 @@ struct InstallCommandTests {
         let manifest: [String: Any] = [
             "identifier": "com.test.unsupported",
             "name": "unsupported",
-            "pluginSchemaVersion": "2",
+            "pluginSchemaVersion": "1",
             "supportedPlatforms": ["linux-amd64"],
         ]
         let manifestData = try JSONSerialization.data(withJSONObject: manifest)
@@ -183,7 +183,7 @@ struct InstallCommandTests {
         let manifest: [String: Any] = [
             "identifier": "com.test.multi",
             "name": "multi",
-            "pluginSchemaVersion": "2",
+            "pluginSchemaVersion": "1",
             "supportedPlatforms": [HostPlatform.current, "linux-amd64"],
         ]
         let manifestData = try JSONSerialization.data(withJSONObject: manifest)

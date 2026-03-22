@@ -41,11 +41,9 @@ supportedPlatforms = try container.decodeIfPresent([String].self, forKey: .suppo
 try container.encodeIfPresent(supportedPlatforms, forKey: .supportedPlatforms)
 ```
 
-- [ ] **Step 2: Update `supportedSchemaVersions` to include "2"**
+- [ ] **Step 2: Verify `supportedSchemaVersions` includes "1"**
 
-```swift
-public static let supportedSchemaVersions: Set<String> = ["1", "2"]
-```
+No change needed; `pluginSchemaVersion` stays at `"1"`.
 
 - [ ] **Step 3: Build piqley-core to verify compilation**
 
@@ -55,7 +53,7 @@ Expected: Build succeeded
 - [ ] **Step 4: Commit**
 
 ```
-feat: add supportedPlatforms to PluginManifest and support schema v2
+feat: add supportedPlatforms to PluginManifest
 ```
 
 ---
@@ -67,10 +65,10 @@ feat: add supportedPlatforms to PluginManifest and support schema v2
 
 - [ ] **Step 1: Update pluginSchemaVersion const and add supportedPlatforms**
 
-Change `pluginSchemaVersion` from `"const": "1"` to allow both versions:
+Keep `pluginSchemaVersion` at `"1"`:
 
 ```json
-"pluginSchemaVersion": { "type": "string", "enum": ["1", "2"] }
+"pluginSchemaVersion": { "type": "string", "const": "1" }
 ```
 
 Add `supportedPlatforms` to the `properties` object:
@@ -89,7 +87,7 @@ Add `supportedPlatforms` to the `properties` object:
 - [ ] **Step 2: Commit**
 
 ```
-feat: add supportedPlatforms to manifest schema, allow schema v2
+feat: add supportedPlatforms to manifest schema
 ```
 
 ---
@@ -109,7 +107,7 @@ Add to `piqley-plugin-sdk/swift/Tests/PackagerTests.swift`:
     {
         "identifier": "com.test.multi-arch",
         "pluginName": "multi-arch",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "bin": {
             "macos-arm64": [".build/release/multi-arch"],
             "linux-amd64": ["dist/multi-arch"]
@@ -124,7 +122,7 @@ Add to `piqley-plugin-sdk/swift/Tests/PackagerTests.swift`:
     let manifest = try JSONDecoder().decode(BuildManifest.self, from: data)
 
     #expect(manifest.identifier == "com.test.multi-arch")
-    #expect(manifest.pluginSchemaVersion == "2")
+    #expect(manifest.pluginSchemaVersion == "1")
     #expect(manifest.bin == [
         "macos-arm64": [".build/release/multi-arch"],
         "linux-amd64": ["dist/multi-arch"]
@@ -207,7 +205,7 @@ In `PackagerTests.swift`, update `decodesBuildManifest`:
     {
         "identifier": "com.test.my-plugin",
         "pluginName": "my-plugin",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "bin": {
             "macos-arm64": ["build/my-plugin"]
         },
@@ -221,7 +219,7 @@ In `PackagerTests.swift`, update `decodesBuildManifest`:
 
     #expect(manifest.identifier == "com.test.my-plugin")
     #expect(manifest.pluginName == "my-plugin")
-    #expect(manifest.pluginSchemaVersion == "2")
+    #expect(manifest.pluginSchemaVersion == "1")
     #expect(manifest.bin == ["macos-arm64": ["build/my-plugin"]])
     #expect(manifest.data == ["macos-arm64": ["templates/default.json"]])
     #expect(manifest.dependencies?.isEmpty ?? true)
@@ -235,7 +233,7 @@ Update `decodesBuildManifestWithoutIdentifierThrows` to use the new format:
     let json = """
     {
         "pluginName": "my-plugin",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "bin": { "macos-arm64": ["build/my-plugin"] },
         "data": {}
     }
@@ -267,7 +265,7 @@ private func makePluginDirectory(
     let buildManifestDict: [String: Any] = [
         "identifier": identifier ?? "com.test.\(pluginName)",
         "pluginName": pluginName,
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "bin": binValue,
         "data": [:] as [String: Any],
         "dependencies": [] as [Any],
@@ -312,7 +310,7 @@ feat: change BuildManifest bin/data to platform-keyed dictionaries
 Replace the `bin` and `data` properties and update `pluginSchemaVersion`:
 
 ```json
-"pluginSchemaVersion": { "type": "string", "const": "2" },
+"pluginSchemaVersion": { "type": "string", "const": "1" },
 ```
 
 ```json
@@ -348,7 +346,7 @@ In `SchemaConformanceTests.swift`, update `validBuildManifestConformsToSchema`:
 @Test func validBuildManifestConformsToSchema() throws {
     let json: [String: Any] = [
         "pluginName": "my-plugin",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "bin": [
             "macos-arm64": ["my-plugin"]
         ] as [String: Any],
@@ -405,7 +403,7 @@ Add to `PackagerTests.swift`:
     let buildManifestDict: [String: Any] = [
         "identifier": "com.test.multi",
         "pluginName": "multi",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "bin": [
             "macos-arm64": ["bin-mac"],
             "linux-amd64": ["bin-linux"],
@@ -695,7 +693,7 @@ feat: add platform filtering to plugin installer
     let manifest: [String: Any] = [
         "identifier": "com.test.unsupported",
         "name": "unsupported",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "supportedPlatforms": ["linux-amd64"],
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifest)
@@ -740,7 +738,7 @@ feat: add platform filtering to plugin installer
     let manifest: [String: Any] = [
         "identifier": "com.test.multi",
         "name": "multi",
-        "pluginSchemaVersion": "2",
+        "pluginSchemaVersion": "1",
         "supportedPlatforms": [HostPlatform.current, "linux-amd64"],
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifest)
@@ -801,7 +799,7 @@ test: add install-time platform filtering tests
 {
   "identifier": "__PLUGIN_IDENTIFIER__",
   "pluginName": "__PLUGIN_NAME__",
-  "pluginSchemaVersion": "2",
+  "pluginSchemaVersion": "1",
   "pluginVersion": "0.1.0",
   "bin": {
     "macos-arm64": [".build/release/__PLUGIN_PACKAGE_NAME__"]
@@ -817,7 +815,7 @@ test: add install-time platform filtering tests
 {
   "identifier": "__PLUGIN_IDENTIFIER__",
   "pluginName": "__PLUGIN_NAME__",
-  "pluginSchemaVersion": "2",
+  "pluginSchemaVersion": "1",
   "pluginVersion": "0.1.0",
   "bin": {
     "macos-arm64": ["__PLUGIN_IDENTIFIER__"]
@@ -833,7 +831,7 @@ test: add install-time platform filtering tests
 {
   "identifier": "__PLUGIN_IDENTIFIER__",
   "pluginName": "__PLUGIN_NAME__",
-  "pluginSchemaVersion": "2",
+  "pluginSchemaVersion": "1",
   "pluginVersion": "0.1.0",
   "bin": {
     "macos-arm64": ["dist/index.js"]
@@ -849,7 +847,7 @@ test: add install-time platform filtering tests
 {
   "identifier": "__PLUGIN_IDENTIFIER__",
   "pluginName": "__PLUGIN_NAME__",
-  "pluginSchemaVersion": "2",
+  "pluginSchemaVersion": "1",
   "pluginVersion": "0.1.0",
   "bin": {
     "macos-arm64": ["src/__PLUGIN_IDENTIFIER__/main.py"]
@@ -862,7 +860,7 @@ test: add install-time platform filtering tests
 - [ ] **Step 5: Commit**
 
 ```
-feat: update plugin templates to schema v2 with platform-keyed bin
+feat: update plugin templates with platform-keyed bin
 ```
 
 ---
