@@ -146,7 +146,7 @@ struct InstallCommandTests {
             "supportedPlatforms": ["linux-amd64"],
         ]
         let manifestData = try JSONSerialization.data(withJSONObject: manifest)
-        try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
+        try manifestData.write(to: pluginDir.appendingPathComponent(PluginFile.manifest))
 
         // Create a minimal stage file
         try Data("{}".utf8).write(to: pluginDir.appendingPathComponent("stage-process.json"))
@@ -187,12 +187,12 @@ struct InstallCommandTests {
             "supportedPlatforms": [HostPlatform.current, "linux-amd64"],
         ]
         let manifestData = try JSONSerialization.data(withJSONObject: manifest)
-        try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
+        try manifestData.write(to: pluginDir.appendingPathComponent(PluginFile.manifest))
         try Data("{}".utf8).write(to: pluginDir.appendingPathComponent("stage-process.json"))
 
         // Create platform bin directories
-        let hostBinDir = pluginDir.appendingPathComponent("bin/\(HostPlatform.current)")
-        let otherBinDir = pluginDir.appendingPathComponent("bin/linux-amd64")
+        let hostBinDir = pluginDir.appendingPathComponent("\(PluginDirectory.bin)/\(HostPlatform.current)")
+        let otherBinDir = pluginDir.appendingPathComponent("\(PluginDirectory.bin)/linux-amd64")
         try fm.createDirectory(at: hostBinDir, withIntermediateDirectories: true)
         try fm.createDirectory(at: otherBinDir, withIntermediateDirectories: true)
         try Data("host-binary".utf8).write(to: hostBinDir.appendingPathComponent("my-plugin"))
@@ -216,9 +216,9 @@ struct InstallCommandTests {
 
         let installLocation = installDir.appendingPathComponent("com.test.multi")
         // Binary should be flat in bin/, not in a platform subdirectory
-        #expect(fm.fileExists(atPath: installLocation.appendingPathComponent("bin/my-plugin").path))
-        #expect(!fm.fileExists(atPath: installLocation.appendingPathComponent("bin/\(HostPlatform.current)").path))
-        #expect(!fm.fileExists(atPath: installLocation.appendingPathComponent("bin/linux-amd64").path))
+        #expect(fm.fileExists(atPath: installLocation.appendingPathComponent("\(PluginDirectory.bin)/my-plugin").path))
+        #expect(!fm.fileExists(atPath: installLocation.appendingPathComponent("\(PluginDirectory.bin)/\(HostPlatform.current)").path))
+        #expect(!fm.fileExists(atPath: installLocation.appendingPathComponent("\(PluginDirectory.bin)/linux-amd64").path))
     }
 
     @Test("rejects corrupted zip")
