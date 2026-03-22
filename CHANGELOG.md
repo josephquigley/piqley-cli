@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Install-time tests for platform filtering (unsupported platform rejection and platform directory flattening)
+- Platform filtering during plugin install: rejects plugins that don't support the host platform and flattens platform-specific bin/ and data/ directories
 - `piqley plugin create` now sanitizes plugin names for Swift package names (e.g. "Ghost & 365 Project Publisher" becomes "ghost-365-project-publisher")
 - Pipeline lifecycle hooks: `pipeline-start` runs before `pre-process` and `pipeline-finished` runs after `post-publish` (best-effort, even on partial failure)
 - Pipeline run ID (UUID) generated per pipeline run, passed to plugins via `pipelineRunId` in JSON payload and `PIQLEY_PIPELINE_RUN_ID` environment variable
@@ -108,6 +110,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Tests use `PluginFile` and `PluginDirectory` constants from PiqleyCore instead of magic strings
 - Pipeline stages are now driven by a global `StageRegistry` (`~/.config/piqley/stages.json`) instead of the hardcoded `Hook` enum, enabling custom user-defined stages
 - `PipelineOrchestrator` executes stages in flat registry order (lifecycle special-casing removed)
 - `PluginDiscovery` auto-registers unknown `stage-*.json` files into the registry's available list
