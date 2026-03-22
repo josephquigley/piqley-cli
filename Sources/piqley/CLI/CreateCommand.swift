@@ -5,13 +5,13 @@ extension PluginCommand {
     struct CreateSubcommand: AsyncParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "create",
-            abstract: "Scaffold a new plugin project from an SDK skeleton"
+            abstract: "Scaffold a new plugin project from an SDK template"
         )
 
         @Argument(help: "Target directory for the new plugin project")
         var targetDirectory: String
 
-        @Option(name: .long, help: "Programming language for the skeleton (default: swift)")
+        @Option(name: .long, help: "Programming language for the template (default: swift)")
         var language: String = "swift"
 
         @Option(name: .long, help: "Plugin name (derived from target directory if omitted)")
@@ -37,7 +37,7 @@ extension PluginCommand {
             try InitSubcommand.validatePluginName(pluginName)
 
             let targetURL = URL(fileURLWithPath: targetDirectory)
-            try SkeletonFetcher.validateTargetDirectory(targetURL)
+            try TemplateFetcher.validateTargetDirectory(targetURL)
 
             let cliVersion = try SemVer.parse(AppConstants.version)
 
@@ -47,14 +47,14 @@ extension PluginCommand {
             )
             print("Found SDK v\(sdkVersion.versionString)")
 
-            print("Downloading skeleton...")
-            let (skeletonDir, tempDir) = try SkeletonFetcher.fetchAndExtractSkeleton(
+            print("Downloading template...")
+            let (templateDir, tempDir) = try TemplateFetcher.fetchAndExtractTemplate(
                 repoURL: sdkRepoURL, tag: sdkVersion, language: resolvedLanguage
             )
             defer { try? FileManager.default.removeItem(at: tempDir) }
 
-            try SkeletonFetcher.copySkeleton(from: skeletonDir, to: targetURL)
-            try SkeletonFetcher.applyTemplateSubstitutions(
+            try TemplateFetcher.copyTemplate(from: templateDir, to: targetURL)
+            try TemplateFetcher.applyTemplateSubstitutions(
                 in: targetURL, pluginName: pluginName, sdkVersion: sdkVersion.versionString
             )
 

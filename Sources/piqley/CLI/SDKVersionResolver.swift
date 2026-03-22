@@ -49,7 +49,7 @@ enum CreateError: Error, LocalizedError {
     case noCompatibleVersion(String, String)
     case tarballDownloadFailed(String)
     case extractionFailed(String)
-    case skeletonNotFound(String, String)
+    case templateNotFound(String, String)
     case targetNotEmpty(String)
 
     var errorDescription: String? {
@@ -62,8 +62,8 @@ enum CreateError: Error, LocalizedError {
             "Failed to download tarball from '\(url)'"
         case let .extractionFailed(detail):
             "Failed to extract tarball: \(detail)"
-        case let .skeletonNotFound(language, version):
-            "Skeleton for language '\(language)' not found in SDK release \(version)"
+        case let .templateNotFound(language, version):
+            "Template for language '\(language)' not found in SDK release \(version)"
         case let .targetNotEmpty(path):
             "Target directory '\(path)' already exists and is not empty"
         }

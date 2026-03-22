@@ -1,6 +1,6 @@
 import Foundation
 
-enum SkeletonFetcher {
+enum TemplateFetcher {
     /// Validate the target directory is empty or does not exist.
     static func validateTargetDirectory(_ url: URL) throws {
         let fileManager = FileManager.default
@@ -15,10 +15,10 @@ enum SkeletonFetcher {
         }
     }
 
-    /// Download and extract the SDK tarball, returning the path to the skeleton directory.
-    static func fetchAndExtractSkeleton(
+    /// Download and extract the SDK tarball, returning the path to the template directory.
+    static func fetchAndExtractTemplate(
         repoURL: String, tag: SemVer, language: String
-    ) throws -> (skeletonDir: URL, tempDir: URL) {
+    ) throws -> (templateDir: URL, tempDir: URL) {
         let tagString = "v\(tag.versionString)"
         let tarballURL = "\(repoURL)/archive/refs/tags/\(tagString).tar.gz"
 
@@ -71,27 +71,27 @@ enum SkeletonFetcher {
         }
 
         let langLower = language.lowercased()
-        let skeletonDir = topLevel.appendingPathComponent("Skeletons/\(langLower)")
+        let templateDir = topLevel.appendingPathComponent("templates/\(langLower)")
 
         var isDirCheck: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: skeletonDir.path, isDirectory: &isDirCheck),
+        guard FileManager.default.fileExists(atPath: templateDir.path, isDirectory: &isDirCheck),
               isDirCheck.boolValue
         else {
             try? FileManager.default.removeItem(at: tempDir)
-            throw CreateError.skeletonNotFound(langLower, tag.versionString)
+            throw CreateError.templateNotFound(langLower, tag.versionString)
         }
 
-        return (skeletonDir, tempDir)
+        return (templateDir, tempDir)
     }
 
-    /// Copy skeleton contents to the target directory.
-    static func copySkeleton(from skeletonDir: URL, to targetDir: URL) throws {
+    /// Copy template contents to the target directory.
+    static func copyTemplate(from templateDir: URL, to targetDir: URL) throws {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: targetDir.path) {
             try fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
         }
 
-        let items = try fileManager.contentsOfDirectory(at: skeletonDir, includingPropertiesForKeys: nil)
+        let items = try fileManager.contentsOfDirectory(at: templateDir, includingPropertiesForKeys: nil)
         for item in items {
             let dest = targetDir.appendingPathComponent(item.lastPathComponent)
             try fileManager.copyItem(at: item, to: dest)

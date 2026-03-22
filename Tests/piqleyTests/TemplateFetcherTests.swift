@@ -2,11 +2,11 @@ import Foundation
 import Testing
 @testable import piqley
 
-@Suite("SkeletonFetcher")
-struct SkeletonFetcherTests {
+@Suite("TemplateFetcher")
+struct TemplateFetcherTests {
     func makeTempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-skeleton-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-template-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
@@ -19,7 +19,7 @@ struct SkeletonFetcherTests {
         let file = dir.appendingPathComponent("test.txt")
         try "name: __PLUGIN_NAME__, version: __SDK_VERSION__".write(to: file, atomically: true, encoding: .utf8)
 
-        try SkeletonFetcher.applyTemplateSubstitutions(
+        try TemplateFetcher.applyTemplateSubstitutions(
             in: dir, pluginName: "my-plugin", sdkVersion: "0.1.0"
         )
 
@@ -37,7 +37,7 @@ struct SkeletonFetcherTests {
         let file = nested.appendingPathComponent("main.swift")
         try "__PLUGIN_NAME__".write(to: file, atomically: true, encoding: .utf8)
 
-        try SkeletonFetcher.applyTemplateSubstitutions(
+        try TemplateFetcher.applyTemplateSubstitutions(
             in: dir, pluginName: "test-plug", sdkVersion: "1.0.0"
         )
 
@@ -57,7 +57,7 @@ struct SkeletonFetcherTests {
         )
 
         #expect(throws: (any Error).self) {
-            try SkeletonFetcher.validateTargetDirectory(dir)
+            try TemplateFetcher.validateTargetDirectory(dir)
         }
     }
 
@@ -67,14 +67,14 @@ struct SkeletonFetcherTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         // Should not throw
-        try SkeletonFetcher.validateTargetDirectory(dir)
+        try TemplateFetcher.validateTargetDirectory(dir)
     }
 
     @Test("accepts non-existent target directory")
     func testAcceptsNonExistentTarget() throws {
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-skeleton-test-\(UUID().uuidString)")
+            .appendingPathComponent("piqley-template-test-\(UUID().uuidString)")
         // Do not create it
-        try SkeletonFetcher.validateTargetDirectory(dir)
+        try TemplateFetcher.validateTargetDirectory(dir)
     }
 }
