@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Rule edit menu handlers use correct double-optional semantics to stay in menu loop after editing fields
 - Environment templates (`{{original:*}}`) now resolve correctly: the `original` namespace was missing from the state payload dependency list
 - Environment templates now work even when a plugin has no manifest dependencies and rules produce no state changes
 - The `read` namespace is now supported in environment templates (previously only worked in rules)

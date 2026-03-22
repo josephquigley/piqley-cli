@@ -141,7 +141,7 @@ extension RulesWizard {
             let result = context.validateEmit(built)
             if case let .failure(error) = result {
                 showError(error)
-                return .some(nil) // signal: stay in loop, validation failed
+                return nil // stay in loop, validation failed
             }
             return .some(built) // signal: return this config
         }

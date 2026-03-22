@@ -114,14 +114,15 @@ extension RulesWizard {
 
     // MARK: - Enter Key Handling
 
-    /// Returns a Rule if the user saved, nil to continue the loop, or nil-in-optional on save failure.
+    /// Returns `.some(rule)` if the user saved successfully, `.some(nil)` on save validation failure
+    /// (to stay in loop and let user fix), or `nil` for non-save actions (continue loop).
     func handleEditRuleMenuEnter(tag: EditRuleMenuTag, state: inout EditRuleState) -> Rule?? {
         switch tag {
         case .matchField:
             if let selected = selectField() {
                 state.matchField = selected.qualifiedName
             }
-            return .some(nil)
+            return nil
 
         case .matchPattern:
             if let newPattern = terminal.promptForInput(
@@ -131,31 +132,31 @@ extension RulesWizard {
             ) {
                 state.matchPattern = newPattern
             }
-            return .some(nil)
+            return nil
 
         case .matchNegated:
             state.matchNot = (state.matchNot == true) ? nil : true
-            return .some(nil)
+            return nil
 
         case let .emit(idx):
             if let edited = editAction(state.emitActions[idx]) {
                 state.emitActions[idx] = edited
             }
-            return .some(nil)
+            return nil
 
         case .addEmit:
             addEmitToList(&state.emitActions)
-            return .some(nil)
+            return nil
 
         case let .write(idx):
             if let edited = editAction(state.writeActions[idx]) {
                 state.writeActions[idx] = edited
             }
-            return .some(nil)
+            return nil
 
         case .addWrite:
             addEmitToList(&state.writeActions, title: "Select write action type")
-            return .some(nil)
+            return nil
 
         case .save:
             return trySaveRule(state: state)
