@@ -9,6 +9,7 @@ enum InstallError: Error, CustomStringConvertible {
     case invalidManifest
     case unsupportedSchemaVersion
     case alreadyInstalled
+    case unsupportedPlatform(host: String, supported: [String])
     case extractionFailed
 
     var description: String {
@@ -25,6 +26,8 @@ enum InstallError: Error, CustomStringConvertible {
             "Plugin schema version is not supported."
         case .alreadyInstalled:
             "Plugin is already installed. Use --force to overwrite."
+        case let .unsupportedPlatform(host, supported):
+            "This plugin does not support \(host). Supported platforms: \(supported.joined(separator: ", "))"
         case .extractionFailed:
             "Failed to extract plugin archive."
         }
@@ -87,7 +90,70 @@ enum PluginInstaller {
             throw InstallError.invalidManifest
         }
 
-        // 6. Check if already installed
+        // 6. Check platform support
+        if let supportedPlatforms = manifest.supportedPlatforms {
+            guard supportedPlatforms.contains(HostPlatform.current) else {
+                throw InstallError.unsupportedPlatform(
+                    host: HostPlatform.current,
+                    supported: supportedPlatforms
+                )
+            }
+        }
+
+        // 7. Flatten platform-specific bin/ and data/ directories in temp
+        let tempBinDir = pluginDir.appendingPathComponent(PluginDirectory.bin)
+        if fileManager.fileExists(atPath: tempBinDir.path) {
+            let platformBinDir = tempBinDir.appendingPathComponent(HostPlatform.current)
+            if fileManager.fileExists(atPath: platformBinDir.path) {
+                let platformFiles = try fileManager.contentsOfDirectory(
+                    at: platformBinDir,
+                    includingPropertiesForKeys: nil,
+                    options: [.skipsHiddenFiles]
+                )
+                for file in platformFiles {
+                    let dst = tempBinDir.appendingPathComponent(file.lastPathComponent)
+                    try fileManager.moveItem(at: file, to: dst)
+                }
+                let binContents = try fileManager.contentsOfDirectory(
+                    at: tempBinDir,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                )
+                for item in binContents
+                    where (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+                {
+                    try fileManager.removeItem(at: item)
+                }
+            }
+        }
+
+        let tempDataDir = pluginDir.appendingPathComponent(PluginDirectory.data)
+        if fileManager.fileExists(atPath: tempDataDir.path) {
+            let platformDataDir = tempDataDir.appendingPathComponent(HostPlatform.current)
+            if fileManager.fileExists(atPath: platformDataDir.path) {
+                let platformFiles = try fileManager.contentsOfDirectory(
+                    at: platformDataDir,
+                    includingPropertiesForKeys: nil,
+                    options: [.skipsHiddenFiles]
+                )
+                for file in platformFiles {
+                    let dst = tempDataDir.appendingPathComponent(file.lastPathComponent)
+                    try fileManager.moveItem(at: file, to: dst)
+                }
+                let dataContents = try fileManager.contentsOfDirectory(
+                    at: tempDataDir,
+                    includingPropertiesForKeys: [.isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                )
+                for item in dataContents
+                    where (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+                {
+                    try fileManager.removeItem(at: item)
+                }
+            }
+        }
+
+        // 8. Check if already installed
         let installLocation = pluginsDirectory.appendingPathComponent(manifest.identifier)
         if fileManager.fileExists(atPath: installLocation.path) {
             if force {
@@ -97,10 +163,10 @@ enum PluginInstaller {
             }
         }
 
-        // 7. Move plugin dir to install location
+        // 9. Move plugin dir to install location
         try fileManager.moveItem(at: pluginDir, to: installLocation)
 
-        // 8. Set executable permissions on all files in bin/
+        // 10. Set executable permissions on all files in bin/
         let binDir = installLocation.appendingPathComponent(PluginDirectory.bin)
         if fileManager.fileExists(atPath: binDir.path) {
             let binFiles = try fileManager.contentsOfDirectory(
@@ -117,7 +183,7 @@ enum PluginInstaller {
             }
         }
 
-        // 9. Create logs/ and data/ directories if not present
+        // 11. Create logs/ and data/ directories if not present
         let logsDir = installLocation.appendingPathComponent(PluginDirectory.logs)
         if !fileManager.fileExists(atPath: logsDir.path) {
             try fileManager.createDirectory(at: logsDir, withIntermediateDirectories: true)
