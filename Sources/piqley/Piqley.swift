@@ -23,6 +23,13 @@ struct Piqley: AsyncParsableCommand {
         }
 
         do {
+            // Migrate old config.json sidecars to BasePluginConfig layout
+            try? ConfigMigrator.migrateIfNeeded(
+                pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory,
+                configStore: .default,
+                secretStore: makeDefaultSecretStore()
+            )
+
             var command = try parseAsRoot()
             if var asyncCommand = command as? AsyncParsableCommand {
                 try await asyncCommand.run()
