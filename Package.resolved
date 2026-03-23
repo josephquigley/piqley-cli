@@ -1,13 +1,13 @@
 {
-  "originHash" : "86690858726c44a56ad41650ba8c359a02db2b1c7185ec73a88ebdc6b0879f47",
+  "originHash" : "611467a48b15f841bf681b2e52e78a996e216a809c9bc11df59c45b5f1dbb35b",
   "pins" : [
     {
       "identity" : "piqley-core",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephquigley/piqley-core",
       "state" : {
-        "revision" : "fbe2900e291b82915d081eea17a5a5c97aa4969f",
-        "version" : "0.6.0"
+        "revision" : "ac5f3d25a2851730f6959270d383a9b3dccbb4dd",
+        "version" : "0.7.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephquigley/piqley-plugin-sdk.git",
       "state" : {
-        "revision" : "a145f0f11a1ea3868ce60fee59fa660f9667c7d8",
-        "version" : "0.4.0"
+        "revision" : "5bfd089bfb0719419290420f02676cd8a6d573e2",
+        "version" : "0.8.2"
       }
     },
     {
