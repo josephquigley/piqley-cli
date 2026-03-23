@@ -1,6 +1,7 @@
-import Testing
 import Foundation
 import PiqleyCore
+import Testing
+
 @testable import piqley
 
 // MARK: - Test helpers
@@ -28,6 +29,7 @@ final class MockSecretStore: SecretStore, @unchecked Sendable {
         guard let value = secrets[key] else { throw SecretStoreError.notFound(key: key) }
         return value
     }
+
     func set(key: String, value: String) throws { secrets[key] = value }
     func delete(key: String) throws { secrets.removeValue(forKey: key) }
     func list() throws -> [String] { Array(secrets.keys) }
@@ -35,20 +37,23 @@ final class MockSecretStore: SecretStore, @unchecked Sendable {
 
 // MARK: - Helpers
 
-private func makePluginDir(name: String, manifest: PluginManifest) throws -> URL {
+private func makeTempDir() throws -> URL {
     let tempDir = FileManager.default.temporaryDirectory
         .appendingPathComponent("piqley-scanner-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     return tempDir
 }
 
-private func makeLoadedPlugin(name: String, manifest: PluginManifest, dir: URL) -> LoadedPlugin {
-    LoadedPlugin(identifier: manifest.identifier, name: name, directory: dir, manifest: manifest, stages: [:])
+private func makePluginDir() throws -> URL {
+    try makeTempDir()
 }
 
-private func loadConfig(from dir: URL) throws -> PluginConfig {
-    let url = dir.appendingPathComponent("config.json")
-    return try PluginConfig.load(from: url)
+private func makeConfigStore(_ dir: URL) -> BasePluginConfigStore {
+    BasePluginConfigStore(directory: dir)
+}
+
+private func makeLoadedPlugin(name: String, manifest: PluginManifest, dir: URL) -> LoadedPlugin {
+    LoadedPlugin(identifier: manifest.identifier, name: name, directory: dir, manifest: manifest, stages: [:])
 }
 
 // MARK: - Tests
@@ -56,10 +61,12 @@ private func loadConfig(from dir: URL) throws -> PluginConfig {
 @Suite("PluginSetupScanner")
 struct PluginSetupScannerTests {
 
-    // MARK: 1. promptRequiredValue — null default requires input, stores in sidecar
+    // MARK: 1. promptRequiredValue
 
-    @Test("null default requires input and stores value in config.json")
+    @Test("null default requires input and stores value in base config")
     func promptRequiredValue() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -67,23 +74,26 @@ struct PluginSetupScannerTests {
             config: [.value(key: "api-url", type: .string, value: .null)],
             setup: nil
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
+        let configStore = makeConfigStore(configDir)
         let inputSource = MockInputSource(responses: ["https://example.com"])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin)
 
-        let config = try loadConfig(from: dir)
-        #expect(config.values["api-url"] == JSONValue.string("https://example.com"))
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.values["api-url"] == JSONValue.string("https://example.com"))
     }
 
-    // MARK: 2. acceptDefault — empty input accepts default
+    // MARK: 2. acceptDefault
 
     @Test("empty input accepts non-null default value")
     func acceptDefault() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -91,23 +101,26 @@ struct PluginSetupScannerTests {
             config: [.value(key: "port", type: .int, value: .number(8080))],
             setup: nil
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
-        let inputSource = MockInputSource(responses: [""])  // empty → accept default
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        let configStore = makeConfigStore(configDir)
+        let inputSource = MockInputSource(responses: [""]) // empty -> accept default
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin)
 
-        let config = try loadConfig(from: dir)
-        #expect(config.values["port"] == JSONValue.number(8080))
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.values["port"] == JSONValue.number(8080))
     }
 
-    // MARK: 3. skipExistingValues — value already in sidecar is not re-prompted
+    // MARK: 3. skipExistingValues
 
     @Test("existing config values are not re-prompted")
     func skipExistingValues() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -115,28 +128,31 @@ struct PluginSetupScannerTests {
             config: [.value(key: "api-url", type: .string, value: .null)],
             setup: nil
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        // Pre-write config.json with existing value
-        let existingConfig = PluginConfig(values: ["api-url": JSONValue.string("https://existing.com")])
-        try existingConfig.save(to: dir.appendingPathComponent("config.json"))
+        // Pre-write base config with existing value
+        let configStore = makeConfigStore(configDir)
+        let existingConfig = BasePluginConfig(values: ["api-url": JSONValue.string("https://existing.com")])
+        try configStore.save(existingConfig, for: "com.test.test-plugin")
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
-        // No responses needed — should not prompt
+        // No responses needed: should not prompt
         let inputSource = MockInputSource(responses: [])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin)
 
-        let config = try loadConfig(from: dir)
-        #expect(config.values["api-url"] == JSONValue.string("https://existing.com"))
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.values["api-url"] == JSONValue.string("https://existing.com"))
     }
 
-    // MARK: 4. forceResetValues — force flag clears existing values
+    // MARK: 4. forceResetValues
 
     @Test("force flag clears existing values and re-prompts")
     func forceResetValues() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -144,27 +160,30 @@ struct PluginSetupScannerTests {
             config: [.value(key: "api-url", type: .string, value: .null)],
             setup: nil
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        // Pre-write config.json with existing value
-        let existingConfig = PluginConfig(values: ["api-url": JSONValue.string("https://old.com")])
-        try existingConfig.save(to: dir.appendingPathComponent("config.json"))
+        // Pre-write base config with existing value
+        let configStore = makeConfigStore(configDir)
+        let existingConfig = BasePluginConfig(values: ["api-url": JSONValue.string("https://old.com")])
+        try configStore.save(existingConfig, for: "com.test.test-plugin")
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
         let inputSource = MockInputSource(responses: ["https://new.com"])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin, force: true)
 
-        let config = try loadConfig(from: dir)
-        #expect(config.values["api-url"] == JSONValue.string("https://new.com"))
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.values["api-url"] == JSONValue.string("https://new.com"))
     }
 
-    // MARK: 5. repromptInvalidInt — first invalid, second valid
+    // MARK: 5. repromptInvalidInt
 
     @Test("invalid int input reprompts until valid input is given")
     func repromptInvalidInt() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -172,24 +191,27 @@ struct PluginSetupScannerTests {
             config: [.value(key: "count", type: .int, value: .null)],
             setup: nil
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
+        let configStore = makeConfigStore(configDir)
         // "notanint" is invalid, "42" is valid
         let inputSource = MockInputSource(responses: ["notanint", "42"])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin)
 
-        let config = try loadConfig(from: dir)
-        #expect(config.values["count"] == JSONValue.number(42))
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.values["count"] == JSONValue.number(42))
     }
 
-    // MARK: 6. promptMissingSecret — not in keychain, prompts and stores
+    // MARK: 6. promptMissingSecret
 
-    @Test("missing secret prompts user and stores in secret store")
+    @Test("missing secret prompts user and stores with alias key")
     func promptMissingSecret() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -197,51 +219,67 @@ struct PluginSetupScannerTests {
             config: [.secret(secretKey: "api-token", type: .string)],
             setup: nil
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
-        defer { try? FileManager.default.removeItem(at: dir) }
-
-        let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
-        let secretStore = MockSecretStore()  // empty — no secret pre-stored
-        let inputSource = MockInputSource(responses: ["super-secret-token"])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
-        try scanner.scan(plugin: plugin)
-
-        let stored = try secretStore.getPluginSecret(plugin: "com.test.test-plugin", key: "api-token")
-        #expect(stored == "super-secret-token")
-    }
-
-    // MARK: 7. skipExistingSecret — already in keychain, not prompted
-
-    @Test("existing keychain secret is not re-prompted")
-    func skipExistingSecret() throws {
-        let manifest = PluginManifest(
-            identifier: "com.test.test-plugin",
-            name: "test-plugin",
-            pluginSchemaVersion: "1",
-            config: [.secret(secretKey: "api-token", type: .string)],
-            setup: nil
-        )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
-        // Pre-store the secret under the identifier (reverse TLD)
-        try secretStore.setPluginSecret(plugin: "com.test.test-plugin", key: "api-token", value: "existing-token")
-
-        // No responses — should not be prompted
-        let inputSource = MockInputSource(responses: [])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        let configStore = makeConfigStore(configDir)
+        let inputSource = MockInputSource(responses: ["super-secret-token"])
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin)
 
-        let stored = try secretStore.getPluginSecret(plugin: "com.test.test-plugin", key: "api-token")
+        // Secret stored under alias key
+        let alias = "com.test.test-plugin-api-token"
+        let stored = try secretStore.get(key: alias)
+        #expect(stored == "super-secret-token")
+
+        // Alias mapping stored in base config
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.secrets["api-token"] == alias)
+    }
+
+    // MARK: 7. skipExistingSecret
+
+    @Test("existing secret with alias is not re-prompted")
+    func skipExistingSecret() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
+        let manifest = PluginManifest(
+            identifier: "com.test.test-plugin",
+            name: "test-plugin",
+            pluginSchemaVersion: "1",
+            config: [.secret(secretKey: "api-token", type: .string)],
+            setup: nil
+        )
+        let dir = try makePluginDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
+        let secretStore = MockSecretStore()
+        let configStore = makeConfigStore(configDir)
+
+        // Pre-store secret under alias and map it in base config
+        let alias = "com.test.test-plugin-api-token"
+        try secretStore.set(key: alias, value: "existing-token")
+        let existingConfig = BasePluginConfig(secrets: ["api-token": alias])
+        try configStore.save(existingConfig, for: "com.test.test-plugin")
+
+        // No responses: should not be prompted
+        let inputSource = MockInputSource(responses: [])
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
+        try scanner.scan(plugin: plugin)
+
+        let stored = try secretStore.get(key: alias)
         #expect(stored == "existing-token")
     }
 
-    // MARK: 8. setupBinaryNotFound — non-existent binary, isSetUp stays nil
+    // MARK: 8. setupBinaryNotFound
 
-    @Test("non-existent setup binary leaves isSetUp as nil in config.json")
+    @Test("non-existent setup binary leaves isSetUp as nil in base config")
     func setupBinaryNotFound() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
@@ -249,16 +287,17 @@ struct PluginSetupScannerTests {
             config: [],
             setup: SetupConfig(command: "/non/existent/binary")
         )
-        let dir = try makePluginDir(name: "test-plugin", manifest: manifest)
+        let dir = try makePluginDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
         let secretStore = MockSecretStore()
+        let configStore = makeConfigStore(configDir)
         let inputSource = MockInputSource(responses: [])
-        var scanner = PluginSetupScanner(secretStore: secretStore, inputSource: inputSource)
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
         try scanner.scan(plugin: plugin)
 
-        let config = try loadConfig(from: dir)
-        #expect(config.isSetUp == nil)
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.isSetUp == nil)
     }
 }

@@ -238,6 +238,7 @@ struct InstallSubcommand: ParsableCommand {
         let secretStore = makeDefaultSecretStore()
         var scanner = PluginSetupScanner(
             secretStore: secretStore,
+            configStore: .default,
             inputSource: StdinInputSource()
         )
         try scanner.scan(plugin: plugin)

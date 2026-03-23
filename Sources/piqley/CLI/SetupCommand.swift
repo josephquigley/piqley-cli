@@ -68,6 +68,7 @@ struct SetupCommand: AsyncParsableCommand {
             let secretStore = makeDefaultSecretStore()
             var scanner = PluginSetupScanner(
                 secretStore: secretStore,
+                configStore: .default,
                 inputSource: StdinInputSource()
             )
             for plugin in plugins {

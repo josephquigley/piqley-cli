@@ -17,67 +17,80 @@ struct StdinInputSource: InputSource {
 
 struct PluginSetupScanner {
     let secretStore: any SecretStore
+    let configStore: BasePluginConfigStore
     var inputSource: any InputSource
     private let logger = Logger(label: "piqley.setup-scanner")
 
     /// Runs setup scan for a single plugin.
     mutating func scan(plugin: LoadedPlugin, force: Bool = false) throws {
-        let configURL = plugin.directory.appendingPathComponent(PluginFile.config)
-        var pluginConfig = force ? PluginConfig() : PluginConfig.load(fromIfExists: configURL)
+        var baseConfig: BasePluginConfig = if force {
+            BasePluginConfig()
+        } else {
+            (try? configStore.load(for: plugin.identifier)) ?? BasePluginConfig()
+        }
 
         // Phase 1: Config value resolution
         for entry in plugin.manifest.config {
             guard case let .value(key, type, defaultValue) = entry else { continue }
-            if !force, pluginConfig.values[key] != nil { continue }
+            if !force, baseConfig.values[key] != nil { continue }
             let resolved = promptForValue(pluginName: plugin.name, key: key, type: type, defaultValue: defaultValue)
-            pluginConfig = pluginConfig.settingValue(resolved, forKey: key)
+            baseConfig.values[key] = resolved
         }
 
-        // Phase 2: Secret validation
-        let hasSecrets = plugin.manifest.config.contains {
-            if case .secret = $0 { true } else { false }
-        }
+        // Phase 2: Secret validation with alias-based storage
         for entry in plugin.manifest.config {
             guard case let .secret(secretKey, _) = entry else { continue }
-            do {
-                _ = try secretStore.getPluginSecret(plugin: plugin.identifier, key: secretKey)
-            } catch {
-                let value = promptForSecret(pluginName: plugin.name, key: secretKey)
-                try secretStore.setPluginSecret(plugin: plugin.identifier, key: secretKey, value: value)
+            let alias = defaultSecretAlias(pluginIdentifier: plugin.identifier, secretKey: secretKey)
+
+            // Check if we already have this alias mapped and the secret exists
+            if let existingAlias = baseConfig.secrets[secretKey] {
+                if (try? secretStore.get(key: existingAlias)) != nil {
+                    continue
+                }
             }
-        }
-        if hasSecrets {
-            try secretStore.setPluginSecret(
-                plugin: plugin.identifier,
-                key: SecretNamespace.pluginSchemaVersion,
-                value: plugin.manifest.pluginSchemaVersion
-            )
+
+            // Prompt for secret value and store under alias
+            let value = promptForSecret(pluginName: plugin.name, key: secretKey)
+            try secretStore.set(key: alias, value: value)
+            baseConfig.secrets[secretKey] = alias
         }
 
         // Phase 3: Setup binary
-        if let setup = plugin.manifest.setup, pluginConfig.isSetUp != true {
+        if let setup = plugin.manifest.setup, baseConfig.isSetUp != true {
             let executable = resolveExecutable(setup.command, pluginDir: plugin.directory)
             guard FileManager.default.isExecutableFile(atPath: executable) else {
                 logger.error("[\(plugin.name)] Setup command not found or not executable: \(executable)")
-                try pluginConfig.save(to: configURL)
+                try configStore.save(baseConfig, for: plugin.identifier)
                 return
             }
 
-            let secrets = fetchSecrets(for: plugin)
-            let environment = buildSetupEnvironment(pluginConfig: pluginConfig, secrets: secrets)
+            let secrets = fetchSecrets(for: plugin, baseConfig: baseConfig)
+            let environment = buildSetupEnvironment(baseConfig: baseConfig, secrets: secrets)
             let args = substitute(args: setup.args, environment: environment)
 
             let dataDir = plugin.directory.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
-            let exitCode = try runSetupBinary(executable: executable, args: args, environment: environment, workingDirectory: dataDir)
+            let exitCode = try runSetupBinary(
+                executable: executable, args: args,
+                environment: environment, workingDirectory: dataDir
+            )
             if exitCode == 0 {
-                pluginConfig = pluginConfig.withIsSetUp(true)
+                baseConfig.isSetUp = true
             } else {
                 logger.error("[\(plugin.name)] Setup binary exited with code \(exitCode)")
             }
         }
 
-        try pluginConfig.save(to: configURL)
+        try configStore.save(baseConfig, for: plugin.identifier)
+    }
+
+    /// Generates the default secret alias for a plugin secret key.
+    static func defaultSecretAlias(pluginIdentifier: String, secretKey: String) -> String {
+        "\(pluginIdentifier)-\(secretKey)"
+    }
+
+    private func defaultSecretAlias(pluginIdentifier: String, secretKey: String) -> String {
+        Self.defaultSecretAlias(pluginIdentifier: pluginIdentifier, secretKey: secretKey)
     }
 
     // MARK: - Prompting
@@ -94,7 +107,7 @@ struct PluginSetupScanner {
                 print("[\(pluginName)] \(key): ", terminator: "")
             }
             guard let input = inputSource.readLine() else {
-                // EOF — return default if available, otherwise empty string
+                // EOF: return default if available, otherwise empty string
                 return hasDefault ? defaultValue : .string("")
             }
             if input.isEmpty, hasDefault {
@@ -115,7 +128,7 @@ struct PluginSetupScanner {
         while true {
             print("[\(pluginName)] \(key) (secret): ", terminator: "")
             guard let input = inputSource.readLine() else {
-                // EOF — return empty string to avoid infinite loop
+                // EOF: return empty string to avoid infinite loop
                 return ""
             }
             if !input.isEmpty { return input }
@@ -165,24 +178,24 @@ struct PluginSetupScanner {
         return pluginDir.appendingPathComponent(command).path
     }
 
-    private func fetchSecrets(for plugin: LoadedPlugin) -> [String: String] {
+    private func fetchSecrets(for _: LoadedPlugin, baseConfig: BasePluginConfig) -> [String: String] {
         var result: [String: String] = [:]
-        for key in plugin.manifest.secretKeys {
-            if let value = try? secretStore.getPluginSecret(plugin: plugin.identifier, key: key) {
+        for (key, alias) in baseConfig.secrets {
+            if let value = try? secretStore.get(key: alias) {
                 result[key] = value
             }
         }
         return result
     }
 
-    private func buildSetupEnvironment(pluginConfig: PluginConfig, secrets: [String: String]) -> [String: String] {
+    private func buildSetupEnvironment(baseConfig: BasePluginConfig, secrets: [String: String]) -> [String: String] {
         var env: [String: String] = [:]
-        for (key, value) in pluginConfig.values {
-            let envKey = PluginEnvironment.configPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")
-            env[envKey] = displayValue(value)
+        for (key, value) in baseConfig.values {
+            let envKey = PluginEnvironment.configPrefix + ResolvedPluginConfig.sanitizeKey(key)
+            env[envKey] = value.stringRepresentation
         }
         for (key, value) in secrets {
-            let envKey = PluginEnvironment.secretPrefix + key.uppercased().replacingOccurrences(of: "-", with: "_")
+            let envKey = PluginEnvironment.secretPrefix + ResolvedPluginConfig.sanitizeKey(key)
             env[envKey] = value
         }
         return env
@@ -198,7 +211,10 @@ struct PluginSetupScanner {
         }
     }
 
-    private func runSetupBinary(executable: String, args: [String], environment: [String: String], workingDirectory: URL) throws -> Int32 {
+    private func runSetupBinary(
+        executable: String, args: [String],
+        environment: [String: String], workingDirectory: URL
+    ) throws -> Int32 {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = args

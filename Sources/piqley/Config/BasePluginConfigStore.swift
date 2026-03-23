@@ -3,6 +3,14 @@ import Foundation
 struct BasePluginConfigStore: Sendable {
     let directory: URL
 
+    /// Default store at `~/.config/piqley/config/`.
+    static var `default`: BasePluginConfigStore {
+        BasePluginConfigStore(
+            directory: FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(PiqleyPath.config)
+        )
+    }
+
     func save(_ config: BasePluginConfig, for pluginIdentifier: String) throws {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: directory.path) {
