@@ -123,6 +123,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Plugin uninstall now deletes base config file and prunes orphaned secrets
 - `PluginSetupScanner` writes `BasePluginConfig` to `~/.config/piqley/config/` instead of config.json sidecar; secrets use alias-based keys
 - Test references updated from `Hook` enum to `StandardHook` for custom hooks protocol support
 - Keep `pluginSchemaVersion` at `"1"` (reverted from `"2"`) since there are no production consumers

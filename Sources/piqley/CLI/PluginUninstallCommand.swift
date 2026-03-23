@@ -81,6 +81,21 @@ extension PluginCommand {
                 let names = modifiedWorkflows.joined(separator: ", ")
                 print("Removed '\(pluginIdentifier)' from workflow(s): \(names)")
             }
+
+            // Delete base config file
+            let configStore = BasePluginConfigStore.default
+            try configStore.delete(for: pluginIdentifier)
+
+            // Prune orphaned secrets
+            let secretStore = makeDefaultSecretStore()
+            let pruned = try SecretPruner.prune(
+                configStore: configStore,
+                secretStore: secretStore
+            )
+            if !pruned.isEmpty {
+                print("Pruned \(pruned.count) orphaned secret(s).")
+            }
+
             print("Uninstalled '\(pluginIdentifier)'")
         }
     }
