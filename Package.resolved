@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephquigley/piqley-core",
       "state" : {
-        "revision" : "a21f343dde0c0b54446d7ee2068ca05d4ced8f63",
-        "version" : "0.5.0"
+        "revision" : "fbe2900e291b82915d081eea17a5a5c97aa4969f",
+        "version" : "0.6.0"
       }
     },
     {

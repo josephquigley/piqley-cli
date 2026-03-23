@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `piqley plugin uninstall <plugin-id>` command to remove installed plugins, with dependency and workflow usage checks
 - Install-time tests for platform filtering (unsupported platform rejection and platform directory flattening)
 - Platform filtering during plugin install: rejects plugins that don't support the host platform and flattens platform-specific bin/ and data/ directories
 - Rules wizard: `editAction` sub-menu for editing individual emit/write actions (type, field, negated, values/replacements/source)
