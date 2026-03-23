@@ -366,11 +366,9 @@ The packager bundles each platform's files into subdirectories inside the `.piql
 
 #### Building for Each Platform
 
-**Swift**: Cross-compile for Linux from macOS using [Swift SDK bundles](https://www.swift.org/documentation/articles/static-linux-getting-started.html). These produce statically-linked Linux binaries directly on your Mac.
+**Swift**: Cross-compile using [Swift SDK bundles](https://www.swift.org/documentation/articles/static-linux-getting-started.html). From macOS you can produce Linux binaries. From Linux you can target a different Linux architecture.
 
-When you scaffold a Swift plugin targeting Linux with `piqley plugin create` or `create-plugin.sh`, the scaffolder offers to install the required SDK for you. The generated `piqley-build.sh` also checks on each run and offers to install if missing. It reads the platforms from your build manifest and runs the right `swift build` command for each one (native for macOS, `--swift-sdk` for Linux targets).
-
-Cross-compiling from Linux to macOS is not supported. Use a macOS CI runner for macOS binaries when building from Linux.
+Both `create-plugin.sh` and the generated `piqley-build.sh` handle SDK setup automatically: they detect your host platform, build natively for it, cross-compile for other targets using installed SDKs, and offer to install missing SDKs. If a platform can't be cross-compiled (e.g., macOS from Linux), the script warns and skips it. Use a macOS CI runner for that case.
 
 **Go**: Use `GOOS`/`GOARCH` environment variables to cross-compile from any platform:
 
