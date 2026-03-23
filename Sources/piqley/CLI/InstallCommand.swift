@@ -35,7 +35,8 @@ enum InstallError: Error, CustomStringConvertible {
 }
 
 enum PluginInstaller {
-    static func install(from zipURL: URL, to pluginsDirectory: URL, force: Bool = false) throws {
+    @discardableResult
+    static func install(from zipURL: URL, to pluginsDirectory: URL, force: Bool = false) throws -> String {
         let fileManager = FileManager.default
 
         // 1. Extract zip to temp dir
@@ -193,6 +194,8 @@ enum PluginInstaller {
         if !fileManager.fileExists(atPath: dataDir.path) {
             try fileManager.createDirectory(at: dataDir, withIntermediateDirectories: true)
         }
+
+        return manifest.identifier
     }
 }
 
@@ -222,8 +225,22 @@ struct InstallSubcommand: ParsableCommand {
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
 
         try FileManager.default.createDirectory(at: pluginsDir, withIntermediateDirectories: true)
-        try PluginInstaller.install(from: zipURL, to: pluginsDir, force: force)
+        let identifier = try PluginInstaller.install(from: zipURL, to: pluginsDir, force: force)
 
         print("Plugin installed successfully.")
+
+        // Run config/secret setup if the manifest declares any
+        let (_, allPlugins) = try WorkflowCommand.loadRegistryAndPlugins()
+        guard let plugin = allPlugins.first(where: { $0.identifier == identifier }) else { return }
+        guard !plugin.manifest.config.isEmpty else { return }
+
+        print("\nRunning setup for '\(plugin.name)'...\n")
+        let secretStore = makeDefaultSecretStore()
+        var scanner = PluginSetupScanner(
+            secretStore: secretStore,
+            inputSource: StdinInputSource()
+        )
+        try scanner.scan(plugin: plugin)
+        print("\nSetup complete.")
     }
 }
