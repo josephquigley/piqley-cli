@@ -143,6 +143,15 @@ struct WorkflowCommand: ParsableCommand {
 
             try WorkflowStore.delete(name: name)
             print("Deleted workflow '\(name)'")
+
+            // Prune orphaned secrets after workflow deletion
+            let pruned = try SecretPruner.prune(
+                configStore: .default,
+                secretStore: makeDefaultSecretStore()
+            )
+            if !pruned.isEmpty {
+                print("Pruned \(pruned.count) orphaned secret(s).")
+            }
         }
     }
 

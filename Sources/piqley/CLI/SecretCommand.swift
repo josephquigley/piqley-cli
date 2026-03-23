@@ -15,7 +15,7 @@ struct SecretCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "secret",
         abstract: secretCommandAbstract,
-        subcommands: [SetCommand.self, DeleteCommand.self]
+        subcommands: [SetCommand.self, DeleteCommand.self, PruneCommand.self]
     )
 
     struct SetCommand: ParsableCommand {
