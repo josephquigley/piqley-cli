@@ -33,6 +33,11 @@
             try saveSecrets(secrets)
         }
 
+        func list() throws -> [String] {
+            let dict = (try? loadSecrets()) ?? [:]
+            return Array(dict.keys)
+        }
+
         private func loadSecrets() throws -> [String: String] {
             let data = try Data(contentsOf: fileURL)
             return try JSONDecoder().decode([String: String].self, from: data)

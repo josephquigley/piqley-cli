@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `SecretStore.list()` method for enumerating all stored secret keys
 - `BasePluginConfig` and `WorkflowPluginConfig` types for workflow-scoped config with secret alias indirection
 - `piqley plugin uninstall <plugin-id>` command to remove installed plugins, with dependency and workflow usage checks
 - `piqley plugin install` now runs config and secret setup automatically when the manifest declares them

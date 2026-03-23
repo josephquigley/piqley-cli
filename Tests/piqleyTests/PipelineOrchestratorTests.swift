@@ -13,6 +13,7 @@ final class FakeSecretStore: SecretStore, @unchecked Sendable {
     }
     func set(key: String, value: String) throws { secrets[key] = value }
     func delete(key: String) throws { secrets.removeValue(forKey: key) }
+    func list() throws -> [String] { Array(secrets.keys) }
 }
 
 private func makePluginsDir(withPlugin identifier: String, hook: String, scriptURL: URL) throws -> URL {

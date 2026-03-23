@@ -56,5 +56,23 @@
                 throw SecretStoreError.unexpectedError(status: Int32(status))
             }
         }
+
+        func list() throws -> [String] {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecReturnAttributes as String: true,
+                kSecMatchLimit as String: kSecMatchLimitAll,
+            ]
+            var result: AnyObject?
+            let status = SecItemCopyMatching(query as CFDictionary, &result)
+            if status == errSecItemNotFound {
+                return []
+            }
+            guard status == errSecSuccess, let items = result as? [[String: Any]] else {
+                throw SecretStoreError.unexpectedError(status: Int32(status))
+            }
+            return items.compactMap { $0[kSecAttrAccount as String] as? String }
+        }
     }
 #endif

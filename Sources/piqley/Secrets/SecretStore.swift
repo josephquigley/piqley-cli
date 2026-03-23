@@ -4,6 +4,7 @@ protocol SecretStore: Sendable {
     func get(key: String) throws -> String
     func set(key: String, value: String) throws
     func delete(key: String) throws
+    func list() throws -> [String]
 }
 
 extension SecretStore {

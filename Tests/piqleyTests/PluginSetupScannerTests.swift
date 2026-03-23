@@ -30,6 +30,7 @@ final class MockSecretStore: SecretStore, @unchecked Sendable {
     }
     func set(key: String, value: String) throws { secrets[key] = value }
     func delete(key: String) throws { secrets.removeValue(forKey: key) }
+    func list() throws -> [String] { Array(secrets.keys) }
 }
 
 // MARK: - Helpers
