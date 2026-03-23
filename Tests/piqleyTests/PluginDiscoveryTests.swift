@@ -3,7 +3,7 @@ import PiqleyCore
 import Testing
 @testable import piqley
 
-private let defaultRegistry = StageRegistry(active: Hook.defaultStageNames.map { StageEntry(name: $0) })
+private let defaultRegistry = StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) })
 
 @Suite("PluginDiscovery")
 struct PluginDiscoveryTests {

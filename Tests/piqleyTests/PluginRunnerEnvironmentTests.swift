@@ -49,7 +49,7 @@ private func makePluginWithEnvironment(
         at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true
     )
     let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
-    let knownHooks = Set(Hook.canonicalOrder.map(\.rawValue))
+    let knownHooks = Set(StandardHook.canonicalOrder.map(\.rawValue))
     let (stages, _) = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
     return LoadedPlugin(
         identifier: decoded.identifier, name: name, directory: tempDir,

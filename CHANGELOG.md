@@ -116,6 +116,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Test references updated from `Hook` enum to `StandardHook` for custom hooks protocol support
 - Keep `pluginSchemaVersion` at `"1"` (reverted from `"2"`) since there are no production consumers
 - Tests use `PluginFile` and `PluginDirectory` constants from PiqleyCore instead of magic strings
 - Pipeline stages are now driven by a global `StageRegistry` (`~/.config/piqley/stages.json`) instead of the hardcoded `Hook` enum, enabling custom user-defined stages
