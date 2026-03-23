@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `piqley workflow config <workflow-name> <plugin-identifier>` command with `--set` and `--set-secret` flag modes and interactive mode
 - `ConfigResolver` for merging base config with workflow overrides and resolving secret aliases
 - `BasePluginConfigStore` for per-plugin config persistence at `~/.config/piqley/config/`
 - Workflow-scoped config overrides: `config` field on Workflow struct for per-plugin value and secret alias overrides
