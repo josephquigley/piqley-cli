@@ -124,6 +124,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Pipeline runtime uses `BasePluginConfigStore` and `ConfigResolver` instead of config.json sidecar for config and secret resolution
 - Plugin uninstall now deletes base config file and prunes orphaned secrets
 - `PluginSetupScanner` writes `BasePluginConfig` to `~/.config/piqley/config/` instead of config.json sidecar; secrets use alias-based keys
 - Test references updated from `Hook` enum to `StandardHook` for custom hooks protocol support

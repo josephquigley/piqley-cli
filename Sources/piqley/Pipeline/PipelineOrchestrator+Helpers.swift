@@ -110,7 +110,48 @@ extension PipelineOrchestrator {
         }
     }
 
-    /// Fetches all declared secrets for a plugin from the secret store.
+    // MARK: - Config and Secret Resolution
+
+    enum ConfigResolutionResult {
+        case resolved(secrets: [String: String], config: PluginConfig)
+        case secretMissing
+    }
+
+    func resolvePluginConfigAndSecrets(
+        plugin: LoadedPlugin, pluginIdentifier: String
+    ) -> ConfigResolutionResult {
+        let configStore = BasePluginConfigStore.default
+        let baseConfig = (try? configStore.load(for: pluginIdentifier)) ?? BasePluginConfig()
+        let workflowOverrides = workflow.config[pluginIdentifier]
+
+        // Verify all manifest-declared secrets have aliases in the config
+        let merged = workflowOverrides.map { baseConfig.merging($0) } ?? baseConfig
+        for key in plugin.manifest.secretKeys where merged.secrets[key] == nil {
+            // No alias configured: fall back to legacy lookup for unmigrated plugins.
+            guard (try? secretStore.getPluginSecret(plugin: pluginIdentifier, key: key)) != nil else {
+                logger.error("[\(plugin.name)] required secret '\(key)' not found")
+                logger.error("Run 'piqley secret set \(pluginIdentifier) \(key)' or 'piqley setup' to configure it.")
+                return .secretMissing
+            }
+        }
+
+        do {
+            let resolved = try ConfigResolver.resolve(
+                base: baseConfig,
+                workflowOverrides: workflowOverrides,
+                secretStore: secretStore
+            )
+            return .resolved(secrets: resolved.secrets, config: PluginConfig(values: resolved.values))
+        } catch {
+            // Fall back to legacy secret fetching for unmigrated plugins
+            guard let legacySecrets = try? fetchSecrets(for: plugin) else {
+                return .secretMissing
+            }
+            return .resolved(secrets: legacySecrets, config: PluginConfig(values: baseConfig.values))
+        }
+    }
+
+    /// Fetches all declared secrets for a plugin from the secret store (legacy format).
     func fetchSecrets(for plugin: LoadedPlugin) throws -> [String: String] {
         var result: [String: String] = [:]
         for key in plugin.manifest.secretKeys {

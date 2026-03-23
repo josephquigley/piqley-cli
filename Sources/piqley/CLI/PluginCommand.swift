@@ -464,10 +464,9 @@ struct PluginCommand: ParsableCommand {
         var pluginName: String
 
         func run() throws {
-            let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-            let configPath = pluginsDir
-                .appendingPathComponent(pluginName)
-                .appendingPathComponent(PluginFile.config)
+            let configStore = BasePluginConfigStore.default
+            let configPath = configStore.directory
+                .appendingPathComponent("\(pluginName).json")
                 .path
 
             guard FileManager.default.fileExists(atPath: configPath) else {

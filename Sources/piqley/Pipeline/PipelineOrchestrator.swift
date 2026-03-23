@@ -182,10 +182,16 @@ struct PipelineOrchestrator: Sendable {
             return (.skipped, skippedImages)
         }
 
+        let configResult = resolvePluginConfigAndSecrets(
+            plugin: loadedPlugin, pluginIdentifier: ctx.pluginIdentifier
+        )
         let secrets: [String: String]
-        do {
-            secrets = try fetchSecrets(for: loadedPlugin)
-        } catch {
+        let pluginConfig: PluginConfig
+        switch configResult {
+        case let .resolved(sec, conf):
+            secrets = sec
+            pluginConfig = conf
+        case .secretMissing:
             return (.secretMissing, skippedImages)
         }
 
@@ -197,10 +203,6 @@ struct PipelineOrchestrator: Sendable {
             withIntermediateDirectories: true
         )
 
-        let pluginConfigURL = pluginsDirectory
-            .appendingPathComponent(ctx.pluginIdentifier)
-            .appendingPathComponent(PluginFile.config)
-        let pluginConfig = PluginConfig.load(fromIfExists: pluginConfigURL)
         let manifestDeps = loadedPlugin.manifest.dependencyIdentifiers
 
         // Determine image folder: fork if needed, otherwise resolve from dependencies
