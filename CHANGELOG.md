@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `BasePluginConfigStore` for per-plugin config persistence at `~/.config/piqley/config/`
 - Workflow-scoped config overrides: `config` field on Workflow struct for per-plugin value and secret alias overrides
 - `SecretStore.list()` method for enumerating all stored secret keys
 - `BasePluginConfig` and `WorkflowPluginConfig` types for workflow-scoped config with secret alias indirection
