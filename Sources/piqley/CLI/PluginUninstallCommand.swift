@@ -26,7 +26,7 @@ extension PluginCommand {
             let pluginDirExists = FileManager.default.fileExists(atPath: pluginDir.path)
 
             guard pluginLoaded || pluginDirExists else {
-                throw ValidationError("Plugin '\(pluginIdentifier)' is not installed")
+                throw CleanError("Plugin '\(pluginIdentifier)' is not installed")
             }
 
             // Check for dependent plugins across all workflows
@@ -40,7 +40,7 @@ extension PluginCommand {
                 }
                 if !allDependents.isEmpty, !force {
                     let list = allDependents.sorted().joined(separator: ", ")
-                    throw ValidationError(
+                    throw CleanError(
                         "Cannot uninstall '\(pluginIdentifier)': the following plugins depend on it: \(list)\n"
                             + "Use --force to uninstall anyway."
                     )

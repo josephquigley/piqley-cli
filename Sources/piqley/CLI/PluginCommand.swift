@@ -26,7 +26,7 @@ struct PluginCommand: ParsableCommand {
             do {
                 workflows = try WorkflowStore.loadAll()
             } catch {
-                throw ValidationError("Failed to load workflows: \(formatError(error))\nRun 'piqley setup' first.")
+                throw CleanError("Failed to load workflows: \(formatError(error))\nRun 'piqley setup' first.")
             }
 
             let (_, allPlugins) = try WorkflowCommand.loadRegistryAndPlugins()
@@ -73,7 +73,7 @@ struct PluginCommand: ParsableCommand {
         func run() throws {
             let workflows = try WorkflowStore.list()
             if workflows.isEmpty {
-                throw ValidationError("No workflows found. Run 'piqley setup' first.")
+                throw CleanError("No workflows found. Run 'piqley setup' first.")
             }
 
             let (_, plugins) = try WorkflowCommand.loadRegistryAndPlugins()
@@ -87,7 +87,7 @@ struct PluginCommand: ParsableCommand {
             let targetPlugins: [LoadedPlugin]
             if let name = pluginName {
                 guard let plugin = plugins.first(where: { $0.identifier == name || $0.name == name }) else {
-                    throw ValidationError("Plugin '\(name)' not found")
+                    throw CleanError("Plugin '\(name)' not found")
                 }
                 targetPlugins = [plugin]
             } else {
@@ -218,7 +218,7 @@ struct PluginCommand: ParsableCommand {
             let pluginDir = pluginsDirectory.appendingPathComponent(identifier)
 
             if FileManager.default.fileExists(atPath: pluginDir.path) {
-                throw ValidationError("Plugin '\(identifier)' already exists at \(pluginDir.path)")
+                throw CleanError("Plugin '\(identifier)' already exists at \(pluginDir.path)")
             }
 
             try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
@@ -470,7 +470,7 @@ struct PluginCommand: ParsableCommand {
                 .path
 
             guard FileManager.default.fileExists(atPath: configPath) else {
-                throw ValidationError("Config file not found for plugin '\(pluginName)' at \(configPath)")
+                throw CleanError("Config file not found for plugin '\(pluginName)' at \(configPath)")
             }
 
             try openInEditor(configPath)

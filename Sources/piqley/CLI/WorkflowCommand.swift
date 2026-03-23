@@ -43,7 +43,7 @@ struct WorkflowCommand: ParsableCommand {
 
             if let name {
                 guard WorkflowStore.exists(name: name) else {
-                    throw ValidationError("Workflow '\(name)' not found")
+                    throw CleanError("Workflow '\(name)' not found")
                 }
                 let workflow = try WorkflowStore.load(name: name)
                 let wizard = ConfigWizard(workflow: workflow, discoveredPlugins: plugins, registry: registry)
@@ -81,7 +81,7 @@ struct WorkflowCommand: ParsableCommand {
             }
 
             guard !WorkflowStore.exists(name: workflowName) else {
-                throw ValidationError("Workflow '\(workflowName)' already exists")
+                throw CleanError("Workflow '\(workflowName)' already exists")
             }
 
             let workflow = Workflow.empty(name: workflowName, displayName: workflowName, activeStages: registry.executionOrder)
@@ -129,7 +129,7 @@ struct WorkflowCommand: ParsableCommand {
 
         func run() throws {
             guard WorkflowStore.exists(name: name) else {
-                throw ValidationError("Workflow '\(name)' not found")
+                throw CleanError("Workflow '\(name)' not found")
             }
 
             if !force {
@@ -160,7 +160,7 @@ struct WorkflowCommand: ParsableCommand {
         func run() throws {
             let path = WorkflowStore.fileURL(name: name).path
             guard FileManager.default.fileExists(atPath: path) else {
-                throw ValidationError("Workflow '\(name)' not found at \(path)")
+                throw CleanError("Workflow '\(name)' not found at \(path)")
             }
             try openInEditor(path)
         }

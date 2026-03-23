@@ -1,4 +1,3 @@
-import ArgumentParser
 import Foundation
 
 func openInEditor(_ path: String) throws {
@@ -13,6 +12,6 @@ func openInEditor(_ path: String) throws {
     process.waitUntilExit()
 
     guard process.terminationStatus == 0 else {
-        throw ValidationError("Editor exited with status \(process.terminationStatus)")
+        throw CleanError("Editor exited with status \(process.terminationStatus)")
     }
 }

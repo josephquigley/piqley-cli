@@ -33,7 +33,7 @@ struct SecretCommand: ParsableCommand {
         func run() throws {
             print("Enter value for \(plugin)/\(key) (input hidden): ", terminator: "")
             guard let value = readLine(strippingNewline: true), !value.isEmpty else {
-                throw ValidationError("No value entered")
+                throw CleanError("No value entered")
             }
             let store = makeDefaultSecretStore()
             try store.setPluginSecret(plugin: plugin, key: key, value: value)

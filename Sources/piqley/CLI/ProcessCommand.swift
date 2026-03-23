@@ -37,7 +37,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
         let sourceURL = URL(fileURLWithPath: folderPath, isDirectory: true)
         guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            throw ValidationError("Folder not found: \(folderPath)")
+            throw CleanError("Folder not found: \(folderPath)")
         }
 
         let lockPath = FileManager.default.homeDirectoryForCurrentUser
@@ -107,7 +107,7 @@ struct ProcessCommand: AsyncParsableCommand {
         }
 
         if workflows.isEmpty {
-            throw ValidationError("No workflows found. Run 'piqley setup' first.")
+            throw CleanError("No workflows found. Run 'piqley setup' first.")
         }
 
         throw ValidationError(
