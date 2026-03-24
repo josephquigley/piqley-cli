@@ -20,15 +20,22 @@ Given a target plugin at stage S, position P in the workflow pipeline:
 
 ### Field Harvesting
 
-For each upstream plugin (and self), load its rules files from the workflow rules directory:
+For each upstream plugin (and self), load its rules files from the workflow rules directory. Only stage files for stages that are upstream of (or equal to, for self) the target stage are scanned. A plugin that appears in multiple stages only has its upstream stage files harvested.
+
+The lookup pattern: iterate `registry.executionOrder`, for each stage call `workflow.pipeline[stage]` to get the ordered plugin list. For each upstream plugin found, load:
 
 ```
-~/.config/piqley/workflows/{workflow}/rules/{pluginId}/stage-*.json
+~/.config/piqley/workflows/{workflow}/rules/{pluginId}/stage-{upstream_stage}.json
 ```
 
 For each stage JSON file, scan `preRules` and `postRules` arrays. Collect every unique `emit[].field` value. These become the available fields under that plugin's namespace in the rules editor.
 
-Fields are only harvested from emit actions that write to the plugin's namespace (i.e. `emit[].field`, not `write[].field` which writes to file metadata).
+Exclusions:
+- `EmitConfig.field` is optional. Nil fields (e.g. from `skip` actions) are excluded.
+- Wildcard `"*"` fields (from `clone` actions) are excluded.
+- `write[].field` values are excluded (those write to file metadata, not the plugin namespace).
+
+If an upstream plugin has no rules directory or no rules files for its upstream stages, it produces an empty field set (no error).
 
 ### Scope
 
