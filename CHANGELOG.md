@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Rules editor now shows fields from all installed plugins, not just declared dependencies
+- Save-time warning when rules reference plugin namespaces that are not declared dependencies
 - Automatic config migration from old config.json sidecar to new BasePluginConfig layout at startup
 - `piqley secret prune` command to remove orphaned secrets not referenced by any config or workflow
 - `piqley workflow config <workflow-name> <plugin-identifier>` command with `--set` and `--set-secret` flag modes and interactive mode

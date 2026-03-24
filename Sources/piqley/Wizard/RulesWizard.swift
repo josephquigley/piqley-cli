@@ -7,6 +7,7 @@ final class RulesWizard {
     var context: RuleEditingContext
     let pluginDir: URL
     let terminal: RawTerminal
+    let dependencyIdentifiers: Set<String>
     var modified = false
     var savedAt: Date?
 
@@ -14,9 +15,10 @@ final class RulesWizard {
     /// Deleted rules are shown struck-through and removed on save.
     var deletedRules: Set<String> = []
 
-    init(context: RuleEditingContext, pluginDir: URL) {
+    init(context: RuleEditingContext, pluginDir: URL, dependencyIdentifiers: Set<String> = []) {
         self.context = context
         self.pluginDir = pluginDir
+        self.dependencyIdentifiers = dependencyIdentifiers
         terminal = RawTerminal()
     }
 
@@ -47,6 +49,54 @@ final class RulesWizard {
             self.savedAt = nil
         }
         return terminal.readKey()
+    }
+
+    // MARK: - Namespace Validation
+
+    /// Extracts all namespace prefixes referenced by rules across all stages.
+    /// Splits match fields and clone source references on the first `:`.
+    static func extractReferencedNamespaces(from stages: [String: StageConfig]) -> Set<String> {
+        var namespaces = Set<String>()
+
+        func extractNamespace(from qualifiedField: String) -> String? {
+            guard let colonIndex = qualifiedField.firstIndex(of: ":") else { return nil }
+            let namespace = String(qualifiedField[qualifiedField.startIndex ..< colonIndex])
+            return namespace.isEmpty ? nil : namespace
+        }
+
+        func processEmitConfigs(_ configs: [EmitConfig]) {
+            for config in configs {
+                if let source = config.source,
+                   let namespace = extractNamespace(from: source)
+                {
+                    namespaces.insert(namespace)
+                }
+            }
+        }
+
+        for (_, stage) in stages {
+            let allRules = (stage.preRules ?? []) + (stage.postRules ?? [])
+            for rule in allRules {
+                if let namespace = extractNamespace(from: rule.match.field) {
+                    namespaces.insert(namespace)
+                }
+                processEmitConfigs(rule.emit)
+                processEmitConfigs(rule.write)
+            }
+        }
+
+        return namespaces
+    }
+
+    /// Returns the set of plugin namespaces that are NOT declared dependencies
+    /// (filtering out built-in namespaces).
+    static func nonDependencyNamespaces(
+        _ referenced: Set<String>,
+        dependencies: Set<String>
+    ) -> Set<String> {
+        // Future: replace "read" with ReservedName.read once PiqleyCore publishes that constant
+        let builtIn: Set<String> = [ReservedName.original, "read"]
+        return referenced.subtracting(builtIn).subtracting(dependencies)
     }
 
     // MARK: - Stage Select
