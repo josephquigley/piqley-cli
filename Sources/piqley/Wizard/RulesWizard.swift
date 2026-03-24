@@ -5,7 +5,7 @@ import PiqleyCore
 /// Uses raw terminal mode with cursor-positioned selection lists.
 final class RulesWizard {
     var context: RuleEditingContext
-    let pluginDir: URL
+    let rulesDir: URL
     let terminal: RawTerminal
     let dependencyIdentifiers: Set<String>
     var modified = false
@@ -15,9 +15,9 @@ final class RulesWizard {
     /// Deleted rules are shown struck-through and removed on save.
     var deletedRules: Set<String> = []
 
-    init(context: RuleEditingContext, pluginDir: URL, dependencyIdentifiers: Set<String> = []) {
+    init(context: RuleEditingContext, rulesDir: URL, dependencyIdentifiers: Set<String> = []) {
         self.context = context
-        self.pluginDir = pluginDir
+        self.rulesDir = rulesDir
         self.dependencyIdentifiers = dependencyIdentifiers
         terminal = RawTerminal()
     }

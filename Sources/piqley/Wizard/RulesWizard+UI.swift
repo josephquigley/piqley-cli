@@ -57,7 +57,7 @@ extension RulesWizard {
         }
 
         do {
-            try StageFileManager.saveStages(context.stages, to: pluginDir)
+            try StageFileManager.saveStages(context.stages, to: rulesDir)
             modified = false
             savedAt = Date()
         } catch {
@@ -67,7 +67,7 @@ extension RulesWizard {
 
     /// Exit the wizard cleanly, removing any empty stage files.
     func quit() {
-        StageFileManager.cleanupEmptyStageFiles(stages: context.stages, pluginDir: pluginDir)
+        StageFileManager.cleanupEmptyStageFiles(stages: context.stages, pluginDir: rulesDir)
         terminal.restore()
         Foundation.exit(0)
     }
