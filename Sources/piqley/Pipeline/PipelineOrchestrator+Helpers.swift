@@ -191,6 +191,7 @@ extension PipelineOrchestrator {
         } else {
             evaluator = try RuleEvaluator(
                 rules: rules,
+                pluginId: ctx.pluginIdentifier,
                 nonInteractive: ctx.nonInteractive,
                 logger: logger
             )
