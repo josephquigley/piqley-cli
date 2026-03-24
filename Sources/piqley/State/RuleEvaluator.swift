@@ -24,6 +24,7 @@ struct CompiledRule: Sendable {
 enum RuleCompilationError: Error, LocalizedError {
     case invalidRegex(ruleIndex: Int, pattern: String, underlying: Error)
     case invalidEmit(ruleIndex: Int, reason: String)
+    case unresolvedSelf(ruleIndex: Int)
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +32,8 @@ enum RuleCompilationError: Error, LocalizedError {
             "Rule \(ruleIndex): invalid regex '\(pattern)': \(err.localizedDescription)"
         case let .invalidEmit(ruleIndex, reason):
             "Rule \(ruleIndex): invalid emit: \(reason)"
+        case let .unresolvedSelf(ruleIndex):
+            "Rule \(ruleIndex): 'self' namespace requires a pluginId but none was provided"
         }
     }
 }
@@ -45,11 +48,21 @@ struct RuleEvaluator: Sendable {
 
     /// Compiles rules. If nonInteractive, invalid rules are skipped with warnings logged.
     /// Otherwise, errors are thrown.
-    init(rules: [Rule], nonInteractive: Bool = false, logger: Logger) throws {
+    init(rules: [Rule], pluginId: String? = nil, nonInteractive: Bool = false, logger: Logger) throws {
         var compiled: [CompiledRule] = []
         for (index, rule) in rules.enumerated() {
             // Parse field: split on first ":"
-            let (namespace, field) = Self.splitField(rule.match.field)
+            let (namespace, field) = Self.splitField(rule.match.field, pluginId: pluginId)
+
+            // Reject unresolved self: prefix when no pluginId was provided
+            if namespace == "self" {
+                let compError = RuleCompilationError.unresolvedSelf(ruleIndex: index)
+                if nonInteractive {
+                    logger.warning("\(compError.localizedDescription) — skipping rule")
+                    continue
+                }
+                throw compError
+            }
 
             // Compile match pattern
             let matcher: any TagMatcher & Sendable
@@ -373,12 +386,25 @@ struct RuleEvaluator: Sendable {
         return isSkipped ? .string(image) : nil
     }
 
-    private static func splitField(_ field: String) -> (namespace: String, field: String) {
+    private static func splitField(_ field: String, pluginId: String? = nil) -> (namespace: String, field: String) {
         guard let colonIndex = field.firstIndex(of: ":") else {
+            // Bare field name (no colon)
+            if field == "skip" {
+                return ("", field)
+            }
+            if let pluginId {
+                return (pluginId, field)
+            }
             return ("", field)
         }
         let namespace = String(field[field.startIndex ..< colonIndex])
         let fieldName = String(field[field.index(after: colonIndex)...])
+        if namespace == "self" {
+            if let pluginId {
+                return (pluginId, fieldName)
+            }
+            return ("self", fieldName)
+        }
         return (namespace, fieldName)
     }
 }
