@@ -41,6 +41,7 @@ extension JSONDecoder {
 
 - `ExecutionLog.swift` in piqley-plugin-sdk retains its private ISO 8601 encoder/decoder (one-off use case).
 - `_migrate/` directory in piqley-cli is untouched (legacy code).
+- Documentation and plan `.md` files containing code snippets are not modified.
 
 ## Migration Plan
 
@@ -53,8 +54,9 @@ Pure mechanical replacement, no behavioral changes.
 
 ### piqley-cli
 
-- **Config writers** (WorkflowStore, BasePluginConfigStore, PluginConfig, StageFileManager): `JSONEncoder()` + formatting → `.piqleyPrettyPrint`
+- **Config writers** (WorkflowStore, BasePluginConfigStore, PluginConfig, StageFileManager, PluginCommand.writeJSON): `JSONEncoder()` + formatting → `.piqleyPrettyPrint`
 - **Plain decode sites** (InstallCommand, PluginRulesCommand, PluginDiscovery, ConfigMigrator, PipelineOrchestrator+Helpers, PluginCommandEditCommand, SecretPruner): `JSONDecoder()` → `.piqley`
+- **PluginRunner.swift**: `JSONEncoder()` → `.piqley`, `JSONDecoder()` → `.piqley` (IPC, not disk writes)
 - **FileSecretStore**: plain `JSONEncoder()` → `.piqley`
 - **All test files**: bare inits → `.piqley` variants
 
