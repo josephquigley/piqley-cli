@@ -37,17 +37,26 @@ extension ConfigWizard {
             terminal.showMessage("Stage '\(newName)' already exists.")
             return
         }
-        // Copy stage-*.json files for each plugin that has the source stage
-        for plugin in discoveredPlugins where plugin.stages[sourceName] != nil {
-            let sourceFile = plugin.directory
-                .appendingPathComponent("\(PluginFile.stagePrefix)\(sourceName)\(PluginFile.stageSuffix)")
-            let destFile = plugin.directory
-                .appendingPathComponent("\(PluginFile.stagePrefix)\(newName)\(PluginFile.stageSuffix)")
-            try? FileManager.default.copyItem(at: sourceFile, to: destFile)
+        // Copy stage files in this workflow's rules dir
+        let rulesDir = WorkflowStore.rulesDirectory(name: workflow.name)
+        if let pluginDirs = try? FileManager.default.contentsOfDirectory(
+            at: rulesDir, includingPropertiesForKeys: [.isDirectoryKey]
+        ) {
+            for pluginDir in pluginDirs {
+                let sourceFile = pluginDir.appendingPathComponent(
+                    "\(PluginFile.stagePrefix)\(sourceName)\(PluginFile.stageSuffix)"
+                )
+                let destFile = pluginDir.appendingPathComponent(
+                    "\(PluginFile.stagePrefix)\(newName)\(PluginFile.stageSuffix)"
+                )
+                if FileManager.default.fileExists(atPath: sourceFile.path) {
+                    try? FileManager.default.copyItem(at: sourceFile, to: destFile)
+                }
+            }
         }
         do {
             try registry.addStage(newName, at: cursor + 1)
-            workflow.pipeline[newName] = []
+            workflow.pipeline[newName] = workflow.pipeline[sourceName] ?? []
             modified = true
         } catch {
             terminal.showMessage("Error: \(error)")
@@ -79,6 +88,23 @@ extension ConfigWizard {
     func removeStage(_ name: String) {
         do {
             try registry.deactivate(name)
+            workflow.pipeline.removeValue(forKey: name)
+
+            // Delete stage files from all plugin rules dirs in this workflow
+            let rulesDir = WorkflowStore.rulesDirectory(name: workflow.name)
+            if let pluginDirs = try? FileManager.default.contentsOfDirectory(
+                at: rulesDir, includingPropertiesForKeys: [.isDirectoryKey]
+            ) {
+                for pluginDir in pluginDirs {
+                    let stageFile = pluginDir.appendingPathComponent(
+                        "\(PluginFile.stagePrefix)\(name)\(PluginFile.stageSuffix)"
+                    )
+                    if FileManager.default.fileExists(atPath: stageFile.path) {
+                        try FileManager.default.removeItem(at: stageFile)
+                    }
+                }
+            }
+
             modified = true
         } catch {
             terminal.showMessage("Error: \(error)")
@@ -92,31 +118,32 @@ extension ConfigWizard {
             return
         }
         do {
-            // Rename stage files first (before mutating registry) so partial failure
-            // doesn't leave registry/workflows out of sync with disk
-            for plugin in discoveredPlugins {
-                let oldFile = plugin.directory
-                    .appendingPathComponent("\(PluginFile.stagePrefix)\(oldName)\(PluginFile.stageSuffix)")
-                let newFile = plugin.directory
-                    .appendingPathComponent("\(PluginFile.stagePrefix)\(newName)\(PluginFile.stageSuffix)")
-                if FileManager.default.fileExists(atPath: oldFile.path) {
-                    try FileManager.default.moveItem(at: oldFile, to: newFile)
+            // Rename stage files in this workflow's rules dir
+            let rulesDir = WorkflowStore.rulesDirectory(name: workflow.name)
+            if let pluginDirs = try? FileManager.default.contentsOfDirectory(
+                at: rulesDir, includingPropertiesForKeys: [.isDirectoryKey]
+            ) {
+                for pluginDir in pluginDirs {
+                    let oldFile = pluginDir.appendingPathComponent(
+                        "\(PluginFile.stagePrefix)\(oldName)\(PluginFile.stageSuffix)"
+                    )
+                    let newFile = pluginDir.appendingPathComponent(
+                        "\(PluginFile.stagePrefix)\(newName)\(PluginFile.stageSuffix)"
+                    )
+                    if FileManager.default.fileExists(atPath: oldFile.path) {
+                        try FileManager.default.moveItem(at: oldFile, to: newFile)
+                    }
                 }
             }
-            // Now safe to mutate registry and workflows
+
+            // Update global registry
             try registry.renameStage(oldName, to: newName)
+
+            // Update this workflow's pipeline
             if let plugins = workflow.pipeline.removeValue(forKey: oldName) {
                 workflow.pipeline[newName] = plugins
             }
-            // Rename in all other workflows
-            let allWorkflowNames = (try? WorkflowStore.list()) ?? []
-            for wfName in allWorkflowNames where wfName != workflow.name {
-                guard var otherWorkflow = try? WorkflowStore.load(name: wfName) else { continue }
-                if let plugins = otherWorkflow.pipeline.removeValue(forKey: oldName) {
-                    otherWorkflow.pipeline[newName] = plugins
-                    try? WorkflowStore.save(otherWorkflow)
-                }
-            }
+
             modified = true
         } catch {
             terminal.showMessage("Error: \(error)")
