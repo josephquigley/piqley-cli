@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Upstream field discovery: rules editor now discovers available fields from upstream plugins' rules files instead of scanning manifests
 - Rule fields can omit the namespace prefix (bare name) or use `self:` prefix, resolving to the owning plugin's identifier at compile time
 - `RuleCompilationError.unresolvedSelf` error case for `self:` prefix with nil pluginId
 - Pipeline call site passes `pluginIdentifier` to `RuleEvaluator` for self namespace resolution
