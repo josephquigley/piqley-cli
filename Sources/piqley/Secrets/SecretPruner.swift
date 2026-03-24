@@ -38,7 +38,7 @@ enum SecretPruner {
         let configFiles = try listFiles(in: configStore.directory, extension: "json")
         for file in configFiles {
             let data = try Data(contentsOf: file)
-            if let config = try? JSONDecoder().decode(BasePluginConfig.self, from: data) {
+            if let config = try? JSONDecoder.piqley.decode(BasePluginConfig.self, from: data) {
                 for alias in config.secrets.values {
                     referenced.insert(alias)
                 }
@@ -49,7 +49,7 @@ enum SecretPruner {
         let workflowFiles = try workflowStore.listWorkflowFiles()
         for file in workflowFiles {
             let data = try Data(contentsOf: file)
-            if let workflow = try? JSONDecoder().decode(Workflow.self, from: data) {
+            if let workflow = try? JSONDecoder.piqley.decode(Workflow.self, from: data) {
                 for pluginConfig in workflow.config.values {
                     if let secrets = pluginConfig.secrets {
                         for alias in secrets.values {

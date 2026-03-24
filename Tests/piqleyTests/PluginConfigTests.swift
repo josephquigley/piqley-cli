@@ -16,7 +16,7 @@ struct PluginConfigTests {
     @Test("decodes config with values and isSetUp")
     func decodePluginConfig() throws {
         let json = #"{"values": {"url": "https://example.com", "quality": 80}, "isSetUp": true}"#
-        let config = try JSONDecoder().decode(PluginConfig.self, from: Data(json.utf8))
+        let config = try JSONDecoder.piqley.decode(PluginConfig.self, from: Data(json.utf8))
         #expect(config.values["url"] == .string("https://example.com"))
         #expect(config.values["quality"] == .number(80))
         #expect(config.isSetUp == true)
@@ -25,7 +25,7 @@ struct PluginConfigTests {
     @Test("missing isSetUp decodes as nil")
     func decodePluginConfigMissingIsSetUp() throws {
         let json = #"{"values": {"url": "https://example.com"}}"#
-        let config = try JSONDecoder().decode(PluginConfig.self, from: Data(json.utf8))
+        let config = try JSONDecoder.piqley.decode(PluginConfig.self, from: Data(json.utf8))
         #expect(config.isSetUp == nil)
     }
 

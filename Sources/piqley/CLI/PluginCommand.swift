@@ -126,9 +126,7 @@ struct PluginCommand: ParsableCommand {
 
         /// Writes JSON data to a file, injecting a `_comment` key at the top level.
         static func writeJSON(_ encodable: any Encodable, comment: String, to directory: URL, fileName: String) throws {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(encodable)
+            let data = try JSONEncoder.piqleyPrettyPrint.encode(encodable)
 
             var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             dict["_comment"] = comment

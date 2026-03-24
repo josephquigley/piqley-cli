@@ -51,7 +51,7 @@ struct PluginDiscovery: Sendable {
             let manifestURL = url.appendingPathComponent(PluginFile.manifest)
             guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
             let data = try Data(contentsOf: manifestURL)
-            let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
+            let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: data)
 
             let (stages, newStageNames) = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
             for name in newStageNames {
@@ -112,7 +112,7 @@ struct PluginDiscovery: Sendable {
 
             do {
                 let data = try Data(contentsOf: file)
-                let config = try JSONDecoder().decode(StageConfig.self, from: data)
+                let config = try JSONDecoder.piqley.decode(StageConfig.self, from: data)
                 if config.isEffectivelyEmpty {
                     logger.debug("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' is empty — ignored")
                     continue

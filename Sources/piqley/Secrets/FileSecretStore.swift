@@ -40,13 +40,13 @@
 
         private func loadSecrets() throws -> [String: String] {
             let data = try Data(contentsOf: fileURL)
-            return try JSONDecoder().decode([String: String].self, from: data)
+            return try JSONDecoder.piqley.decode([String: String].self, from: data)
         }
 
         private func saveSecrets(_ secrets: [String: String]) throws {
             let dir = fileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let data = try JSONEncoder().encode(secrets)
+            let data = try JSONEncoder.piqley.encode(secrets)
             try data.write(to: fileURL, options: .atomic)
             chmod(fileURL.path, 0o600)
         }

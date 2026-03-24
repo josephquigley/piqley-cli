@@ -154,7 +154,7 @@ struct PluginRunner: Sendable {
             skipped: context.skipped,
             pipelineRunId: context.pipelineRunId
         )
-        if let data = try? JSONEncoder().encode(payload) {
+        if let data = try? JSONEncoder.piqley.encode(payload) {
             stdinPipe.fileHandleForWriting.write(data)
         }
         stdinPipe.fileHandleForWriting.closeFile()
@@ -207,7 +207,7 @@ struct PluginRunner: Sendable {
             for try await line in stdoutPipe.fileHandleForReading.bytes.lines {
                 await activityTracker.touch()
                 guard let data = line.data(using: .utf8) else { continue }
-                guard let obj = try? JSONDecoder().decode(PluginOutputLine.self, from: data) else {
+                guard let obj = try? JSONDecoder.piqley.decode(PluginOutputLine.self, from: data) else {
                     // Non-JSON line — log and skip (plugin may emit debug output before result)
                     logger.debug("[\(plugin.name)]: non-JSON stdout line — skipping: \(line)")
                     continue

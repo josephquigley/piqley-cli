@@ -56,7 +56,7 @@ extension PipelineOrchestrator {
         let manifestURL = pluginDir.appendingPathComponent(PluginFile.manifest)
         guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
         let data = try Data(contentsOf: manifestURL)
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: data)
 
         // Load stages from workflow rules dir instead of plugin dir
         let rulesDir = WorkflowStore.pluginRulesDirectory(

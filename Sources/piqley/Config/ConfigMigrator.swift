@@ -56,14 +56,14 @@ enum ConfigMigrator {
 
         // Read old config.json
         let oldData = try Data(contentsOf: oldConfigURL)
-        let oldConfig = try JSONDecoder().decode(PluginConfig.self, from: oldData)
+        let oldConfig = try JSONDecoder.piqley.decode(PluginConfig.self, from: oldData)
 
         // Read manifest to find secret keys
         var secretAliases: [String: String] = [:]
         let manifestURL = pluginDirectory.appendingPathComponent(PluginFile.manifest)
         if FileManager.default.fileExists(atPath: manifestURL.path) {
             let manifestData = try Data(contentsOf: manifestURL)
-            let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+            let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
 
             for entry in manifest.config {
                 guard case let .secret(secretKey, _) = entry else { continue }

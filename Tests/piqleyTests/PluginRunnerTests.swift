@@ -46,7 +46,7 @@ private func makePlugin(
     try stageData.write(to: tempDir.appendingPathComponent("stage-\(hook).json"))
 
     try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
-    let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+    let decoded = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
     let knownHooks = Set(StandardHook.canonicalOrder.map(\.rawValue))
     let (stages, _) = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
     return LoadedPlugin(identifier: decoded.identifier, name: name, directory: tempDir, manifest: decoded, stages: stages)
@@ -171,7 +171,7 @@ struct PluginRunnerTests {
         try stageData.write(to: tempDir.appendingPathComponent("stage-publish.json"))
 
         try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         let knownHooks = Set(StandardHook.canonicalOrder.map(\.rawValue))
         let (stages, _) = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
         let plugin = LoadedPlugin(identifier: "slow", name: "slow", directory: tempDir, manifest: manifest, stages: stages)
@@ -220,7 +220,7 @@ struct PluginRunnerTests {
         try stageData.write(to: tempDir.appendingPathComponent("stage-publish.json"))
 
         try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         let knownHooks = Set(StandardHook.canonicalOrder.map(\.rawValue))
         let (stages, _) = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
         let plugin = LoadedPlugin(identifier: "token-test", name: "token-test", directory: tempDir, manifest: manifest, stages: stages)
@@ -267,7 +267,7 @@ struct PluginRunnerTests {
         try stageData.write(to: tempDir.appendingPathComponent("stage-publish.json"))
 
         try FileManager.default.createDirectory(at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true)
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         let knownHooks = Set(StandardHook.canonicalOrder.map(\.rawValue))
         let (stages, _) = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
         let plugin = LoadedPlugin(identifier: "bad", name: "bad", directory: tempDir, manifest: manifest, stages: stages)

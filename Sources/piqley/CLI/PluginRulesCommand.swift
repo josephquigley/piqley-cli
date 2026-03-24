@@ -37,7 +37,7 @@ struct PluginRulesCommand: ParsableCommand {
         // Load manifest
         let manifestURL = pluginDir.appendingPathComponent(PluginFile.manifest)
         let manifestData = try Data(contentsOf: manifestURL)
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
 
         // Load stages from workflow rules dir (not plugin dir)
         let rulesDir = WorkflowStore.pluginRulesDirectory(
@@ -68,7 +68,7 @@ struct PluginRulesCommand: ParsableCommand {
                 guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
                 let mURL = dir.appendingPathComponent(PluginFile.manifest)
                 if let data = try? Data(contentsOf: mURL),
-                   let pluginManifest = try? JSONDecoder().decode(PluginManifest.self, from: data)
+                   let pluginManifest = try? JSONDecoder.piqley.decode(PluginManifest.self, from: data)
                 {
                     let fields = pluginManifest.valueEntries.map(\.key)
                     if !fields.isEmpty {

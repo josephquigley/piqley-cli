@@ -35,7 +35,7 @@ private func makePlugin(name: String, hook: String, scriptURL: URL) throws -> Lo
     try FileManager.default.createDirectory(
         at: tempDir.appendingPathComponent("data"), withIntermediateDirectories: true
     )
-    let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+    let decoded = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
     let knownHooks = Set(StandardHook.canonicalOrder.map(\.rawValue))
     let (stages, _) = PluginDiscovery.loadStages(from: tempDir, knownHooks: knownHooks)
     return LoadedPlugin(identifier: decoded.identifier, name: name, directory: tempDir, manifest: decoded, stages: stages)

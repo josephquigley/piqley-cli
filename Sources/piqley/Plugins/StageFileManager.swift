@@ -5,8 +5,7 @@ enum StageFileManager {
     /// Save stage configs to disk. Effectively empty stages are not written;
     /// existing empty stage files are removed.
     static func saveStages(_ stages: [String: StageConfig], to pluginDir: URL) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let encoder = JSONEncoder.piqleyPrettyPrint
         for (hookName, stageConfig) in stages {
             let stageFile = pluginDir
                 .appendingPathComponent("\(PluginFile.stagePrefix)\(hookName)\(PluginFile.stageSuffix)")

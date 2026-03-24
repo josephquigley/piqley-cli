@@ -21,14 +21,12 @@ struct WorkflowConfigCommandTests {
             description: "Staging workflow",
             pipeline: ["publish": ["com.test.plugin"]]
         )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(workflow)
+        let data = try JSONEncoder.piqleyPrettyPrint.encode(workflow)
         let workflowFile = tempDir.appendingPathComponent("staging.json")
         try data.write(to: workflowFile)
 
         // Load workflow, apply override, and save back
-        var loadedWorkflow = try JSONDecoder().decode(Workflow.self, from: data)
+        var loadedWorkflow = try JSONDecoder.piqley.decode(Workflow.self, from: data)
 
         // Simulate --set siteUrl=https://staging.example.com
         var override = loadedWorkflow.config["com.test.plugin"] ?? WorkflowPluginConfig()
@@ -90,10 +88,8 @@ struct WorkflowConfigCommandTests {
             secrets: ["API_KEY": "staging-key"]
         )
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(workflow)
-        let decoded = try JSONDecoder().decode(Workflow.self, from: data)
+        let data = try JSONEncoder.piqleyPrettyPrint.encode(workflow)
+        let decoded = try JSONDecoder.piqley.decode(Workflow.self, from: data)
 
         #expect(decoded.config["com.test.plugin"]?.values?["url"] == .string("https://staging.com"))
         #expect(decoded.config["com.test.plugin"]?.secrets?["API_KEY"] == "staging-key")

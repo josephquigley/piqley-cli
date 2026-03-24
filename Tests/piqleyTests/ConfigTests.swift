@@ -19,7 +19,7 @@ struct ConfigTests {
           }
         }
         """
-        let workflow = try JSONDecoder().decode(Workflow.self, from: Data(json.utf8))
+        let workflow = try JSONDecoder.piqley.decode(Workflow.self, from: Data(json.utf8))
         #expect(workflow.name == "test")
         #expect(workflow.pipeline["pre-process"] == ["piqley-metadata", "piqley-resize"])
         #expect(workflow.pipeline["publish"] == ["ghost"])
@@ -41,8 +41,8 @@ struct ConfigTests {
     func testRoundTrip() throws {
         var workflow = Workflow.empty(name: "test", displayName: "Test", activeStages: StandardHook.defaultStageNames)
         workflow.pipeline["publish"] = ["ghost"]
-        let data = try JSONEncoder().encode(workflow)
-        let decoded = try JSONDecoder().decode(Workflow.self, from: data)
+        let data = try JSONEncoder.piqley.encode(workflow)
+        let decoded = try JSONDecoder.piqley.decode(Workflow.self, from: data)
         #expect(decoded.pipeline["publish"] == ["ghost"])
         #expect(decoded.name == "test")
     }

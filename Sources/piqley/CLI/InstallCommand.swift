@@ -75,7 +75,7 @@ enum PluginInstaller {
         let manifestData = try Data(contentsOf: manifestURL)
         let manifest: PluginManifest
         do {
-            manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+            manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         } catch {
             throw InstallError.invalidManifest
         }

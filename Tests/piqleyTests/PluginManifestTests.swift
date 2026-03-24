@@ -15,7 +15,7 @@ struct PluginManifestTests {
           "config": [{"secret_key": "api-key", "type": "string"}]
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.identifier == "com.piqley.ghost")
         #expect(manifest.name == "ghost")
         #expect(manifest.pluginSchemaVersion == "1")
@@ -31,7 +31,7 @@ struct PluginManifestTests {
           "pluginSchemaVersion": "1"
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.config.isEmpty)
         #expect(manifest.setup == nil)
     }
@@ -58,7 +58,7 @@ struct PluginManifestTests {
           ]
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.config.count == 3)
         #expect(manifest.secretKeys == ["api-key"])
         #expect(manifest.valueEntries.count == 2)
@@ -76,7 +76,7 @@ struct PluginManifestTests {
           "setup": {"command": "./setup.sh", "args": ["--install"]}
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         let setup = try #require(manifest.setup)
         #expect(setup.command == "./setup.sh")
         #expect(setup.args == ["--install"])
@@ -96,7 +96,7 @@ struct PluginManifestTests {
           ]
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.secretKeys.sorted() == ["api-key", "webhook-secret"])
     }
 
@@ -114,7 +114,7 @@ struct PluginManifestTests {
           ]
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.valueEntries.count == 2)
         #expect(manifest.valueEntries[0].key == "base-url")
         #expect(manifest.valueEntries[1].key == "enabled")
@@ -129,7 +129,7 @@ struct PluginManifestTests {
           "pluginSchemaVersion": "1"
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.config.isEmpty)
         #expect(manifest.setup == nil)
         #expect(manifest.secretKeys.isEmpty)
@@ -146,7 +146,7 @@ struct PluginManifestTests {
           "dependencies": ["hashtag", "original"]
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.dependencyIdentifiers == ["hashtag", "original"])
     }
 
@@ -159,7 +159,7 @@ struct PluginManifestTests {
           "pluginSchemaVersion": "1"
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.dependencies == nil)
     }
 
@@ -173,7 +173,7 @@ struct PluginManifestTests {
           "pluginSchemaVersion": "1"
         }
         """
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(json.utf8))
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: Data(json.utf8))
         #expect(manifest.description == "A test plugin")
     }
 }

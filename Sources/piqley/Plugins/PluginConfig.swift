@@ -4,7 +4,7 @@ import PiqleyCore
 extension PluginConfig {
     static func load(from url: URL) throws -> PluginConfig {
         let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(PluginConfig.self, from: data)
+        return try JSONDecoder.piqley.decode(PluginConfig.self, from: data)
     }
 
     /// Loads from URL if the file exists, otherwise returns an empty config.
@@ -18,9 +18,7 @@ extension PluginConfig {
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(self)
+        let data = try JSONEncoder.piqleyPrettyPrint.encode(self)
         try data.write(to: url)
     }
 

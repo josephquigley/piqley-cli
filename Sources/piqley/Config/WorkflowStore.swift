@@ -49,7 +49,7 @@ enum WorkflowStore {
 
     static func load(name: String, root: URL? = nil) throws -> Workflow {
         let data = try Data(contentsOf: fileURL(name: name, root: root))
-        return try JSONDecoder().decode(Workflow.self, from: data)
+        return try JSONDecoder.piqley.decode(Workflow.self, from: data)
     }
 
     static func loadAll(root: URL? = nil) throws -> [Workflow] {
@@ -59,9 +59,7 @@ enum WorkflowStore {
     static func save(_ workflow: Workflow, root: URL? = nil) throws {
         let dir = directoryURL(name: workflow.name, root: root)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(workflow)
+        let data = try JSONEncoder.piqleyPrettyPrint.encode(workflow)
         try data.write(to: fileURL(name: workflow.name, root: root))
     }
 

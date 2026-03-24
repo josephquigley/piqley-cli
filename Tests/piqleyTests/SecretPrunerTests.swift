@@ -41,7 +41,7 @@ struct SecretPrunerTests {
             description: "",
             config: ["com.test.plugin": WorkflowPluginConfig(secrets: ["API_KEY": "staging-key"])]
         )
-        let encoder = JSONEncoder()
+        let encoder = JSONEncoder.piqley
         let workflowData = try encoder.encode(workflow)
         try workflowData.write(to: workflowDir.appendingPathComponent("staging.json"))
 

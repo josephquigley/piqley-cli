@@ -45,7 +45,7 @@ struct ConfigMigratorTests {
                 .secret(secretKey: "API_KEY", type: .string),
             ]
         )
-        let manifestData = try JSONEncoder().encode(manifest)
+        let manifestData = try JSONEncoder.piqley.encode(manifest)
         try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
 
         // Set up old-format secret
@@ -138,7 +138,7 @@ struct ConfigMigratorTests {
             pluginSchemaVersion: "1",
             config: [.value(key: "port", type: .int, value: .number(8080))]
         )
-        let manifestData = try JSONEncoder().encode(manifest)
+        let manifestData = try JSONEncoder.piqley.encode(manifest)
         try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
 
         let secretStore = MigratorMockSecretStore()

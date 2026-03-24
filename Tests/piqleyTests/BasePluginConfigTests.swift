@@ -12,15 +12,15 @@ struct BasePluginConfigTests {
             secrets: ["API_KEY": "my-plugin-API_KEY"],
             isSetUp: true
         )
-        let data = try JSONEncoder().encode(config)
-        let decoded = try JSONDecoder().decode(BasePluginConfig.self, from: data)
+        let data = try JSONEncoder.piqley.encode(config)
+        let decoded = try JSONDecoder.piqley.decode(BasePluginConfig.self, from: data)
         #expect(decoded == config)
     }
 
     @Test("Decodes with empty values and secrets")
     func decodesEmpty() throws {
         let json = Data(#"{"values":{},"secrets":{}}"#.utf8)
-        let config = try JSONDecoder().decode(BasePluginConfig.self, from: json)
+        let config = try JSONDecoder.piqley.decode(BasePluginConfig.self, from: json)
         #expect(config.values.isEmpty)
         #expect(config.secrets.isEmpty)
         #expect(config.isSetUp == nil)

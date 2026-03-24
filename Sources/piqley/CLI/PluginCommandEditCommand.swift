@@ -38,7 +38,7 @@ struct PluginCommandEditCommand: ParsableCommand {
         // Load manifest and build available fields for env var autocompletion
         let manifestURL = pluginDir.appendingPathComponent(PluginFile.manifest)
         let manifestData = try Data(contentsOf: manifestURL)
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
 
         var deps: [FieldDiscovery.DependencyInfo] = []
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
@@ -46,7 +46,7 @@ struct PluginCommandEditCommand: ParsableCommand {
             let depDir = pluginsDir.appendingPathComponent(depID)
             let depManifestURL = depDir.appendingPathComponent(PluginFile.manifest)
             if let depData = try? Data(contentsOf: depManifestURL),
-               let depManifest = try? JSONDecoder().decode(PluginManifest.self, from: depData)
+               let depManifest = try? JSONDecoder.piqley.decode(PluginManifest.self, from: depData)
             {
                 let fields = depManifest.valueEntries.map(\.key)
                 deps.append(FieldDiscovery.DependencyInfo(identifier: depID, fields: fields))

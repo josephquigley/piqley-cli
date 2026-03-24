@@ -88,7 +88,7 @@ struct PluginInitTests {
 
         // Verify manifest
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("test-plugin/manifest.json"))
-        let decoded = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let decoded = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         #expect(decoded.identifier == "test-plugin")
         #expect(decoded.name == "test-plugin")
         #expect(decoded.pluginSchemaVersion == "1")
@@ -99,7 +99,7 @@ struct PluginInitTests {
 
         // Verify config has no rules (rules moved to stage files)
         let configData = try Data(contentsOf: dir.appendingPathComponent("test-plugin/config.json"))
-        let decodedConfig = try JSONDecoder().decode(PluginConfig.self, from: configData)
+        let decodedConfig = try JSONDecoder.piqley.decode(PluginConfig.self, from: configData)
         #expect(decodedConfig.values.isEmpty)
     }
 
@@ -126,21 +126,21 @@ struct PluginInitTests {
 
         // Verify manifest
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/manifest.json"))
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         #expect(manifest.identifier == "example-plugin")
         #expect(manifest.pluginVersion != nil)
         #expect(manifest.config.count == 3)
 
         // Verify config has values (no rules — rules in stage files)
         let configData = try Data(contentsOf: dir.appendingPathComponent("example-plugin/config.json"))
-        let config = try JSONDecoder().decode(PluginConfig.self, from: configData)
+        let config = try JSONDecoder.piqley.decode(PluginConfig.self, from: configData)
         #expect(config.values.count == 2)
 
         // Verify pre-process stage file was created with rules
         let preStageURL = dir.appendingPathComponent("example-plugin/stage-pre-process.json")
         #expect(FileManager.default.fileExists(atPath: preStageURL.path))
         let preStageData = try Data(contentsOf: preStageURL)
-        let preStage = try JSONDecoder().decode(StageConfig.self, from: preStageData)
+        let preStage = try JSONDecoder.piqley.decode(StageConfig.self, from: preStageData)
         let preRules = try #require(preStage.preRules)
         #expect(!preRules.isEmpty)
 
@@ -148,7 +148,7 @@ struct PluginInitTests {
         let postStageURL = dir.appendingPathComponent("example-plugin/stage-post-process.json")
         #expect(FileManager.default.fileExists(atPath: postStageURL.path))
         let postStageData = try Data(contentsOf: postStageURL)
-        let postStage = try JSONDecoder().decode(StageConfig.self, from: postStageData)
+        let postStage = try JSONDecoder.piqley.decode(StageConfig.self, from: postStageData)
         let postRules = try #require(postStage.postRules)
         #expect(!postRules.isEmpty)
 
@@ -179,7 +179,7 @@ struct PluginInitTests {
         try cmd.execute(pluginsDirectory: dir, descriptionPrompt: { _ in "A cool plugin\nfor photographers." })
 
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("desc-plugin/manifest.json"))
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         #expect(manifest.description == "A cool plugin\nfor photographers.")
     }
 
@@ -192,7 +192,7 @@ struct PluginInitTests {
         try cmd.execute(pluginsDirectory: dir, descriptionPrompt: { _ in nil })
 
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("no-desc-plugin/manifest.json"))
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         #expect(manifest.description == nil)
     }
 
@@ -205,7 +205,7 @@ struct PluginInitTests {
         try cmd.execute(pluginsDirectory: dir)
 
         let manifestData = try Data(contentsOf: dir.appendingPathComponent("flag-plugin/manifest.json"))
-        let manifest = try JSONDecoder().decode(PluginManifest.self, from: manifestData)
+        let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
         #expect(manifest.description == "From flag")
     }
 

@@ -24,9 +24,7 @@ struct InstallCommandTests {
                 name: name,
                 pluginSchemaVersion: protocolVersion
             )
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let data = try encoder.encode(manifest)
+            let data = try JSONEncoder.piqleyPrettyPrint.encode(manifest)
             try data.write(to: pluginDir.appendingPathComponent(PluginFile.manifest))
         }
 

@@ -9,7 +9,7 @@ struct PluginConfigEntryTests {
     @Test("decodes value entry with int default")
     func decodeValueEntryWithDefault() throws {
         let json = #"{"key": "quality", "type": "int", "value": 80}"#
-        let entry = try JSONDecoder().decode(ConfigEntry.self, from: Data(json.utf8))
+        let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
         guard case let .value(key, type, value) = entry else {
             Issue.record("Expected .value, got \(entry)"); return
         }
@@ -21,7 +21,7 @@ struct PluginConfigEntryTests {
     @Test("decodes value entry with null value")
     func decodeValueEntryWithNullValue() throws {
         let json = #"{"key": "url", "type": "string", "value": null}"#
-        let entry = try JSONDecoder().decode(ConfigEntry.self, from: Data(json.utf8))
+        let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
         guard case let .value(key, type, value) = entry else {
             Issue.record("Expected .value, got \(entry)"); return
         }
@@ -33,7 +33,7 @@ struct PluginConfigEntryTests {
     @Test("decodes value entry with string default")
     func decodeValueEntryWithStringDefault() throws {
         let json = #"{"key": "format", "type": "string", "value": "jpeg"}"#
-        let entry = try JSONDecoder().decode(ConfigEntry.self, from: Data(json.utf8))
+        let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
         guard case let .value(_, _, value) = entry else {
             Issue.record("Expected .value"); return
         }
@@ -43,7 +43,7 @@ struct PluginConfigEntryTests {
     @Test("decodes value entry with bool default")
     func decodeValueEntryWithBoolDefault() throws {
         let json = #"{"key": "verbose", "type": "bool", "value": true}"#
-        let entry = try JSONDecoder().decode(ConfigEntry.self, from: Data(json.utf8))
+        let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
         guard case let .value(_, type, value) = entry else {
             Issue.record("Expected .value"); return
         }
@@ -54,7 +54,7 @@ struct PluginConfigEntryTests {
     @Test("decodes secret entry")
     func decodeSecretEntry() throws {
         let json = #"{"secret_key": "api-key", "type": "string"}"#
-        let entry = try JSONDecoder().decode(ConfigEntry.self, from: Data(json.utf8))
+        let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
         guard case let .secret(secretKey, type) = entry else {
             Issue.record("Expected .secret, got \(entry)"); return
         }
@@ -66,7 +66,7 @@ struct PluginConfigEntryTests {
     func rejectDualEntry() throws {
         let json = #"{"key": "url", "secret_key": "api-key", "type": "string", "value": null}"#
         #expect(throws: DecodingError.self) {
-            try JSONDecoder().decode(ConfigEntry.self, from: Data(json.utf8))
+            try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
         }
     }
 
@@ -79,7 +79,7 @@ struct PluginConfigEntryTests {
             {"secret_key": "api-key", "type": "string"}
         ]
         """#
-        let entries = try JSONDecoder().decode([ConfigEntry].self, from: Data(json.utf8))
+        let entries = try JSONDecoder.piqley.decode([ConfigEntry].self, from: Data(json.utf8))
         #expect(entries.count == 3)
         if case .value = entries[0] {} else { Issue.record("Expected .value at index 0") }
         if case .value = entries[1] {} else { Issue.record("Expected .value at index 1") }
@@ -89,7 +89,7 @@ struct PluginConfigEntryTests {
     @Test("decodes setup config with args")
     func decodeSetupConfig() throws {
         let json = #"{"command": "./setup.sh", "args": ["$PIQLEY_SECRET_API_KEY"]}"#
-        let config = try JSONDecoder().decode(SetupConfig.self, from: Data(json.utf8))
+        let config = try JSONDecoder.piqley.decode(SetupConfig.self, from: Data(json.utf8))
         #expect(config.command == "./setup.sh")
         #expect(config.args == ["$PIQLEY_SECRET_API_KEY"])
     }
@@ -97,7 +97,7 @@ struct PluginConfigEntryTests {
     @Test("decodes setup config without args defaults to empty")
     func decodeSetupConfigNoArgs() throws {
         let json = #"{"command": "./setup.sh"}"#
-        let config = try JSONDecoder().decode(SetupConfig.self, from: Data(json.utf8))
+        let config = try JSONDecoder.piqley.decode(SetupConfig.self, from: Data(json.utf8))
         #expect(config.command == "./setup.sh")
         #expect(config.args == [])
     }

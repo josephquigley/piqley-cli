@@ -16,9 +16,7 @@ struct BasePluginConfigStore: Sendable {
         if !fileManager.fileExists(atPath: directory.path) {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(config)
+        let data = try JSONEncoder.piqleyPrettyPrint.encode(config)
         try data.write(to: fileURL(for: pluginIdentifier), options: .atomic)
     }
 
@@ -26,7 +24,7 @@ struct BasePluginConfigStore: Sendable {
         let url = fileURL(for: pluginIdentifier)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(BasePluginConfig.self, from: data)
+        return try JSONDecoder.piqley.decode(BasePluginConfig.self, from: data)
     }
 
     func delete(for pluginIdentifier: String) throws {

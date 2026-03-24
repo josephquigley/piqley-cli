@@ -129,6 +129,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- All JSON encoding/decoding now uses `JSONEncoder.piqley`/`JSONDecoder.piqley` from PiqleyCore instead of bare initializers
 - Workflows are now stored as directories (`{name}/workflow.json` + `rules/` subtree) instead of flat JSON files
 - Plugin rule files are stored per-workflow, making plugins immutable after install
 - Stage operations (rename, duplicate, remove) are scoped to the current workflow's rules directory
