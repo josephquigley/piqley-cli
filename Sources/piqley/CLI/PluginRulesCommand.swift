@@ -10,7 +10,7 @@ struct PluginRulesCommand: ParsableCommand {
     )
 
     @Argument(help: "The plugin identifier (or workflow name if two arguments given).")
-    var firstArg: String
+    var firstArg: String?
 
     @Argument(help: "The plugin identifier when first argument is a workflow name.")
     var secondArg: String?
@@ -22,8 +22,8 @@ struct PluginRulesCommand: ParsableCommand {
         let workflow = try WorkflowStore.load(name: workflowName)
 
         // Verify plugin is in the workflow's pipeline
-        let pipelinePlugins = Set(workflow.pipeline.values.flatMap(\.self))
-        guard pipelinePlugins.contains(pluginID) else {
+        let plugins = Set(workflow.pipeline.values.flatMap(\.self))
+        guard plugins.contains(pluginID) else {
             throw CleanError("Plugin '\(pluginID)' is not in workflow '\(workflowName)'")
         }
 
@@ -80,31 +80,116 @@ struct PluginRulesCommand: ParsableCommand {
         try wizard.run()
     }
 
+    // MARK: - Argument Resolution
+
     private func resolveArguments() throws -> (workflowName: String, pluginID: String) {
-        if let pluginID = secondArg {
+        if let firstArg, let pluginID = secondArg {
             // Explicit: piqley rules <workflow> <plugin>
             return (firstArg, pluginID)
         }
 
-        // Single arg: check if it's a plugin identifier
+        if let firstArg {
+            return try resolveSingleArg(firstArg)
+        }
+
+        // No args: select workflow then plugin interactively
+        return try resolveNoArgs()
+    }
+
+    private func resolveSingleArg(_ arg: String) throws -> (workflowName: String, pluginID: String) {
+        // Check workflow first, then plugin
+        if WorkflowStore.exists(name: arg) {
+            let workflow = try WorkflowStore.load(name: arg)
+            let plugins = pipelinePlugins(workflow)
+            guard !plugins.isEmpty else {
+                throw CleanError("Workflow '\(arg)' has no plugins in its pipeline.")
+            }
+            if plugins.count == 1 {
+                return (arg, plugins[0])
+            }
+            let pluginID = try selectInteractively(
+                title: "Select plugin (\(arg))",
+                items: plugins
+            )
+            return (arg, pluginID)
+        }
+
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
         let isPlugin = FileManager.default.fileExists(
-            atPath: pluginsDir.appendingPathComponent(firstArg).path
+            atPath: pluginsDir.appendingPathComponent(arg).path
         )
 
         if isPlugin {
-            // Fallback to sole workflow
-            let workflows = try WorkflowStore.list()
-            guard workflows.count == 1, let workflowName = workflows.first else {
-                throw CleanError(
-                    "Multiple workflows exist. Specify the workflow: piqley rules <workflow> \(firstArg)"
-                )
+            let allWorkflows = try WorkflowStore.loadAll()
+            let matching = allWorkflows.filter { workflow in
+                workflow.pipeline.values.flatMap(\.self).contains(arg)
             }
-            return (workflowName, firstArg)
+            guard !matching.isEmpty else {
+                throw CleanError("Plugin '\(arg)' is not in any workflow's pipeline.")
+            }
+            if matching.count == 1 {
+                return (matching[0].name, arg)
+            }
+            let workflowName = try selectInteractively(
+                title: "Select workflow for '\(arg)'",
+                items: matching.map(\.name)
+            )
+            return (workflowName, arg)
         }
 
-        throw CleanError(
-            "Plugin '\(firstArg)' not found. Usage: piqley rules [workflow] <plugin>"
+        throw CleanError("'\(arg)' is not a known workflow or installed plugin.")
+    }
+
+    private func resolveNoArgs() throws -> (workflowName: String, pluginID: String) {
+        let workflowNames = try WorkflowStore.list()
+        guard !workflowNames.isEmpty else {
+            throw CleanError("No workflows found. Run 'piqley setup' first.")
+        }
+
+        let workflowName: String = if workflowNames.count == 1 {
+            workflowNames[0]
+        } else {
+            try selectInteractively(
+                title: "Select workflow",
+                items: workflowNames
+            )
+        }
+
+        let workflow = try WorkflowStore.load(name: workflowName)
+        let plugins = pipelinePlugins(workflow)
+        guard !plugins.isEmpty else {
+            throw CleanError("Workflow '\(workflowName)' has no plugins in its pipeline.")
+        }
+
+        if plugins.count == 1 {
+            return (workflowName, plugins[0])
+        }
+
+        let pluginID = try selectInteractively(
+            title: "Select plugin (\(workflowName))",
+            items: plugins
         )
+        return (workflowName, pluginID)
+    }
+
+    // MARK: - Helpers
+
+    private func pipelinePlugins(_ workflow: Workflow) -> [String] {
+        Array(Set(workflow.pipeline.values.flatMap(\.self))).sorted()
+    }
+
+    private func selectInteractively(title: String, items: [String]) throws -> String {
+        guard isatty(STDIN_FILENO) != 0 else {
+            throw CleanError(
+                "Multiple options available but stdin is not a terminal. "
+                    + "Specify explicitly: piqley plugin rules <workflow> <plugin>"
+            )
+        }
+        let terminal = RawTerminal()
+        defer { terminal.restore() }
+        guard let index = terminal.selectFromList(title: title, items: items) else {
+            throw ExitCode.success
+        }
+        return items[index]
     }
 }
