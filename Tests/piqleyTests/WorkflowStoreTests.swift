@@ -137,4 +137,98 @@ struct WorkflowStoreTests {
         let names = try WorkflowStore.list(root: testDir)
         #expect(names == ["custom"]) // No "default" added
     }
+
+    // MARK: - Rule Seeding
+
+    @Test("seedRules copies plugin stage files into workflow rules dir")
+    func seedRulesCopiesStageFiles() throws {
+        // Create a workflow
+        try WorkflowStore.save(
+            Workflow(name: "test", displayName: "Test", description: ""),
+            root: testDir
+        )
+
+        // Create a fake plugin dir with stage files
+        let pluginDir = testDir.appendingPathComponent("plugins/my.plugin")
+        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        let stageData = Data("""
+        {"preRules": [{"match": {"field": "original:IPTC:Keywords", "pattern": "test"}, "emit": [], "write": []}]}
+        """.utf8)
+        try stageData.write(to: pluginDir.appendingPathComponent("stage-publish.json"))
+        try stageData.write(to: pluginDir.appendingPathComponent("stage-pre-process.json"))
+
+        // Seed rules
+        try WorkflowStore.seedRules(
+            workflowName: "test",
+            pluginIdentifier: "my.plugin",
+            pluginDirectory: pluginDir,
+            root: testDir
+        )
+
+        // Verify files were copied
+        let rulesDir = WorkflowStore.pluginRulesDirectory(
+            workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
+        )
+        let publishExists = FileManager.default.fileExists(
+            atPath: rulesDir.appendingPathComponent("stage-publish.json").path
+        )
+        let preProcessExists = FileManager.default.fileExists(
+            atPath: rulesDir.appendingPathComponent("stage-pre-process.json").path
+        )
+        #expect(publishExists)
+        #expect(preProcessExists)
+    }
+
+    @Test("seedRules skips if rules directory already exists")
+    func seedRulesSkipsExisting() throws {
+        try WorkflowStore.save(
+            Workflow(name: "test", displayName: "Test", description: ""),
+            root: testDir
+        )
+
+        // Create plugin dir
+        let pluginDir = testDir.appendingPathComponent("plugins/my.plugin")
+        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: pluginDir.appendingPathComponent("stage-publish.json"))
+
+        // Pre-create rules dir with custom content
+        let rulesDir = WorkflowStore.pluginRulesDirectory(
+            workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
+        )
+        try FileManager.default.createDirectory(at: rulesDir, withIntermediateDirectories: true)
+        let customData = Data("{\"custom\": true}".utf8)
+        try customData.write(to: rulesDir.appendingPathComponent("stage-publish.json"))
+
+        // Seed rules (should skip)
+        try WorkflowStore.seedRules(
+            workflowName: "test",
+            pluginIdentifier: "my.plugin",
+            pluginDirectory: pluginDir,
+            root: testDir
+        )
+
+        // Verify custom content was preserved
+        let data = try Data(contentsOf: rulesDir.appendingPathComponent("stage-publish.json"))
+        let str = String(data: data, encoding: .utf8)
+        #expect(str?.contains("custom") == true)
+    }
+
+    @Test("removePluginRules deletes the plugin rules directory")
+    func removePluginRules() throws {
+        try WorkflowStore.save(
+            Workflow(name: "test", displayName: "Test", description: ""),
+            root: testDir
+        )
+        let rulesDir = WorkflowStore.pluginRulesDirectory(
+            workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
+        )
+        try FileManager.default.createDirectory(at: rulesDir, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: rulesDir.appendingPathComponent("stage-publish.json"))
+
+        try WorkflowStore.removePluginRules(
+            workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
+        )
+
+        #expect(!FileManager.default.fileExists(atPath: rulesDir.path))
+    }
 }

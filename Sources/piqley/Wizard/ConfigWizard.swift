@@ -15,10 +15,18 @@ final class ConfigWizard {
 
     var registry: StageRegistry
 
-    init(workflow: Workflow, discoveredPlugins: [LoadedPlugin], registry: StageRegistry) {
+    let pluginsDirectory: URL
+
+    init(
+        workflow: Workflow,
+        discoveredPlugins: [LoadedPlugin],
+        registry: StageRegistry,
+        pluginsDirectory: URL = PipelineOrchestrator.defaultPluginsDirectory
+    ) {
         self.workflow = workflow
         self.discoveredPlugins = discoveredPlugins
         self.registry = registry
+        self.pluginsDirectory = pluginsDirectory
         discoveredIdentifiers = Set(discoveredPlugins.map(\.identifier))
         terminal = RawTerminal()
     }
@@ -219,7 +227,7 @@ final class ConfigWizard {
     private func addPlugin(stageName: String) {
         let currentPlugins = Set(workflow.pipeline[stageName] ?? [])
         let available = discoveredPlugins
-            .filter { !currentPlugins.contains($0.identifier) && $0.stages[stageName] != nil }
+            .filter { !currentPlugins.contains($0.identifier) }
             .map(\.identifier)
             .sorted()
 
@@ -235,6 +243,15 @@ final class ConfigWizard {
         var list = workflow.pipeline[stageName] ?? []
         list.append(available[idx])
         workflow.pipeline[stageName] = list
+
+        // Seed rules for this plugin if not already seeded
+        let pluginDir = pluginsDirectory.appendingPathComponent(available[idx])
+        try? WorkflowStore.seedRules(
+            workflowName: workflow.name,
+            pluginIdentifier: available[idx],
+            pluginDirectory: pluginDir
+        )
+
         modified = true
     }
 
@@ -334,14 +351,24 @@ final class ConfigWizard {
     }
 
     private func applyRemovals() {
+        var removedIdentifiers: Set<String> = []
         for key in removedPlugins {
             let parts = key.split(separator: ":", maxSplits: 1)
             guard parts.count == 2 else { continue }
             let stage = String(parts[0])
             let plugin = String(parts[1])
             workflow.pipeline[stage]?.removeAll { $0 == plugin }
+            removedIdentifiers.insert(plugin)
         }
         removedPlugins.removeAll()
+
+        // Clean up rules for plugins no longer in any stage
+        let allPipelinePlugins = Set(workflow.pipeline.values.flatMap(\.self))
+        for identifier in removedIdentifiers where !allPipelinePlugins.contains(identifier) {
+            try? WorkflowStore.removePluginRules(
+                workflowName: workflow.name, pluginIdentifier: identifier
+            )
+        }
     }
 
     private var shouldQuit = false

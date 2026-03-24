@@ -1,4 +1,5 @@
 import Foundation
+import PiqleyCore
 
 enum WorkflowStore {
     static var workflowsDirectory: URL {
@@ -89,6 +90,53 @@ enum WorkflowStore {
         workflow.name = destination
         workflow.displayName = destination
         try save(workflow, root: root)
+    }
+
+    // MARK: - Rule Seeding
+
+    /// Copy plugin's built-in stage files into the workflow's rules directory.
+    /// Skips if the plugin already has a rules directory in this workflow (preserves customizations).
+    static func seedRules(
+        workflowName: String,
+        pluginIdentifier: String,
+        pluginDirectory: URL,
+        root: URL? = nil
+    ) throws {
+        let destDir = pluginRulesDirectory(
+            workflowName: workflowName, pluginIdentifier: pluginIdentifier, root: root
+        )
+
+        // Skip if already seeded (preserves customizations)
+        if FileManager.default.fileExists(atPath: destDir.path) { return }
+
+        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+
+        // Copy all stage-*.json files from plugin directory
+        let contents = try FileManager.default.contentsOfDirectory(
+            at: pluginDirectory, includingPropertiesForKeys: nil
+        )
+        for file in contents {
+            let name = file.lastPathComponent
+            guard name.hasPrefix(PluginFile.stagePrefix),
+                  name.hasSuffix(PluginFile.stageSuffix) else { continue }
+            try FileManager.default.copyItem(
+                at: file, to: destDir.appendingPathComponent(name)
+            )
+        }
+    }
+
+    /// Remove all rules for a plugin from a workflow.
+    static func removePluginRules(
+        workflowName: String,
+        pluginIdentifier: String,
+        root: URL? = nil
+    ) throws {
+        let dir = pluginRulesDirectory(
+            workflowName: workflowName, pluginIdentifier: pluginIdentifier, root: root
+        )
+        if FileManager.default.fileExists(atPath: dir.path) {
+            try FileManager.default.removeItem(at: dir)
+        }
     }
 
     /// Seed the default workflow if no workflows exist.
