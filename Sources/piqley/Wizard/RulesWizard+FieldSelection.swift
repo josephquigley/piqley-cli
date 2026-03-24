@@ -10,7 +10,7 @@ extension RulesWizard {
             switch source {
             case "original": return "\(source)  \(ANSI.dim)\u{2014} file metadata loaded at import\(ANSI.reset)"
             case "read": return "\(source)  \(ANSI.dim)\u{2014} file metadata loaded on demand\(ANSI.reset)"
-            default: return "\(source)  \(ANSI.dim)\u{2014} dependency plugin\(ANSI.reset)"
+            default: return "\(source)  \(ANSI.dim)\u{2014} plugin\(ANSI.reset)"
             }
         }
         guard let sourceIdx = terminal.selectFromList(
