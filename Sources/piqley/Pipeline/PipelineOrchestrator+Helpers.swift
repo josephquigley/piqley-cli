@@ -58,8 +58,12 @@ extension PipelineOrchestrator {
         let data = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: data)
 
+        // Load stages from workflow rules dir instead of plugin dir
+        let rulesDir = WorkflowStore.pluginRulesDirectory(
+            workflowName: workflow.name, pluginIdentifier: identifier, root: workflowsRoot
+        )
         let knownHooks = registry.allKnownNames
-        let (stages, _) = PluginDiscovery.loadStages(from: pluginDir, knownHooks: knownHooks, logger: logger)
+        let (stages, _) = PluginDiscovery.loadStages(from: rulesDir, knownHooks: knownHooks, logger: logger)
 
         return LoadedPlugin(
             identifier: manifest.identifier, name: manifest.name,

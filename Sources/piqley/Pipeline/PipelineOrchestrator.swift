@@ -7,7 +7,22 @@ struct PipelineOrchestrator: Sendable {
     let pluginsDirectory: URL
     let secretStore: any SecretStore
     let registry: StageRegistry
+    let workflowsRoot: URL?
     let logger = Logger(label: "piqley.pipeline")
+
+    init(
+        workflow: Workflow,
+        pluginsDirectory: URL,
+        secretStore: any SecretStore,
+        registry: StageRegistry,
+        workflowsRoot: URL? = nil
+    ) {
+        self.workflow = workflow
+        self.pluginsDirectory = pluginsDirectory
+        self.secretStore = secretStore
+        self.registry = registry
+        self.workflowsRoot = workflowsRoot
+    }
 
     /// Resolves the default plugins directory.
     static var defaultPluginsDirectory: URL {

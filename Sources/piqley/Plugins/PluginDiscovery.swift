@@ -77,14 +77,6 @@ struct PluginDiscovery: Sendable {
                 )
             }
 
-            // Require at least one stage file
-            if stages.isEmpty {
-                throw PluginDiscoveryError.noStageFiles(
-                    plugin: manifest.identifier,
-                    path: url.path
-                )
-            }
-
             let dataDir = url.appendingPathComponent(PluginDirectory.data)
             try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
             return LoadedPlugin(identifier: manifest.identifier, name: manifest.name, directory: url, manifest: manifest, stages: stages)

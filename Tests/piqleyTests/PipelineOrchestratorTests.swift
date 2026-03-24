@@ -39,6 +39,27 @@ private func makePluginsDir(withPlugin identifier: String, hook: String, scriptU
     return dir
 }
 
+/// Create a workflows root directory with rules for plugins.
+/// Copies stage files from the plugin directory into the workflow rules structure.
+private func makeWorkflowsRoot(
+    workflowName: String,
+    pluginsDir: URL,
+    identifiers: [String]
+) throws -> URL {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("piqley-wf-root-\(UUID().uuidString)")
+    for identifier in identifiers {
+        let pluginDir = pluginsDir.appendingPathComponent(identifier)
+        try WorkflowStore.seedRules(
+            workflowName: workflowName,
+            pluginIdentifier: identifier,
+            pluginDirectory: pluginDir,
+            root: root
+        )
+    }
+    return root
+}
+
 private func makeSourceDir(withImage: Bool = true) throws -> URL {
     let dir = FileManager.default.temporaryDirectory
         .appendingPathComponent("piqley-src-\(UUID().uuidString)")
@@ -100,11 +121,17 @@ struct PipelineOrchestratorTests {
         var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
         workflow.pipeline["publish"] = ["com.test.test-plugin"]
 
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir, identifiers: ["com.test.test-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: pluginsDir,
             secretStore: FakeSecretStore(),
-            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) })
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == true)
@@ -148,11 +175,18 @@ struct PipelineOrchestratorTests {
         var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
         workflow.pipeline["publish"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
 
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.fail-plugin", "com.test.ok-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: pluginsDir,
             secretStore: FakeSecretStore(),
-            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) })
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == false)
@@ -189,11 +223,18 @@ struct PipelineOrchestratorTests {
         var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
         workflow.pipeline["publish"] = ["com.test.secret-plugin"]
 
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.secret-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: pluginsDir,
             secretStore: FakeSecretStore(), // no secrets configured
-            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) })
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == false)
@@ -224,9 +265,16 @@ struct PipelineOrchestratorTests {
         var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
         workflow.pipeline["pre-process"] = ["com.test.skip-plugin"]
 
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.skip-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
         let orchestrator = PipelineOrchestrator(
             workflow: workflow, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore(),
-            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) })
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
         )
         let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
         #expect(result == true)

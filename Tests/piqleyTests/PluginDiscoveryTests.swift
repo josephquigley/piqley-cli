@@ -134,7 +134,7 @@ struct PluginDiscoveryTests {
         }
     }
 
-    @Test("throws for plugin with no stage files")
+    @Test("allows plugin with no stage files (rules live in workflow)")
     func testNoStageFiles() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-plugins-\(UUID().uuidString)")
@@ -147,8 +147,8 @@ struct PluginDiscoveryTests {
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
 
         let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
-        #expect(throws: PluginDiscoveryError.self) {
-            try discovery.loadManifests()
-        }
+        let (plugins, _) = try discovery.loadManifests()
+        #expect(plugins.count == 1)
+        #expect(plugins.first?.identifier == "no-stages")
     }
 }
