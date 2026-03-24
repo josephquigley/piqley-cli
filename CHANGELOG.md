@@ -129,6 +129,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Workflows are now stored as directories (`{name}/workflow.json` + `rules/` subtree) instead of flat JSON files
+- Plugin rule files are stored per-workflow, making plugins immutable after install
+- Stage operations (rename, duplicate, remove) are scoped to the current workflow
+- `piqley rules` command now requires a workflow context (falls back to sole workflow when only one exists)
+- Rules are seeded from plugin stage files when a plugin is first added to a workflow pipeline
+- PipelineOrchestrator loads rules from workflow rules directory instead of plugin directory
 - Pipeline runtime uses `BasePluginConfigStore` and `ConfigResolver` instead of config.json sidecar for config and secret resolution
 - Plugin uninstall now deletes base config file and prunes orphaned secrets
 - `PluginSetupScanner` writes `BasePluginConfig` to `~/.config/piqley/config/` instead of config.json sidecar; secrets use alias-based keys
