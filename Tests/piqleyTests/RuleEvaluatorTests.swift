@@ -875,6 +875,127 @@ struct RuleEvaluatorTests {
         }
     }
 
+    // MARK: - Self namespace resolution
+
+    @Test("bare field name resolves to pluginId namespace")
+    func bareFieldResolvesToPluginId() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "score",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["matched"], replacements: nil, source: nil)]
+            )],
+            pluginId: "com.example.tagger",
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["com.example.tagger": ["score": .string("95")]]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("matched")]))
+    }
+
+    @Test("self: prefix resolves to pluginId namespace")
+    func selfPrefixResolvesToPluginId() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "self:score",
+                pattern: "95",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["matched"], replacements: nil, source: nil)]
+            )],
+            pluginId: "com.example.tagger",
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["com.example.tagger": ["score": .string("95")]]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("matched")]))
+    }
+
+    @Test("bare 'skip' field preserves special behavior even with pluginId")
+    func bareSkipPreservesSpecialBehavior() async throws {
+        // "skip" with no colon must resolve to ("", "skip"), not (pluginId, "skip")
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "skip",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)]
+            )],
+            pluginId: "com.example.tagger",
+            logger: logger
+        )
+        let skipState: [String: [String: JSONValue]] = [
+            "skip": ["records": .array([
+                .object(["file": .string("test.jpg"), "plugin": .string("other")])
+            ])]
+        ]
+        let result = await evaluator.evaluate(
+            state: skipState,
+            imageName: "test.jpg",
+            pluginId: "com.example.tagger"
+        )
+        #expect(result.skipped)
+    }
+
+    @Test("bare field name with nil pluginId uses empty namespace")
+    func bareFieldNilPluginIdUsesEmptyNamespace() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "score",
+                pattern: "95",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["matched"], replacements: nil, source: nil)]
+            )],
+            pluginId: nil,
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["": ["score": .string("95")]]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("matched")]))
+    }
+
+    @Test("self: prefix with nil pluginId throws compilation error")
+    func selfPrefixNilPluginIdThrows() throws {
+        #expect(throws: RuleCompilationError.self) {
+            try RuleEvaluator(
+                rules: [makeRule(field: "self:score", pattern: "95")],
+                pluginId: nil,
+                logger: logger
+            )
+        }
+    }
+
+    @Test("self: prefix with nil pluginId skips rule in nonInteractive mode")
+    func selfPrefixNilPluginIdSkipsNonInteractive() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(field: "self:score", pattern: "95")],
+            pluginId: nil,
+            nonInteractive: true,
+            logger: logger
+        )
+        // Rule was skipped, so no compiled rules, empty result
+        let result = await evaluator.evaluate(
+            state: ["anything": ["score": .string("95")]]
+        )
+        #expect(result.namespace.isEmpty)
+    }
+
+    @Test("fully-qualified field still works with pluginId set")
+    func fullyQualifiedFieldUnchanged() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "Sony",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["sony"], replacements: nil, source: nil)]
+            )],
+            pluginId: "com.example.tagger",
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("sony")]))
+    }
+
     @Test("clone with read: namespace")
     func cloneReadNamespace() async throws {
         let buffer = MetadataBuffer(preloaded: [

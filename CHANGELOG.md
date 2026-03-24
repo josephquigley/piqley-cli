@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Rule fields can omit the namespace prefix (bare name) or use `self:` prefix, resolving to the owning plugin's identifier at compile time
 - `piqley workflow list` subcommand showing plugin and stage counts per workflow
 - `installedPlatform` written to plugin manifest on install
 - Setup scanner prints existing config values and respects `--force` flag
