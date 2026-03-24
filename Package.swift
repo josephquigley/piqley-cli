@@ -7,7 +7,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
-        .package(url: "https://github.com/josephquigley/piqley-plugin-sdk.git", .upToNextMajor(from: "0.6.0")),
+        .package(url: "https://github.com/josephquigley/piqley-plugin-sdk.git", .upToNextMajor(from: "0.9.1")),
     ],
     targets: [
         .executableTarget(
