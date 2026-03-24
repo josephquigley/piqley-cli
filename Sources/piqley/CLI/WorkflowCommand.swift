@@ -7,7 +7,7 @@ struct WorkflowCommand: ParsableCommand {
         commandName: "workflow",
         abstract: "Manage workflows",
         subcommands: [
-            EditSubcommand.self, CreateSubcommand.self,
+            ListSubcommand.self, EditSubcommand.self, CreateSubcommand.self,
             CloneSubcommand.self, DeleteSubcommand.self,
             AddPluginSubcommand.self, RemovePluginSubcommand.self,
             OpenSubcommand.self, ConfigSubcommand.self,
@@ -25,6 +25,29 @@ struct WorkflowCommand: ParsableCommand {
         registry = updatedRegistry
         try registry.save(to: stagesDir)
         return (registry, plugins)
+    }
+
+    // MARK: - List
+
+    struct ListSubcommand: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "list",
+            abstract: "List all workflows"
+        )
+
+        func run() throws {
+            let names = try WorkflowStore.list()
+            if names.isEmpty {
+                print("No workflows found.")
+                return
+            }
+            for name in names {
+                let workflow = try WorkflowStore.load(name: name)
+                let pluginCount = Set(workflow.pipeline.values.flatMap(\.self)).count
+                let stageCount = workflow.pipeline.filter { !$0.value.isEmpty }.count
+                print("\(workflow.displayName) (\(name)) - \(pluginCount) plugin(s) across \(stageCount) stage(s)")
+            }
+        }
     }
 
     // MARK: - Edit

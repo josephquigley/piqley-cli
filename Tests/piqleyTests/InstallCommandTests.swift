@@ -77,6 +77,25 @@ struct InstallCommandTests {
         #expect(FileManager.default.fileExists(atPath: pluginPath.appendingPathComponent(PluginDirectory.data).path))
     }
 
+    @Test("writes installedPlatform to manifest")
+    func writesInstalledPlatform() throws {
+        let tmpDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let zipURL = try createTestPlugin(name: "platform-plugin", in: tmpDir)
+        let installDir = tmpDir.appendingPathComponent("plugins")
+        try FileManager.default.createDirectory(at: installDir, withIntermediateDirectories: true)
+
+        try PluginInstaller.install(from: zipURL, to: installDir)
+
+        let manifestURL = installDir
+            .appendingPathComponent("platform-plugin")
+            .appendingPathComponent(PluginFile.manifest)
+        let data = try Data(contentsOf: manifestURL)
+        let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(dict?["installedPlatform"] as? String == HostPlatform.current)
+    }
+
     @Test("rejects unsupported protocol version")
     func rejectsUnsupportedProtocolVersion() throws {
         let tmpDir = try makeTempDir()

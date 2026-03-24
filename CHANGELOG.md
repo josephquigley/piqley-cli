@@ -31,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `piqley workflow list` subcommand showing plugin and stage counts per workflow
+- `installedPlatform` written to plugin manifest on install
+- Setup scanner prints existing config values and respects `--force` flag
+- Config wizard shows available plugin count per stage
+- Idempotent `Terminal.restore()` prevents double-restore issues
+- Default workflow seeded on startup when no workflows exist
 - Rules editor scans all installed plugin manifests for field discovery instead of only declared dependencies
 - Save-time warning when rules reference plugin namespaces that are not declared dependencies
 - Field source label in rules editor changed from "dependency plugin" to "plugin"

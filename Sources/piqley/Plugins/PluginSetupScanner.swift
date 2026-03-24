@@ -32,7 +32,10 @@ struct PluginSetupScanner {
         // Phase 1: Config value resolution
         for entry in plugin.manifest.config {
             guard case let .value(key, type, defaultValue) = entry else { continue }
-            if !force, baseConfig.values[key] != nil { continue }
+            if !force, let existing = baseConfig.values[key] {
+                print("[\(plugin.name)] \(key) already set to: \(displayValue(existing))")
+                continue
+            }
             let resolved = promptForValue(pluginName: plugin.name, key: key, type: type, defaultValue: defaultValue)
             baseConfig.values[key] = resolved
         }
@@ -45,6 +48,7 @@ struct PluginSetupScanner {
             // Check if we already have this alias mapped and the secret exists
             if let existingAlias = baseConfig.secrets[secretKey] {
                 if (try? secretStore.get(key: existingAlias)) != nil {
+                    print("[\(plugin.name)] \(secretKey) (secret) already set")
                     continue
                 }
             }

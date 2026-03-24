@@ -6,6 +6,7 @@ import Foundation
 /// Saves and restores original terminal settings on deinit.
 final class RawTerminal {
     private var originalTermios: termios
+    private var isRestored = false
 
     init() {
         var raw = termios()
@@ -30,6 +31,8 @@ final class RawTerminal {
     }
 
     func restore() {
+        guard !isRestored else { return }
+        isRestored = true
         // Show cursor
         write("\u{1b}[?25h")
         // Disable alternate screen buffer
@@ -41,6 +44,7 @@ final class RawTerminal {
 
     /// Re-enter raw mode after a `restore()` call (e.g. after a nested wizard).
     func reenter() {
+        isRestored = false
         var raw = termios()
         tcgetattr(STDIN_FILENO, &raw)
         raw.c_lflag &= ~UInt(ECHO | ICANON | ISIG)

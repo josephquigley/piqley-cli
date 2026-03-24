@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import Logging
+import PiqleyCore
 
 @main
 struct Piqley: AsyncParsableCommand {
@@ -29,6 +30,12 @@ struct Piqley: AsyncParsableCommand {
                 configStore: .default,
                 secretStore: makeDefaultSecretStore()
             )
+
+            // Seed default workflow if none exist
+            let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(PiqleyPath.stages)
+            let seedRegistry = try StageRegistry.load(from: stagesDir)
+            try WorkflowStore.seedDefault(activeStages: seedRegistry.executionOrder)
 
             var command = try parseAsRoot()
             if var asyncCommand = command as? AsyncParsableCommand {

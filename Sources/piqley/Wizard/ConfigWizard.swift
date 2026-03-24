@@ -159,6 +159,13 @@ final class ConfigWizard {
         "\(stage):\(plugin)"
     }
 
+    private func availablePluginCount(for stageName: String) -> Int {
+        let currentPlugins = Set(workflow.pipeline[stageName] ?? [])
+        return discoveredPlugins
+            .filter { $0.stages.keys.contains(stageName) && !currentPlugins.contains($0.identifier) }
+            .count
+    }
+
     private func pluginList(stageName: String) {
         var cursor = 0
 
@@ -181,8 +188,14 @@ final class ConfigWizard {
                 && removedPlugins.contains(removalKey(stage: stageName, plugin: plugins[cursor]))
             let removeLabel = isCurrentRemoved ? "d undelete" : "d remove"
 
+            let available = availablePluginCount(for: stageName)
+            var title = "\(stageName) plugins"
+            if available > 0 {
+                title += "\n\(ANSI.dim)\(available) plugin(s) available to add\(ANSI.reset)"
+            }
+
             terminal.drawScreen(
-                title: "\(stageName) plugins",
+                title: title,
                 items: items,
                 cursor: cursor,
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  \(removeLabel)  r reorder  s save  Esc back")

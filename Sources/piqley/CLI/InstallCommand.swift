@@ -167,7 +167,17 @@ enum PluginInstaller {
         // 9. Move plugin dir to install location
         try fileManager.moveItem(at: pluginDir, to: installLocation)
 
-        // 10. Set executable permissions on all files in bin/
+        // 10. Write installedPlatform to manifest
+        let installedManifestURL = installLocation.appendingPathComponent(PluginFile.manifest)
+        let rawManifestData = try Data(contentsOf: installedManifestURL)
+        var manifestDict = try JSONSerialization.jsonObject(with: rawManifestData) as? [String: Any] ?? [:]
+        manifestDict["installedPlatform"] = HostPlatform.current
+        let updatedManifestData = try JSONSerialization.data(
+            withJSONObject: manifestDict, options: [.prettyPrinted, .sortedKeys]
+        )
+        try updatedManifestData.write(to: installedManifestURL, options: .atomic)
+
+        // 11. Set executable permissions on all files in bin
         let binDir = installLocation.appendingPathComponent(PluginDirectory.bin)
         if fileManager.fileExists(atPath: binDir.path) {
             let binFiles = try fileManager.contentsOfDirectory(
@@ -184,7 +194,7 @@ enum PluginInstaller {
             }
         }
 
-        // 11. Create logs/ and data/ directories if not present
+        // 12. Create logs/ and data/ directories if not present
         let logsDir = installLocation.appendingPathComponent(PluginDirectory.logs)
         if !fileManager.fileExists(atPath: logsDir.path) {
             try fileManager.createDirectory(at: logsDir, withIntermediateDirectories: true)
@@ -241,7 +251,7 @@ struct InstallSubcommand: ParsableCommand {
             configStore: .default,
             inputSource: StdinInputSource()
         )
-        try scanner.scan(plugin: plugin)
+        try scanner.scan(plugin: plugin, force: force)
         print("\nSetup complete.")
     }
 }
