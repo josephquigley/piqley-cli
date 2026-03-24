@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Skip-rule test no longer fails due to BinaryProbe executing the test script during pre-flight validation
 - Runtime errors from valid commands no longer dump usage text; only argument/usage issues show it
 - Rule edit menu handlers use correct double-optional semantics to stay in menu loop after editing fields
 - Environment templates (`{{original:*}}`) now resolve correctly: the `original` namespace was missing from the state payload dependency list

@@ -203,7 +203,10 @@ struct PipelineOrchestratorTests {
     func skipRulePreventsBinary() async throws {
         let markerPath = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-skip-marker-\(UUID().uuidString)")
-        let script = try makeTempScript("touch \"\(markerPath.path)\"")
+        let script = try makeTempScript("""
+            [ "$1" = "--piqley-info" ] && exit 1
+            touch "\(markerPath.path)"
+            """)
         defer { try? FileManager.default.removeItem(at: script) }
 
         let pluginsDir = try makePluginsDirWithSkipRule(
