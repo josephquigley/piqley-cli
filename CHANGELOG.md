@@ -41,7 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Config wizard shows available plugin count per stage
 - Idempotent `Terminal.restore()` prevents double-restore issues
 - Default workflow seeded on startup when no workflows exist
-- Rules editor discovers upstream fields from workflow rules files instead of scanning all installed plugin manifests
+- Rules editor discovers upstream fields from workflow rules files instead of scanning installed plugin manifests
 - Save-time warning when rules reference plugin namespaces that are not declared dependencies
 - Field source label in rules editor changed from "dependency plugin" to "plugin"
 - Automatic config migration from old config.json sidecar to new BasePluginConfig layout at startup

@@ -58,28 +58,14 @@ struct PluginRulesCommand: ParsableCommand {
             stages[stageName] = StageConfig(preRules: nil, binary: nil, postRules: nil)
         }
 
-        // Build field info from all installed plugins
-        var deps: [FieldDiscovery.DependencyInfo] = []
-        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-        if let pluginDirs = try? FileManager.default.contentsOfDirectory(
-            at: pluginsDir, includingPropertiesForKeys: [.isDirectoryKey]
-        ) {
-            for dir in pluginDirs {
-                guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
-                let mURL = dir.appendingPathComponent(PluginFile.manifest)
-                if let data = try? Data(contentsOf: mURL),
-                   let pluginManifest = try? JSONDecoder.piqley.decode(PluginManifest.self, from: data)
-                {
-                    let fields = pluginManifest.valueEntries.map(\.key)
-                    if !fields.isEmpty {
-                        deps.append(FieldDiscovery.DependencyInfo(
-                            identifier: pluginManifest.identifier,
-                            fields: fields
-                        ))
-                    }
-                }
-            }
-        }
+        // Discover fields from upstream plugins' rules files
+        let rulesBaseDir = WorkflowStore.rulesDirectory(name: workflowName)
+        let deps = FieldDiscovery.discoverUpstreamFields(
+            pipeline: workflow.pipeline,
+            targetPlugin: pluginID,
+            stageOrder: registry.executionOrder,
+            rulesBaseDir: rulesBaseDir
+        )
 
         // Build context and launch wizard
         let availableFields = FieldDiscovery.buildAvailableFields(dependencies: deps)
