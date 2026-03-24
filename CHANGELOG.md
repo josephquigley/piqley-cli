@@ -134,7 +134,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Stage operations (rename, duplicate, remove) are scoped to the current workflow's rules directory
 - `piqley rules` command now requires a workflow context: `piqley rules [workflow] <plugin>` (falls back to sole workflow when only one exists)
 - Rules are seeded from plugin built-in stage files when a plugin is first added to a workflow pipeline
-- Plugin rules are cleaned up when a plugin is removed from all stages in a workflow
+- Plugin rules are cleaned up when a plugin is removed from all stages in a workflow (both TUI and CLI)
+- `workflow add-plugin` seeds rules on add; `workflow remove-plugin` cleans up rules on remove
 - PipelineOrchestrator loads rules from workflow rules directory instead of plugin directory; plugins are immutable after install
 - Pipeline runtime uses `BasePluginConfigStore` and `ConfigResolver` instead of config.json sidecar for config and secret resolution
 - Plugin uninstall now deletes base config file and prunes orphaned secrets

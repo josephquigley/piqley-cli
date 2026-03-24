@@ -214,6 +214,15 @@ struct WorkflowCommand: ParsableCommand {
             workflow.pipeline[stage] = list
             try WorkflowStore.save(workflow)
 
+            // Seed rules for this plugin if not already seeded
+            let pluginDir = PipelineOrchestrator.defaultPluginsDirectory
+                .appendingPathComponent(pluginIdentifier)
+            try? WorkflowStore.seedRules(
+                workflowName: workflowName,
+                pluginIdentifier: pluginIdentifier,
+                pluginDirectory: pluginDir
+            )
+
             print("Added '\(pluginIdentifier)' to \(stage) in workflow '\(workflowName)'")
         }
     }
@@ -255,6 +264,14 @@ struct WorkflowCommand: ParsableCommand {
             list.removeAll { $0 == pluginIdentifier }
             workflow.pipeline[stage] = list
             try WorkflowStore.save(workflow)
+
+            // Clean up rules if plugin is no longer in any stage
+            let allPipelinePlugins = Set(workflow.pipeline.values.flatMap(\.self))
+            if !allPipelinePlugins.contains(pluginIdentifier) {
+                try? WorkflowStore.removePluginRules(
+                    workflowName: workflowName, pluginIdentifier: pluginIdentifier
+                )
+            }
 
             print("Removed '\(pluginIdentifier)' from \(stage) in workflow '\(workflowName)'")
         }
