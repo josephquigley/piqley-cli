@@ -82,6 +82,13 @@ extension PluginCommand {
                 print("Removed '\(pluginIdentifier)' from workflow(s): \(names)")
             }
 
+            // Clean up workflow rules directories for this plugin
+            for workflowName in try WorkflowStore.list() {
+                try? WorkflowStore.removePluginRules(
+                    workflowName: workflowName, pluginIdentifier: pluginIdentifier
+                )
+            }
+
             // Delete base config file
             let configStore = BasePluginConfigStore.default
             try configStore.delete(for: pluginIdentifier)
