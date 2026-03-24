@@ -51,17 +51,29 @@ struct PluginRulesEditCommand: ParsableCommand {
             stages[stageName] = StageConfig(preRules: nil, binary: nil, postRules: nil)
         }
 
-        // 4. Build dependency info
+        // 4. Build field info from all installed plugins
+        // This includes the plugin being edited (it may reference its own fields from earlier stages).
+        // Directories with missing/malformed manifests are silently skipped via try?.
         var deps: [FieldDiscovery.DependencyInfo] = []
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
-        for depID in manifest.dependencyIdentifiers {
-            let depDir = pluginsDir.appendingPathComponent(depID)
-            let depManifestURL = depDir.appendingPathComponent(PluginFile.manifest)
-            if let depData = try? Data(contentsOf: depManifestURL),
-               let depManifest = try? JSONDecoder().decode(PluginManifest.self, from: depData)
-            {
-                let fields = depManifest.valueEntries.map(\.key)
-                deps.append(FieldDiscovery.DependencyInfo(identifier: depID, fields: fields))
+        if let pluginDirs = try? FileManager.default.contentsOfDirectory(
+            at: pluginsDir,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        ) {
+            for dir in pluginDirs {
+                guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+                let manifestURL = dir.appendingPathComponent(PluginFile.manifest)
+                if let data = try? Data(contentsOf: manifestURL),
+                   let pluginManifest = try? JSONDecoder().decode(PluginManifest.self, from: data)
+                {
+                    let fields = pluginManifest.valueEntries.map(\.key)
+                    if !fields.isEmpty {
+                        deps.append(FieldDiscovery.DependencyInfo(
+                            identifier: pluginManifest.identifier,
+                            fields: fields
+                        ))
+                    }
+                }
             }
         }
 
@@ -74,7 +86,8 @@ struct PluginRulesEditCommand: ParsableCommand {
         )
 
         // 6. Launch wizard
-        let wizard = RulesWizard(context: context, pluginDir: pluginDir)
+        let dependencyIDs = Set(manifest.dependencyIdentifiers)
+        let wizard = RulesWizard(context: context, pluginDir: pluginDir, dependencyIdentifiers: dependencyIDs)
         try wizard.run()
     }
 }
