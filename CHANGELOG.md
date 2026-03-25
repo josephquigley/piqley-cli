@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Workflow editor blocks removal and rename of required pipeline stages (pipeline-start, pipeline-finished) with a user-facing message
 - `piqley plugin rules` can now be called with zero or one argument, resolving missing workflow/plugin interactively via TUI menus
 - Rules editor discovers consumed fields from upstream plugins' manifests and the target plugin's own manifest
 - Upstream field discovery: rules editor now discovers available fields from upstream plugins' rules files instead of scanning manifests

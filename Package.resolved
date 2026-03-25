@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephquigley/piqley-core",
       "state" : {
-        "revision" : "347eb302a4702f031753d2cd76cbe17c3f06b1db",
-        "version" : "0.7.2"
+        "revision" : "d5627a4f7f60c5e8c252b51d5afa1df5a6cde0c4",
+        "version" : "0.8.1"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephquigley/piqley-plugin-sdk.git",
       "state" : {
-        "revision" : "2d67c572d3849146387b275be7d7492092a0da4b",
-        "version" : "0.9.1"
+        "revision" : "435d9a09717766ce279b3a3b4023260751653396",
+        "version" : "0.10.0"
       }
     },
     {

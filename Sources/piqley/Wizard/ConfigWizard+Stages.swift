@@ -86,6 +86,10 @@ extension ConfigWizard {
     }
 
     func removeStage(_ name: String) {
+        guard !StageRegistry.isRequired(name) else {
+            terminal.showMessage("'\(name)' is a required stage and cannot be removed.")
+            return
+        }
         do {
             try registry.deactivate(name)
             workflow.pipeline.removeValue(forKey: name)
@@ -112,6 +116,10 @@ extension ConfigWizard {
     }
 
     func renameStage(_ oldName: String) {
+        guard !StageRegistry.isRequired(oldName) else {
+            terminal.showMessage("'\(oldName)' is a required stage and cannot be renamed.")
+            return
+        }
         guard let newName = terminal.promptForInput(title: "Rename '\(oldName)' to", hint: "lowercase-with-hyphens") else { return }
         guard StageRegistry.isValidName(newName) else {
             terminal.showMessage("Invalid name. Use lowercase alphanumeric and hyphens (min 2 chars).")
