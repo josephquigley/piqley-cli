@@ -24,7 +24,7 @@ enum UpdateError: Error, CustomStringConvertible, Equatable {
         case .unsupportedSchemaVersion:
             "Plugin schema version is not supported."
         case let .notInstalled(identifier):
-            "Plugin '\(identifier)' is not installed. Use 'piqley plugin install' first."
+            "Plugin '\(identifier)' is not installed. Use 'piqley plugin install' instead."
         case let .unsupportedPlatform(host, supported):
             "This plugin does not support \(host). Supported platforms: \(supported.joined(separator: ", "))"
         case .extractionFailed:
@@ -108,57 +108,8 @@ enum PluginUpdater {
         }
 
         // 7. Flatten platform-specific bin/ and data/ directories in temp
-        let tempBinDir = pluginDir.appendingPathComponent(PluginDirectory.bin)
-        if fileManager.fileExists(atPath: tempBinDir.path) {
-            let platformBinDir = tempBinDir.appendingPathComponent(HostPlatform.current)
-            if fileManager.fileExists(atPath: platformBinDir.path) {
-                let platformFiles = try fileManager.contentsOfDirectory(
-                    at: platformBinDir,
-                    includingPropertiesForKeys: nil,
-                    options: [.skipsHiddenFiles]
-                )
-                for file in platformFiles {
-                    let dst = tempBinDir.appendingPathComponent(file.lastPathComponent)
-                    try fileManager.moveItem(at: file, to: dst)
-                }
-                let binContents = try fileManager.contentsOfDirectory(
-                    at: tempBinDir,
-                    includingPropertiesForKeys: [.isDirectoryKey],
-                    options: [.skipsHiddenFiles]
-                )
-                for item in binContents
-                    where (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-                {
-                    try fileManager.removeItem(at: item)
-                }
-            }
-        }
-
-        let tempDataDir = pluginDir.appendingPathComponent(PluginDirectory.data)
-        if fileManager.fileExists(atPath: tempDataDir.path) {
-            let platformDataDir = tempDataDir.appendingPathComponent(HostPlatform.current)
-            if fileManager.fileExists(atPath: platformDataDir.path) {
-                let platformFiles = try fileManager.contentsOfDirectory(
-                    at: platformDataDir,
-                    includingPropertiesForKeys: nil,
-                    options: [.skipsHiddenFiles]
-                )
-                for file in platformFiles {
-                    let dst = tempDataDir.appendingPathComponent(file.lastPathComponent)
-                    try fileManager.moveItem(at: file, to: dst)
-                }
-                let dataContents = try fileManager.contentsOfDirectory(
-                    at: tempDataDir,
-                    includingPropertiesForKeys: [.isDirectoryKey],
-                    options: [.skipsHiddenFiles]
-                )
-                for item in dataContents
-                    where (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-                {
-                    try fileManager.removeItem(at: item)
-                }
-            }
-        }
+        try flattenPlatformDirectory(pluginDir.appendingPathComponent(PluginDirectory.bin))
+        try flattenPlatformDirectory(pluginDir.appendingPathComponent(PluginDirectory.data))
 
         // 8. Verify plugin is installed (derive identity from zip's manifest)
         let installLocation = pluginsDirectory.appendingPathComponent(newManifest.identifier)
@@ -168,6 +119,9 @@ enum PluginUpdater {
 
         // 9. Read old manifest from installed directory
         let oldManifestURL = installLocation.appendingPathComponent(PluginFile.manifest)
+        guard fileManager.fileExists(atPath: oldManifestURL.path) else {
+            throw UpdateError.missingManifest
+        }
         let oldManifestData = try Data(contentsOf: oldManifestURL)
         let oldManifest: PluginManifest
         do {
@@ -224,5 +178,29 @@ enum PluginUpdater {
             oldManifest: oldManifest,
             newManifest: newManifest
         )
+    }
+
+    /// Moves platform-specific files from `{dir}/{platform}/` up to `{dir}/` and removes
+    /// any remaining subdirectories. No-op if the directory does not exist.
+    private static func flattenPlatformDirectory(_ dir: URL) throws {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: dir.path) else { return }
+        let platformDir = dir.appendingPathComponent(HostPlatform.current)
+        guard fileManager.fileExists(atPath: platformDir.path) else { return }
+
+        let platformFiles = try fileManager.contentsOfDirectory(
+            at: platformDir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        )
+        for file in platformFiles {
+            try fileManager.moveItem(at: file, to: dir.appendingPathComponent(file.lastPathComponent))
+        }
+        let remaining = try fileManager.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+        )
+        for item in remaining
+            where (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        {
+            try fileManager.removeItem(at: item)
+        }
     }
 }

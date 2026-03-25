@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `piqley plugin update` command: replaces plugin files from a new `.piqleyplugin` zip while merging config/secrets
 - `PluginUpdater` with extraction, validation, and file replacement for plugin updates
 - `PluginSetupScanner.scan()` accepts `skipValueKeys` and `skipSecretKeys` parameters to selectively skip prompting
 - Rules editor inspect view: press 'i' on a rule to see a sectioned read-only detail view; press 'e' from inspect to edit
