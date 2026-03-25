@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Rules editor "when field matches" label now displays the full namespaced field name
+- Target field prompt hint verb now matches the selected action (e.g. "clone into" instead of "modify")
+- Autocomplete field input now shows a hint when no matches exist, indicating Enter will create a new field
+- Tab in autocomplete now cycles through all matching completions instead of always selecting the first
 - Skip-rule test no longer fails due to BinaryProbe executing the test script during pre-flight validation
 - Runtime errors from valid commands no longer dump usage text; only argument/usage issues show it
 - Rule edit menu handlers use correct double-optional semantics to stay in menu loop after editing fields
