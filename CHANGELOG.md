@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Rules editor inspect view: press Enter on a rule to see a sectioned read-only detail view; press 'e' to edit from inspect
 - Workflow editor blocks removal and rename of required pipeline stages (pipeline-start, pipeline-finished) with a user-facing message
 - `piqley plugin rules` can now be called with zero or one argument, resolving missing workflow/plugin interactively via TUI menus
 - Rules editor discovers consumed fields from upstream plugins' manifests and the target plugin's own manifest

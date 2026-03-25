@@ -211,4 +211,114 @@ extension RulesWizard {
             return "\(action) \(target)"
         }
     }
+
+    // MARK: - Inspect Rule
+
+    /// Displays a read-only sectioned detail view of a rule.
+    /// Press 'e' to edit, Esc to return to the rule list.
+    func inspectRule(stageName: String, slot: RuleSlot, index: Int) {
+        while true {
+            let rules = context.rules(forStage: stageName, slot: slot)
+            guard index < rules.count else { return }
+            let rule = rules[index]
+
+            let size = ANSI.terminalSize()
+            var buf = ""
+            buf += ANSI.clearScreen()
+            buf += ANSI.moveTo(row: 1, col: 1)
+
+            // Title
+            let displayName = resolveFieldDisplayName(rule.match.field)
+            buf += "\(ANSI.bold)Rule \(index + 1): \(displayName) ~ \(rule.match.pattern)\(ANSI.reset)"
+
+            // Match section
+            var row = 3
+            buf += ANSI.moveTo(row: row, col: 1)
+            buf += "\(ANSI.dim)\u{2500}\u{2500} Match \(String(repeating: "\u{2500}", count: max(0, size.cols - 9)))\(ANSI.reset)"
+            row += 1
+
+            buf += ANSI.moveTo(row: row, col: 1)
+            let fieldDisplay: String = if displayName == rule.match.field {
+                displayName
+            } else {
+                "\(displayName)  \(ANSI.dim)(\(rule.match.field))\(ANSI.reset)"
+            }
+            buf += "  Field:    \(fieldDisplay)"
+            row += 1
+
+            buf += ANSI.moveTo(row: row, col: 1)
+            buf += "  Pattern:  \(rule.match.pattern)"
+            row += 1
+
+            buf += ANSI.moveTo(row: row, col: 1)
+            buf += "  Negated:  \(rule.match.not == true ? "yes" : "no")"
+            row += 2
+
+            // Emit Actions section
+            buf += ANSI.moveTo(row: row, col: 1)
+            let emitCount = rule.emit.count
+            let emitFill = String(repeating: "\u{2500}", count: max(0, size.cols - 20 - String(emitCount).count))
+            buf += "\(ANSI.dim)\u{2500}\u{2500} Emit Actions (\(emitCount)) \(emitFill)\(ANSI.reset)"
+            row += 1
+
+            if rule.emit.isEmpty {
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "  \(ANSI.dim)(none)\(ANSI.reset)"
+                row += 1
+            } else {
+                for (idx, emit) in rule.emit.enumerated() {
+                    buf += ANSI.moveTo(row: row, col: 1)
+                    let negatedSuffix = emit.not == true ? " \(ANSI.dim)(negated)\(ANSI.reset)" : ""
+                    buf += "  \(idx + 1). \(formatEmitAction(emit))\(negatedSuffix)"
+                    row += 1
+                }
+            }
+            row += 1
+
+            // Write Actions section
+            buf += ANSI.moveTo(row: row, col: 1)
+            let writeCount = rule.write.count
+            let writeFill = String(repeating: "\u{2500}", count: max(0, size.cols - 21 - String(writeCount).count))
+            buf += "\(ANSI.dim)\u{2500}\u{2500} Write Actions (\(writeCount)) \(writeFill)\(ANSI.reset)"
+            row += 1
+
+            if rule.write.isEmpty {
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "  \(ANSI.dim)(none)\(ANSI.reset)"
+            } else {
+                for (idx, write) in rule.write.enumerated() {
+                    buf += ANSI.moveTo(row: row, col: 1)
+                    let negatedSuffix = write.not == true ? " \(ANSI.dim)(negated)\(ANSI.reset)" : ""
+                    buf += "  \(idx + 1). \(formatEmitAction(write))\(negatedSuffix)"
+                    row += 1
+                }
+            }
+
+            // Footer
+            buf += ANSI.moveTo(row: size.rows, col: 1)
+            buf += "\(ANSI.dim)e edit  Esc back\(ANSI.reset)"
+            terminal.write(buf)
+
+            let key = terminal.readKey()
+            switch key {
+            case .char("e"):
+                let delKey = deletionKey(stage: stageName, slot: slot, index: index)
+                if !deletedRules.contains(delKey) {
+                    let existing = rules[index]
+                    if let edited = editRuleMenu(existing: existing) {
+                        if var stage = context.stages[stageName] {
+                            try? stage.replaceRule(at: index, with: edited, slot: slot)
+                            context.stages[stageName] = stage
+                            modified = true
+                        }
+                    }
+                }
+            // Loop continues: redraws inspect with updated rule
+            case .escape:
+                return
+            default:
+                break
+            }
+        }
+    }
 }

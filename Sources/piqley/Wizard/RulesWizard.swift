@@ -148,7 +148,7 @@ final class RulesWizard {
 
     // MARK: - Rule List
 
-    private func deletionKey(stage: String, slot: RuleSlot, index: Int) -> String {
+    func deletionKey(stage: String, slot: RuleSlot, index: Int) -> String {
         "\(stage):\(slot):\(index)"
     }
 
