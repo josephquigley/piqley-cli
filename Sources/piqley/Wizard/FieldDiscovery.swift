@@ -79,7 +79,8 @@ enum FieldDiscovery {
         pipeline: [String: [String]],
         targetPlugin: String,
         stageOrder: [String],
-        rulesBaseDir: URL
+        rulesBaseDir: URL,
+        pluginsDir: URL = PipelineOrchestrator.defaultPluginsDirectory
     ) -> [DependencyInfo] {
         // 1. Find target's stage and position
         var targetStageIndex = stageOrder.count
@@ -117,10 +118,12 @@ enum FieldDiscovery {
             }
         }
 
-        // 3. Harvest fields from each upstream plugin's rules files
+        // 3. Harvest fields from each upstream plugin's rules files and manifest consumedFields
         var result: [DependencyInfo] = []
         for entry in upstreamStages {
             var fields: Set<String> = []
+
+            // Scan rules files for emitted fields
             for stage in entry.stages {
                 let filename = "\(PluginFile.stagePrefix)\(stage)\(PluginFile.stageSuffix)"
                 let fileURL = rulesBaseDir
@@ -138,6 +141,18 @@ enum FieldDiscovery {
                             fields.insert(field)
                         }
                     }
+                }
+            }
+
+            // Merge manifest consumedFields
+            let manifestURL = pluginsDir
+                .appendingPathComponent(entry.identifier)
+                .appendingPathComponent(PluginFile.manifest)
+            if let data = try? Data(contentsOf: manifestURL),
+               let manifest = try? JSONDecoder.piqley.decode(PluginManifest.self, from: data)
+            {
+                for consumed in manifest.consumedFields {
+                    fields.insert(consumed.name)
                 }
             }
 

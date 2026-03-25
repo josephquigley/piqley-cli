@@ -67,8 +67,15 @@ struct PluginRulesCommand: ParsableCommand {
             rulesBaseDir: rulesBaseDir
         )
 
+        // Add the target plugin's own consumed fields
+        var allDeps = deps
+        if !manifest.consumedFields.isEmpty {
+            let ownFields = manifest.consumedFields.map(\.name)
+            allDeps.append(FieldDiscovery.DependencyInfo(identifier: pluginID, fields: ownFields))
+        }
+
         // Build context and launch wizard
-        let availableFields = FieldDiscovery.buildAvailableFields(dependencies: deps)
+        let availableFields = FieldDiscovery.buildAvailableFields(dependencies: allDeps)
         let context = RuleEditingContext(
             availableFields: availableFields,
             pluginIdentifier: pluginID,
