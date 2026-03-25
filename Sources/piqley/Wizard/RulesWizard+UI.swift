@@ -212,6 +212,18 @@ extension RulesWizard {
         }
     }
 
+    // MARK: - Formatting Helpers
+
+    /// Apply a Unicode strikethrough to each character.
+    func strikethrough(_ text: String) -> String {
+        var result = ""
+        for char in text {
+            result.append(char)
+            result.append("\u{0336}")
+        }
+        return result
+    }
+
     // MARK: - Inspect Rule
 
     /// Displays a read-only sectioned detail view of a rule.

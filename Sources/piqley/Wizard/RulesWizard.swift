@@ -177,7 +177,7 @@ final class RulesWizard {
                 title: "\(stageName) \(slot == .pre ? "pre" : "post")-rules",
                 items: items,
                 cursor: cursor,
-                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  e edit  \(deleteLabel)  r reorder  s save  Esc back")
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  e edit  i inspect  \(deleteLabel)  r reorder  s save  Esc back")
             )
 
             let key = readKeyWithSaveTimeout()
@@ -196,6 +196,13 @@ final class RulesWizard {
                 }
             case .char("a"):
                 addRule(stageName: stageName, slot: slot)
+            case .char("i"):
+                if !rules.isEmpty, cursor < rules.count {
+                    let delKey = deletionKey(stage: stageName, slot: slot, index: cursor)
+                    if !deletedRules.contains(delKey) {
+                        inspectRule(stageName: stageName, slot: slot, index: cursor)
+                    }
+                }
             case .char("d"):
                 if !rules.isEmpty, cursor < rules.count {
                     let delKey = deletionKey(stage: stageName, slot: slot, index: cursor)
@@ -222,16 +229,6 @@ final class RulesWizard {
             default: break
             }
         }
-    }
-
-    /// Apply a Unicode strikethrough to each character.
-    private func strikethrough(_ text: String) -> String {
-        var result = ""
-        for char in text {
-            result.append(char)
-            result.append("\u{0336}")
-        }
-        return result
     }
 
     // MARK: - Interactive Reorder
