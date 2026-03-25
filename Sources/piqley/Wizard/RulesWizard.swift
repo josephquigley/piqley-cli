@@ -368,7 +368,7 @@ final class RulesWizard {
         }
 
         // Step 3: Actions (emit)
-        let matchDesc = "\(selected.displayName) ~ \(pattern)"
+        let matchDesc = "\(selected.qualifiedName) ~ \(pattern)"
         if !addActions(to: &builder, isWrite: false, matchContext: matchDesc) {
             return nil
         }
@@ -423,11 +423,13 @@ final class RulesWizard {
 
         var field: String
         while true {
+            let verb = actionFieldVerb(action)
             guard let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(action)",
-                hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
+                hint: "The field to \(verb) (e.g. keywords, IPTC:Keywords)",
                 completions: uniqueFields,
-                browsableList: uniqueFields
+                browsableList: uniqueFields,
+                noMatchHint: "Enter will create a new field with this name"
             ) else { return nil }
 
             if uniqueFields.contains(input) || terminal.confirm("'\(input)' is a new field name. Use it anyway?") {

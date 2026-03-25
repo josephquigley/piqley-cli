@@ -318,13 +318,16 @@ extension RawTerminal {
     func promptWithAutocomplete(
         title: String, hint: String, completions: [String],
         browsableList: [String]? = nil, defaultValue: String? = nil,
-        allowEmpty: Bool = false, insertCompletions: [String]? = nil
+        allowEmpty: Bool = false, insertCompletions: [String]? = nil,
+        noMatchHint: String? = nil
     ) -> String? {
         var input = defaultValue ?? ""
         var cursorPos = input.count
         let size = ANSI.terminalSize()
         let maxSuggestions = 5
         let hasList = browsableList != nil
+        var tabCycleIndex = 0
+        var lastTabQuery = ""
 
         while true {
             let query = input.lowercased()
@@ -345,18 +348,23 @@ extension RawTerminal {
             buf += ANSI.moveTo(row: 4, col: 1)
             buf += "\u{25B8} \(before)\u{2588}\(after)"
 
-            // Show suggestions
-            for (displayIdx, match) in matches.prefix(maxSuggestions).enumerated() {
-                buf += ANSI.moveTo(row: 6 + displayIdx, col: 3)
-                if displayIdx == 0 {
-                    buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(match)"
-                } else {
-                    buf += "\(ANSI.dim)  \(match)\(ANSI.reset)"
+            // Show suggestions or new-field hint
+            if !matches.isEmpty {
+                for (displayIdx, match) in matches.prefix(maxSuggestions).enumerated() {
+                    buf += ANSI.moveTo(row: 6 + displayIdx, col: 3)
+                    if displayIdx == 0 {
+                        buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(match)"
+                    } else {
+                        buf += "\(ANSI.dim)  \(match)\(ANSI.reset)"
+                    }
                 }
-            }
-            if matches.count > maxSuggestions {
-                buf += ANSI.moveTo(row: 6 + maxSuggestions, col: 3)
-                buf += "\(ANSI.dim)  ... \(matches.count - maxSuggestions) more\(ANSI.reset)"
+                if matches.count > maxSuggestions {
+                    buf += ANSI.moveTo(row: 6 + maxSuggestions, col: 3)
+                    buf += "\(ANSI.dim)  ... \(matches.count - maxSuggestions) more\(ANSI.reset)"
+                }
+            } else if !input.isEmpty, let noMatchHint {
+                buf += ANSI.moveTo(row: 6, col: 3)
+                buf += "\(ANSI.dim)\(noMatchHint)\(ANSI.reset)"
             }
 
             buf += ANSI.moveTo(row: size.rows, col: 1)
@@ -386,9 +394,16 @@ extension RawTerminal {
             case .cursorRight:
                 if cursorPos < input.count { cursorPos += 1 }
             case .tab:
-                if let firstIdx = matchedIndices.first {
-                    input = insertCompletions?[firstIdx] ?? completions[firstIdx]
+                if !matchedIndices.isEmpty {
+                    // Reset cycle when query changes
+                    if query != lastTabQuery {
+                        tabCycleIndex = 0
+                        lastTabQuery = query
+                    }
+                    let idx = matchedIndices[tabCycleIndex % matchedIndices.count]
+                    input = insertCompletions?[idx] ?? completions[idx]
                     cursorPos = input.count
+                    tabCycleIndex += 1
                 }
             case .enter:
                 if !input.isEmpty || allowEmpty { return input }

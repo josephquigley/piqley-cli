@@ -88,12 +88,14 @@ extension RulesWizard {
 
         case .field:
             let completions = buildFieldCompletions()
+            let verb = actionFieldVerb(state.action)
             if let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(state.action)",
-                hint: "The field to modify (e.g. keywords, IPTC:Keywords)",
+                hint: "The field to \(verb) (e.g. keywords, IPTC:Keywords)",
                 completions: completions,
                 browsableList: completions,
-                defaultValue: state.field
+                defaultValue: state.field,
+                noMatchHint: "Enter will create a new field with this name"
             ) {
                 state.field = input
             }

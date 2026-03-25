@@ -152,6 +152,21 @@ extension RulesWizard {
         deletedRules.removeAll()
     }
 
+    // MARK: - Action Verb Helpers
+
+    /// Returns a verb phrase that describes what an action does to a field,
+    /// for use in hint text like "The field to <verb>".
+    func actionFieldVerb(_ action: String) -> String {
+        switch action {
+        case "add": "add to"
+        case "remove": "remove from"
+        case "replace": "replace values in"
+        case "removeField": "remove"
+        case "clone": "clone into"
+        default: action
+        }
+    }
+
     // MARK: - Formatting
 
     func formatRule(_ rule: Rule, index: Int) -> String {
