@@ -300,4 +300,84 @@ struct PluginSetupScannerTests {
         let config = try configStore.load(for: "com.test.test-plugin")
         #expect(config?.isSetUp == nil)
     }
+
+    // MARK: 9. skipValueKeys
+
+    @Test("skipValueKeys skips prompting for specified config keys")
+    func skipValueKeys() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
+        let manifest = PluginManifest(
+            identifier: "com.test.test-plugin",
+            name: "test-plugin",
+            pluginSchemaVersion: "1",
+            config: [
+                .value(key: "kept-url", type: .string, value: .null),
+                .value(key: "new-key", type: .string, value: .null),
+            ],
+            setup: nil
+        )
+        let dir = try makePluginDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // Pre-write config with existing value for kept-url
+        let configStore = makeConfigStore(configDir)
+        let existingConfig = BasePluginConfig(values: ["kept-url": .string("https://existing.com")])
+        try configStore.save(existingConfig, for: "com.test.test-plugin")
+
+        let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
+        let secretStore = MockSecretStore()
+        // Only one response needed: for new-key (kept-url is skipped)
+        let inputSource = MockInputSource(responses: ["new-value"])
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
+        try scanner.scan(plugin: plugin, skipValueKeys: ["kept-url"])
+
+        let config = try configStore.load(for: "com.test.test-plugin")
+        #expect(config?.values["kept-url"] == .string("https://existing.com"))
+        #expect(config?.values["new-key"] == .string("new-value"))
+    }
+
+    // MARK: 10. skipSecretKeys
+
+    @Test("skipSecretKeys skips prompting for specified secret keys")
+    func skipSecretKeys() throws {
+        let configDir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: configDir) }
+        let manifest = PluginManifest(
+            identifier: "com.test.test-plugin",
+            name: "test-plugin",
+            pluginSchemaVersion: "1",
+            config: [
+                .secret(secretKey: "kept-token", type: .string),
+                .secret(secretKey: "new-token", type: .string),
+            ],
+            setup: nil
+        )
+        let dir = try makePluginDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let plugin = makeLoadedPlugin(name: "test-plugin", manifest: manifest, dir: dir)
+        let secretStore = MockSecretStore()
+        let configStore = makeConfigStore(configDir)
+
+        // Pre-store kept-token
+        let alias = "com.test.test-plugin-kept-token"
+        try secretStore.set(key: alias, value: "existing-secret")
+        let existingConfig = BasePluginConfig(secrets: ["kept-token": alias])
+        try configStore.save(existingConfig, for: "com.test.test-plugin")
+
+        // Only one response needed: for new-token (kept-token is skipped)
+        let inputSource = MockInputSource(responses: ["new-secret-value"])
+        var scanner = PluginSetupScanner(secretStore: secretStore, configStore: configStore, inputSource: inputSource)
+        try scanner.scan(plugin: plugin, skipSecretKeys: ["kept-token"])
+
+        let stored = try secretStore.get(key: alias)
+        #expect(stored == "existing-secret")
+
+        let config = try configStore.load(for: "com.test.test-plugin")
+        let newAlias = "com.test.test-plugin-new-token"
+        #expect(config?.secrets["new-token"] == newAlias)
+        let newStored = try secretStore.get(key: newAlias)
+        #expect(newStored == "new-secret-value")
+    }
 }

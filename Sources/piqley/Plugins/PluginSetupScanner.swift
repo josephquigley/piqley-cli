@@ -22,7 +22,12 @@ struct PluginSetupScanner {
     private let logger = Logger(label: "piqley.setup-scanner")
 
     /// Runs setup scan for a single plugin.
-    mutating func scan(plugin: LoadedPlugin, force: Bool = false) throws {
+    mutating func scan(
+        plugin: LoadedPlugin,
+        force: Bool = false,
+        skipValueKeys: Set<String> = [],
+        skipSecretKeys: Set<String> = []
+    ) throws {
         var baseConfig: BasePluginConfig = if force {
             BasePluginConfig()
         } else {
@@ -32,6 +37,9 @@ struct PluginSetupScanner {
         // Phase 1: Config value resolution
         for entry in plugin.manifest.config {
             guard case let .value(key, type, defaultValue) = entry else { continue }
+            if skipValueKeys.contains(key) {
+                continue
+            }
             if !force, let existing = baseConfig.values[key] {
                 print("[\(plugin.name)] \(key) already set to: \(displayValue(existing))")
                 continue
@@ -43,6 +51,9 @@ struct PluginSetupScanner {
         // Phase 2: Secret validation with alias-based storage
         for entry in plugin.manifest.config {
             guard case let .secret(secretKey, _) = entry else { continue }
+            if skipSecretKeys.contains(secretKey) {
+                continue
+            }
             let alias = defaultSecretAlias(pluginIdentifier: plugin.identifier, secretKey: secretKey)
 
             // Check if we already have this alias mapped and the secret exists
