@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Regex sanitizer warning now lists which workflow(s) contain the bad stage file
 - Double-escaped regex patterns in stage files (e.g. `\\\\d` instead of `\\d`) are now detected and fixed at load time with a one-time warning
 - `piqley plugin command` now loads and saves stage files from the workflow rules directory, fixing deleted commands still running and edits not taking effect
 - `piqley plugin rules` and `piqley plugin command` now share argument resolution logic via `PluginWorkflowResolver`

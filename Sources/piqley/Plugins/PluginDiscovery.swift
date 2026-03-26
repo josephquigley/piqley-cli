@@ -130,12 +130,22 @@ struct PluginDiscovery: Sendable {
                 }
                 let (sanitized, didFix) = RegexSanitizer.sanitizeStageConfig(config)
                 if didFix {
-                    let warnKey = "\(pluginDir.path):\(stageName)"
+                    let plugin = pluginDir.lastPathComponent
+                    let warnKey = "\(plugin):\(stageName)"
                     if !regexSanitizerWarned.contains(warnKey) {
                         regexSanitizerWarned.insert(warnKey)
-                        let plugin = pluginDir.lastPathComponent
-                        // swiftlint:disable:next line_length
-                        logger.warning("Plugin '\(plugin)' stage '\(stageName)': fixed double-escaped regex patterns. Re-save this stage to persist the fix.")
+                        let workflows = findWorkflowsWithBadRegex(
+                            plugin: plugin, stageName: stageName
+                        )
+                        if workflows.isEmpty {
+                            logger.warning(
+                                "Plugin '\(plugin)' stage '\(stageName)': fixed double-escaped regex patterns. Re-save this stage to persist the fix."
+                            )
+                        } else {
+                            let list = workflows.joined(separator: ", ")
+                            // swiftlint:disable:next line_length
+                            logger.warning("Plugin '\(plugin)' stage '\(stageName)': fixed double-escaped regex patterns. Re-save this stage in the following workflow(s) to persist the fix: \(list)")
+                        }
                     }
                 }
                 stages[stageName] = sanitized
@@ -145,5 +155,27 @@ struct PluginDiscovery: Sendable {
         }
 
         return (stages, newStageNames)
+    }
+
+    /// Returns sorted workflow names that have bad regex patterns for the given plugin and stage.
+    private static func findWorkflowsWithBadRegex(plugin: String, stageName: String) -> [String] {
+        guard let workflows = try? WorkflowStore.list() else { return [] }
+        let stageFilename = "\(PluginFile.stagePrefix)\(stageName)\(PluginFile.stageSuffix)"
+        var affected: [String] = []
+        for workflow in workflows {
+            let stageFile = WorkflowStore.pluginRulesDirectory(
+                workflowName: workflow, pluginIdentifier: plugin
+            ).appendingPathComponent(stageFilename)
+            guard let data = try? Data(contentsOf: stageFile),
+                  let config = try? JSONDecoder.piqley.decode(StageConfig.self, from: data)
+            else {
+                continue
+            }
+            let (_, hasBadRegex) = RegexSanitizer.sanitizeStageConfig(config)
+            if hasBadRegex {
+                affected.append(workflow)
+            }
+        }
+        return affected.sorted()
     }
 }
