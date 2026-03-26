@@ -71,7 +71,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.value(key: "api-url", type: .string, value: .null)],
+            config: [.value(key: "api-url", type: .string, value: .null, metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()
@@ -98,7 +98,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.value(key: "port", type: .int, value: .number(8080))],
+            config: [.value(key: "port", type: .int, value: .number(8080), metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()
@@ -125,7 +125,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.value(key: "api-url", type: .string, value: .null)],
+            config: [.value(key: "api-url", type: .string, value: .null, metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()
@@ -157,7 +157,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.value(key: "api-url", type: .string, value: .null)],
+            config: [.value(key: "api-url", type: .string, value: .null, metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()
@@ -188,7 +188,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.value(key: "count", type: .int, value: .null)],
+            config: [.value(key: "count", type: .int, value: .null, metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()
@@ -216,7 +216,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.secret(secretKey: "api-token", type: .string)],
+            config: [.secret(secretKey: "api-token", type: .string, metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()
@@ -249,7 +249,7 @@ struct PluginSetupScannerTests {
             identifier: "com.test.test-plugin",
             name: "test-plugin",
             pluginSchemaVersion: "1",
-            config: [.secret(secretKey: "api-token", type: .string)],
+            config: [.secret(secretKey: "api-token", type: .string, metadata: ConfigMetadata())],
             setup: nil
         )
         let dir = try makePluginDir()

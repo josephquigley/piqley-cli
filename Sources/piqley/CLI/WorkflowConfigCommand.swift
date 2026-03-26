@@ -69,7 +69,7 @@ extension WorkflowCommand {
 
             // Prompt through config values
             for entry in plugin.manifest.config {
-                guard case let .value(key, type, _) = entry else { continue }
+                guard case let .value(key, type, _, _) = entry else { continue }
                 let currentValue = override.values?[key] ?? baseConfig.values[key]
                 let currentDisplay = currentValue.map { displayValue($0) } ?? "(base default)"
 
@@ -88,7 +88,7 @@ extension WorkflowCommand {
 
             // Prompt through secret aliases
             for entry in plugin.manifest.config {
-                guard case let .secret(secretKey, _) = entry else { continue }
+                guard case let .secret(secretKey, _, _) = entry else { continue }
                 let currentAlias = override.secrets?[secretKey] ?? baseConfig.secrets[secretKey]
                 let currentDisplay = currentAlias ?? "(base default)"
 

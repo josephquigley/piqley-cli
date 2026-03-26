@@ -80,6 +80,7 @@ struct PluginRunnerStateTests {
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false,
+            debug: false,
             state: state
         )
         #expect(result == .success)
@@ -105,10 +106,12 @@ struct PluginRunnerStateTests {
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false,
+            debug: false,
             state: nil
         )
         #expect(result == .success)
-        #expect(returnedState?["test.jpg"]?["hashtags"] == .array([.string("#cat"), .string("#dog")]))
+        let expected: JSONValue = .array([.string("#cat"), .string("#dog")])
+        #expect(returnedState?["test.jpg"]?["hashtags"] == expected)
     }
 
     @Test("no state in response returns nil")
@@ -131,6 +134,7 @@ struct PluginRunnerStateTests {
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false,
+            debug: false,
             state: nil
         )
         #expect(result == .success)

@@ -232,9 +232,9 @@ struct PluginCommand: ParsableCommand {
                     pluginSchemaVersion: "1",
                     pluginVersion: SemanticVersion(major: 0, minor: 0, patch: 1),
                     config: [
-                        .value(key: "outputQuality", type: .int, value: .number(85)),
-                        .value(key: "tagPrefix", type: .string, value: .string("auto")),
-                        .secret(secretKey: "API_KEY", type: .string),
+                        .value(key: "outputQuality", type: .int, value: .number(85), metadata: ConfigMetadata()),
+                        .value(key: "tagPrefix", type: .string, value: .string("auto"), metadata: ConfigMetadata()),
+                        .secret(secretKey: "API_KEY", type: .string, metadata: ConfigMetadata()),
                     ]
                 )
             } else {

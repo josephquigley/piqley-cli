@@ -133,7 +133,7 @@ struct PipelineOrchestratorTests {
             registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
             workflowsRoot: workflowsRoot
         )
-        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
         #expect(result == true)
     }
 
@@ -188,7 +188,7 @@ struct PipelineOrchestratorTests {
             registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
             workflowsRoot: workflowsRoot
         )
-        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
         #expect(result == false)
     }
 
@@ -236,7 +236,7 @@ struct PipelineOrchestratorTests {
             registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
             workflowsRoot: workflowsRoot
         )
-        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
         #expect(result == false)
     }
 
@@ -276,7 +276,7 @@ struct PipelineOrchestratorTests {
             registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
             workflowsRoot: workflowsRoot
         )
-        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false)
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
         #expect(result == true)
         #expect(!FileManager.default.fileExists(atPath: markerPath.path))
     }

@@ -10,7 +10,7 @@ struct PluginConfigEntryTests {
     func decodeValueEntryWithDefault() throws {
         let json = #"{"key": "quality", "type": "int", "value": 80}"#
         let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
-        guard case let .value(key, type, value) = entry else {
+        guard case let .value(key, type, value, _) = entry else {
             Issue.record("Expected .value, got \(entry)"); return
         }
         #expect(key == "quality")
@@ -22,7 +22,7 @@ struct PluginConfigEntryTests {
     func decodeValueEntryWithNullValue() throws {
         let json = #"{"key": "url", "type": "string", "value": null}"#
         let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
-        guard case let .value(key, type, value) = entry else {
+        guard case let .value(key, type, value, _) = entry else {
             Issue.record("Expected .value, got \(entry)"); return
         }
         #expect(key == "url")
@@ -34,7 +34,7 @@ struct PluginConfigEntryTests {
     func decodeValueEntryWithStringDefault() throws {
         let json = #"{"key": "format", "type": "string", "value": "jpeg"}"#
         let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
-        guard case let .value(_, _, value) = entry else {
+        guard case let .value(_, _, value, _) = entry else {
             Issue.record("Expected .value"); return
         }
         #expect(value == .string("jpeg"))
@@ -44,7 +44,7 @@ struct PluginConfigEntryTests {
     func decodeValueEntryWithBoolDefault() throws {
         let json = #"{"key": "verbose", "type": "bool", "value": true}"#
         let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
-        guard case let .value(_, type, value) = entry else {
+        guard case let .value(_, type, value, _) = entry else {
             Issue.record("Expected .value"); return
         }
         #expect(type == .bool)
@@ -55,7 +55,7 @@ struct PluginConfigEntryTests {
     func decodeSecretEntry() throws {
         let json = #"{"secret_key": "api-key", "type": "string"}"#
         let entry = try JSONDecoder.piqley.decode(ConfigEntry.self, from: Data(json.utf8))
-        guard case let .secret(secretKey, type) = entry else {
+        guard case let .secret(secretKey, type, _) = entry else {
             Issue.record("Expected .secret, got \(entry)"); return
         }
         #expect(secretKey == "api-key")

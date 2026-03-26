@@ -235,6 +235,7 @@ struct PluginRunnerEnvironmentTests {
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false,
+            debug: false,
             state: state
         )
         #expect(result == .success)
@@ -279,6 +280,7 @@ struct PluginRunnerEnvironmentTests {
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false,
+            debug: false,
             state: state
         )
         #expect(result == .success)
@@ -323,6 +325,7 @@ struct PluginRunnerEnvironmentTests {
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
             dryRun: false,
+            debug: false,
             state: state
         )
         #expect(result == .success)
