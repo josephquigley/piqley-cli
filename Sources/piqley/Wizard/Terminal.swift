@@ -332,26 +332,33 @@ extension RawTerminal {
         while true {
             let query = input.lowercased()
             // Track matched indices so we can map to insertCompletions
-            let matchedIndices: [Int] = query.isEmpty ? [] : completions.enumerated().compactMap { idx, completion in
-                completion.lowercased().contains(query) ? idx : nil
-            }
+            let matchedIndices: [Int] = query.isEmpty
+                ? Array(completions.indices)
+                : completions.enumerated().compactMap { idx, completion in
+                    completion.lowercased().contains(query) ? idx : nil
+                }
             let matches = matchedIndices.map { completions[$0] }
 
             let before = String(input.prefix(cursorPos))
             let after = String(input.suffix(input.count - cursorPos))
+            let titleLines = title.components(separatedBy: "\n").count
+            let hintLines = hint.components(separatedBy: "\n").count
+            let inputRow = titleLines + hintLines + 2
+            let suggestionsRow = inputRow + 2
+
             var buf = ""
             buf += ANSI.clearScreen()
             buf += ANSI.moveTo(row: 1, col: 1)
             buf += "\(ANSI.bold)\(title)\(ANSI.reset)"
-            buf += ANSI.moveTo(row: 2, col: 1)
+            buf += ANSI.moveTo(row: titleLines + 1, col: 1)
             buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
-            buf += ANSI.moveTo(row: 4, col: 1)
+            buf += ANSI.moveTo(row: inputRow, col: 1)
             buf += "\u{25B8} \(before)\u{2588}\(after)"
 
             // Show suggestions or new-field hint
             if !matches.isEmpty {
                 for (displayIdx, match) in matches.prefix(maxSuggestions).enumerated() {
-                    buf += ANSI.moveTo(row: 6 + displayIdx, col: 3)
+                    buf += ANSI.moveTo(row: suggestionsRow + displayIdx, col: 3)
                     if displayIdx == 0 {
                         buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(match)"
                     } else {
@@ -359,11 +366,11 @@ extension RawTerminal {
                     }
                 }
                 if matches.count > maxSuggestions {
-                    buf += ANSI.moveTo(row: 6 + maxSuggestions, col: 3)
+                    buf += ANSI.moveTo(row: suggestionsRow + maxSuggestions, col: 3)
                     buf += "\(ANSI.dim)  ... \(matches.count - maxSuggestions) more\(ANSI.reset)"
                 }
             } else if !input.isEmpty, let noMatchHint {
-                buf += ANSI.moveTo(row: 6, col: 3)
+                buf += ANSI.moveTo(row: suggestionsRow, col: 3)
                 buf += "\(ANSI.dim)\(noMatchHint)\(ANSI.reset)"
             }
 
@@ -469,31 +476,4 @@ enum Key: Equatable {
     case ctrlL
     case timeout
     case unknown
-}
-
-// MARK: - ANSI Helpers
-
-enum ANSI {
-    static func moveTo(row: Int, col: Int) -> String { "\u{1b}[\(row);\(col)H" }
-    static func clearScreen() -> String { "\u{1b}[2J\u{1b}[H" }
-    static func clearLine() -> String { "\u{1b}[2K" }
-    static let bold = "\u{1b}[1m"
-    static let dim = "\u{1b}[2m"
-    static let italic = "\u{1b}[3m"
-    static let reset = "\u{1b}[0m"
-    static let inverse = "\u{1b}[7m"
-    static let white = "\u{1b}[37m"
-    static let cyan = "\u{1b}[36m"
-    static let green = "\u{1b}[32m"
-    static let red = "\u{1b}[31m"
-    static let yellow = "\u{1b}[33m"
-
-    /// Get terminal size (rows, cols).
-    static func terminalSize() -> (rows: Int, cols: Int) {
-        var windowSize = winsize()
-        if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &windowSize) == 0 {
-            return (Int(windowSize.ws_row), Int(windowSize.ws_col))
-        }
-        return (24, 80) // fallback
-    }
 }

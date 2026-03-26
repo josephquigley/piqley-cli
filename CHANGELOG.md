@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Plugin's own fields no longer appear as both bare name and qualified name in field completions
 - Rules editor "when field matches" label now displays the full namespaced field name
 - Target field prompt hint verb now matches the selected action (e.g. "clone into" instead of "modify")
 - Autocomplete field input now shows a hint when no matches exist, indicating Enter will create a new field
@@ -55,7 +56,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Idempotent `Terminal.restore()` prevents double-restore issues
 - Default workflow seeded on startup when no workflows exist
 - Rules editor discovers upstream fields from workflow rules files instead of scanning installed plugin manifests
-- Save-time warning when rules reference plugin namespaces that are not declared dependencies
 - Field source label in rules editor changed from "dependency plugin" to "plugin"
 - Automatic config migration from old config.json sidecar to new BasePluginConfig layout at startup
 - `piqley secret prune` command to remove orphaned secrets not referenced by any config or workflow
@@ -152,6 +152,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Clone source prompts now use autocomplete with qualified field completions instead of plain text input
+- Clone source hint text simplified: removed inline source tag list, uses "source" terminology
+- Removed save-time confirmation prompt for rules referencing non-dependency plugins
 - All JSON encoding/decoding now uses `JSONEncoder.piqley`/`JSONDecoder.piqley` from PiqleyCore instead of bare initializers
 - Bump piqley-plugin-sdk to 0.9.1 (piqley-core 0.7.2)
 - Workflows are now stored as directories (`{name}/workflow.json` + `rules/` subtree) instead of flat JSON files

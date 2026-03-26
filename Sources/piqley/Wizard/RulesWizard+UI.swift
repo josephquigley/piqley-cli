@@ -44,18 +44,6 @@ extension RulesWizard {
     func save() {
         applyDeletions()
 
-        // Check for non-dependency namespace references
-        let referenced = Self.extractReferencedNamespaces(from: context.stages)
-        let nonDeps = Self.nonDependencyNamespaces(referenced, dependencies: dependencyIdentifiers)
-        if !nonDeps.isEmpty {
-            let names = nonDeps.sorted().joined(separator: ", ")
-            if !terminal.confirm(
-                "Rules reference plugins that are not declared dependencies: \(names). Save anyway?"
-            ) {
-                return
-            }
-        }
-
         do {
             try StageFileManager.saveStages(context.stages, to: rulesDir)
             modified = false

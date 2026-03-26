@@ -38,6 +38,8 @@ piqley process /path/to/photos --dry-run
 piqley process /path/to/photos --delete-source-contents
 ```
 
+In dry run mode, plugins receive a `dryRun` flag and skip destructive operations (API calls, uploads, file writes) while reporting what they *would* do. This lets you verify your pipeline configuration before running it for real.
+
 ## How the Pipeline Works
 
 Every plugin registers for one or more hooks in piqley's four-stage pipeline:

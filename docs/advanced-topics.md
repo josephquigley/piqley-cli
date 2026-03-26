@@ -549,6 +549,8 @@ Always test with `--dry-run` first to see what piqley would do without modifying
 piqley process /path/to/exports --dry-run
 ```
 
+In dry run mode, piqley signals every plugin to skip destructive operations. JSON protocol plugins receive `"dryRun": true` in the input payload. Pipe protocol (CLI tool) plugins receive the `PIQLEY_DRY_RUN=1` environment variable. Plugins report what they *would* do via progress messages, giving you a full preview of the pipeline without any side effects.
+
 ## Plugin Development Tips
 
 ### Declarative-Only Plugins

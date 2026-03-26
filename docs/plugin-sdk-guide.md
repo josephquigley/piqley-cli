@@ -64,7 +64,7 @@ This is useful when a plugin needs to do preparation in pre-process and then act
 | `secrets` | Sensitive values from the macOS Keychain (API keys, passwords) |
 | `state` | Metadata state from all previous plugins in the pipeline |
 | `skipped` | Images excluded from processing by upstream plugins (array of `{file, plugin}` records) |
-| `dryRun` | Whether this is a preview run (skip destructive operations) |
+| `dryRun` | Whether this is a preview run (skip destructive operations). Set by `--dry-run` flag on `piqley process`. |
 | `dataPath` | Persistent storage directory for your plugin |
 | `logPath` | Directory for plugin logs |
 | `pluginVersion` | Your plugin's current version |
@@ -98,6 +98,28 @@ request.reportProgress("Uploading photo 3 of 10...")
 request.reportImageResult("sunset.jpg", success: true)
 request.reportImageResult("blurry.jpg", success: false, error: "Upload failed: 413 Too Large")
 ```
+
+## Honoring Dry Run
+
+When `piqley process --dry-run` is used, your plugin receives `request.dryRun == true`. Skip all destructive operations and report what you *would* do instead:
+
+```swift
+private func publish(_ request: PluginRequest) async throws -> PluginResponse {
+    let title = resolveTitle(request)
+    let tags = resolveTags(request)
+
+    if request.dryRun {
+        request.reportProgress("[dry-run] Would publish: \(title)")
+        request.reportProgress("[dry-run] Tags: \(tags.joined(separator: ", "))")
+        request.reportImageResult(filename, success: true)
+        return .ok
+    }
+
+    // ... actual API calls
+}
+```
+
+For CLI tool plugins using the pipe protocol, check the `PIQLEY_DRY_RUN` environment variable (`"1"` when active).
 
 ## Secrets
 

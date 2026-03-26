@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/josephquigley/piqley-plugin-sdk.git",
       "state" : {
-        "revision" : "435d9a09717766ce279b3a3b4023260751653396",
-        "version" : "0.10.0"
+        "revision" : "d401e0f1e416be3a07f426accfdddfaf4e324df1",
+        "version" : "0.10.1"
       }
     },
     {

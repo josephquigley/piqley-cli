@@ -89,9 +89,10 @@ extension RulesWizard {
         case .field:
             let completions = buildFieldCompletions()
             let verb = actionFieldVerb(state.action)
+            let sourcesTags = formatSourceTags()
             if let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(state.action)",
-                hint: "The field to \(verb) (e.g. keywords, IPTC:Keywords)",
+                hint: "\(sourcesTags)\nThe field to \(verb) (e.g. keywords, IPTC:Keywords)",
                 completions: completions,
                 browsableList: completions,
                 defaultValue: state.field,
@@ -130,10 +131,14 @@ extension RulesWizard {
             }
 
         case .cloneSource:
-            if let src = terminal.promptForInput(
+            let completions = buildQualifiedFieldCompletions()
+            if let src = terminal.promptWithAutocomplete(
                 title: "Clone source",
-                hint: "source:field (e.g. original:IPTC:Keywords) or source name for wildcard",
-                defaultValue: state.source
+                hint: "(e.g. original:IPTC:Keywords) or a source name to clone all its fields",
+                completions: completions,
+                browsableList: completions,
+                defaultValue: state.source,
+                noMatchHint: "Enter will use this field name as-is"
             ) {
                 state.source = src
             }
@@ -192,9 +197,14 @@ extension RulesWizard {
                 state.replacements.append(Replacement(pattern: pat, replacement: rep))
             }
         case "clone":
-            if let src = terminal.promptForInput(
+            let qualifiedCompletions = buildQualifiedFieldCompletions()
+            if let src = terminal.promptWithAutocomplete(
                 title: "Clone source",
-                hint: "source:field (e.g. original:IPTC:Keywords) or source name for wildcard"
+                hint: "(e.g. original:IPTC:Keywords) or a source name to clone all its fields",
+                completions: qualifiedCompletions,
+                browsableList: qualifiedCompletions,
+                defaultValue: "",
+                noMatchHint: "Enter will use this field name as-is"
             ) {
                 state.source = src
             }

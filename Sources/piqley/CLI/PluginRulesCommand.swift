@@ -82,8 +82,7 @@ struct PluginRulesCommand: ParsableCommand {
             stages: stages
         )
 
-        let dependencyIDs = Set(manifest.dependencyIdentifiers)
-        let wizard = RulesWizard(context: context, rulesDir: rulesDir, dependencyIdentifiers: dependencyIDs)
+        let wizard = RulesWizard(context: context, rulesDir: rulesDir)
         try wizard.run()
     }
 
