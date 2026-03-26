@@ -69,11 +69,11 @@ extension WorkflowCommand {
 
             // Prompt through config values
             for entry in plugin.manifest.config {
-                guard case let .value(key, type, _) = entry else { continue }
+                guard case let .value(key, type, _, _) = entry else { continue }
                 let currentValue = override.values?[key] ?? baseConfig.values[key]
                 let currentDisplay = currentValue.map { displayValue($0) } ?? "(base default)"
 
-                print("[\(plugin.name)] \(key) [\(currentDisplay)]: ", terminator: "")
+                print("[\(plugin.name)] \(entry.displayLabel) [\(currentDisplay)]: ", terminator: "")
                 guard let input = readLine(strippingNewline: true), !input.isEmpty else {
                     continue // keep existing
                 }
@@ -88,11 +88,11 @@ extension WorkflowCommand {
 
             // Prompt through secret aliases
             for entry in plugin.manifest.config {
-                guard case let .secret(secretKey, _) = entry else { continue }
+                guard case let .secret(secretKey, _, _) = entry else { continue }
                 let currentAlias = override.secrets?[secretKey] ?? baseConfig.secrets[secretKey]
                 let currentDisplay = currentAlias ?? "(base default)"
 
-                print("[\(plugin.name)] \(secretKey) alias [\(currentDisplay)]: ", terminator: "")
+                print("[\(plugin.name)] \(entry.displayLabel) alias [\(currentDisplay)]: ", terminator: "")
                 guard let input = readLine(strippingNewline: true), !input.isEmpty else {
                     continue // keep existing
                 }

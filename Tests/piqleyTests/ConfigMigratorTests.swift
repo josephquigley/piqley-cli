@@ -41,8 +41,8 @@ struct ConfigMigratorTests {
             name: "Test Plugin",
             pluginSchemaVersion: "1",
             config: [
-                .value(key: "url", type: .string, value: .string("https://default.com")),
-                .secret(secretKey: "API_KEY", type: .string),
+                .value(key: "url", type: .string, value: .string("https://default.com"), metadata: ConfigMetadata()),
+                .secret(secretKey: "API_KEY", type: .string, metadata: ConfigMetadata()),
             ]
         )
         let manifestData = try JSONEncoder.piqley.encode(manifest)
@@ -136,7 +136,7 @@ struct ConfigMigratorTests {
             identifier: "com.test.plugin",
             name: "Test Plugin",
             pluginSchemaVersion: "1",
-            config: [.value(key: "port", type: .int, value: .number(8080))]
+            config: [.value(key: "port", type: .int, value: .number(8080), metadata: ConfigMetadata())]
         )
         let manifestData = try JSONEncoder.piqley.encode(manifest)
         try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))

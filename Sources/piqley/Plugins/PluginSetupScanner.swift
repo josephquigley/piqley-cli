@@ -36,21 +36,21 @@ struct PluginSetupScanner {
 
         // Phase 1: Config value resolution
         for entry in plugin.manifest.config {
-            guard case let .value(key, type, defaultValue) = entry else { continue }
+            guard case let .value(key, type, defaultValue, _) = entry else { continue }
             if skipValueKeys.contains(key) {
                 continue
             }
             if !force, let existing = baseConfig.values[key] {
-                print("[\(plugin.name)] \(key) already set to: \(displayValue(existing))")
+                print("[\(plugin.name)] \(entry.displayLabel) already set to: \(displayValue(existing))")
                 continue
             }
-            let resolved = promptForValue(pluginName: plugin.name, key: key, type: type, defaultValue: defaultValue)
+            let resolved = promptForValue(pluginName: plugin.name, entry: entry, key: key, type: type, defaultValue: defaultValue)
             baseConfig.values[key] = resolved
         }
 
         // Phase 2: Secret validation with alias-based storage
         for entry in plugin.manifest.config {
-            guard case let .secret(secretKey, _) = entry else { continue }
+            guard case let .secret(secretKey, _, _) = entry else { continue }
             if skipSecretKeys.contains(secretKey) {
                 continue
             }
@@ -59,13 +59,13 @@ struct PluginSetupScanner {
             // Check if we already have this alias mapped and the secret exists
             if let existingAlias = baseConfig.secrets[secretKey] {
                 if (try? secretStore.get(key: existingAlias)) != nil {
-                    print("[\(plugin.name)] \(secretKey) (secret) already set")
+                    print("[\(plugin.name)] \(entry.displayLabel) (secret) already set")
                     continue
                 }
             }
 
             // Prompt for secret value and store under alias
-            let value = promptForSecret(pluginName: plugin.name, key: secretKey)
+            let value = promptForSecret(pluginName: plugin.name, entry: entry, key: secretKey)
             try secretStore.set(key: alias, value: value)
             baseConfig.secrets[secretKey] = alias
         }
@@ -111,15 +111,20 @@ struct PluginSetupScanner {
     // MARK: - Prompting
 
     private mutating func promptForValue(
-        pluginName: String, key: String, type: ConfigValueType, defaultValue: JSONValue
+        pluginName: String, entry: ConfigEntry, key _: String, type: ConfigValueType, defaultValue: JSONValue
     ) -> JSONValue {
         let hasDefault = defaultValue != .null && defaultValue != .string("")
         while true {
+            if case let .value(_, _, _, metadata) = entry,
+               let desc = metadata.description, !desc.isEmpty
+            {
+                print("  \(desc)")
+            }
             if hasDefault {
                 let defaultStr = displayValue(defaultValue)
-                print("[\(pluginName)] \(key) [\(defaultStr)]: ", terminator: "")
+                print("[\(pluginName)] \(entry.displayLabel) [\(defaultStr)]: ", terminator: "")
             } else {
-                print("[\(pluginName)] \(key): ", terminator: "")
+                print("[\(pluginName)] \(entry.displayLabel): ", terminator: "")
             }
             guard let input = inputSource.readLine() else {
                 // EOF: return default if available, otherwise empty string
@@ -139,9 +144,14 @@ struct PluginSetupScanner {
         }
     }
 
-    private mutating func promptForSecret(pluginName: String, key: String) -> String {
+    private mutating func promptForSecret(pluginName: String, entry: ConfigEntry, key _: String) -> String {
         while true {
-            print("[\(pluginName)] \(key) (secret): ", terminator: "")
+            if case let .secret(_, _, metadata) = entry,
+               let desc = metadata.description, !desc.isEmpty
+            {
+                print("  \(desc)")
+            }
+            print("[\(pluginName)] \(entry.displayLabel) (secret): ", terminator: "")
             guard let input = inputSource.readLine() else {
                 // EOF: return empty string to avoid infinite loop
                 return ""

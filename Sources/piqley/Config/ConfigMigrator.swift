@@ -66,7 +66,7 @@ enum ConfigMigrator {
             let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
 
             for entry in manifest.config {
-                guard case let .secret(secretKey, _) = entry else { continue }
+                guard case let .secret(secretKey, _, _) = entry else { continue }
 
                 // Re-key secret from old format to alias format
                 let oldKey = SecretNamespace.pluginKey(plugin: identifier, key: secretKey)

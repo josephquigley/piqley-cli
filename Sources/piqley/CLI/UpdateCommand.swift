@@ -61,8 +61,8 @@ enum ConfigMerger {
         var oldSecretTypes: [String: ConfigValueType] = [:]
         for entry in oldManifest.config {
             switch entry {
-            case let .value(key, type, _): oldValueTypes[key] = type
-            case let .secret(secretKey, type): oldSecretTypes[secretKey] = type
+            case let .value(key, type, _, _): oldValueTypes[key] = type
+            case let .secret(secretKey, type, _): oldSecretTypes[secretKey] = type
             }
         }
 
@@ -71,8 +71,8 @@ enum ConfigMerger {
         var newSecretKeys = Set<String>()
         for entry in newManifest.config {
             switch entry {
-            case let .value(key, type, _): newValueTypes[key] = type
-            case let .secret(secretKey, _): newSecretKeys.insert(secretKey)
+            case let .value(key, type, _, _): newValueTypes[key] = type
+            case let .secret(secretKey, _, _): newSecretKeys.insert(secretKey)
             }
         }
 

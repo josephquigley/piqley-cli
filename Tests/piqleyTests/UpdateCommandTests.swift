@@ -119,7 +119,7 @@ struct PluginUpdaterTests {
         try preInstallPlugin(
             identifier: "com.test.plugin",
             version: SemanticVersion(major: 1, minor: 0, patch: 0),
-            config: [.value(key: "old-key", type: .string, value: .string("old"))],
+            config: [.value(key: "old-key", type: .string, value: .string("old"), metadata: ConfigMetadata())],
             in: pluginsDir
         )
 
@@ -128,7 +128,7 @@ struct PluginUpdaterTests {
         let zipURL = try createPluginZip(
             identifier: "com.test.plugin",
             version: SemanticVersion(major: 2, minor: 0, patch: 0),
-            config: [.value(key: "new-key", type: .string, value: .string("new"))],
+            config: [.value(key: "new-key", type: .string, value: .string("new"), metadata: ConfigMetadata())],
             in: zipDir
         )
 
@@ -157,8 +157,8 @@ struct ConfigMergerTests {
             name: "Test",
             pluginSchemaVersion: "1",
             config: [
-                .value(key: "kept-url", type: .string, value: .string("default")),
-                .value(key: "removed-key", type: .int, value: .number(42)),
+                .value(key: "kept-url", type: .string, value: .string("default"), metadata: ConfigMetadata()),
+                .value(key: "removed-key", type: .int, value: .number(42), metadata: ConfigMetadata()),
             ]
         )
         let newManifest = PluginManifest(
@@ -166,8 +166,8 @@ struct ConfigMergerTests {
             name: "Test",
             pluginSchemaVersion: "1",
             config: [
-                .value(key: "kept-url", type: .string, value: .string("default")),
-                .value(key: "new-key", type: .string, value: .null),
+                .value(key: "kept-url", type: .string, value: .string("default"), metadata: ConfigMetadata()),
+                .value(key: "new-key", type: .string, value: .null, metadata: ConfigMetadata()),
             ]
         )
         let existingConfig = BasePluginConfig(
@@ -199,13 +199,13 @@ struct ConfigMergerTests {
             identifier: "com.test.plugin",
             name: "Test",
             pluginSchemaVersion: "1",
-            config: [.value(key: "port", type: .string, value: .string("8080"))]
+            config: [.value(key: "port", type: .string, value: .string("8080"), metadata: ConfigMetadata())]
         )
         let newManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
             pluginSchemaVersion: "1",
-            config: [.value(key: "port", type: .int, value: .number(8080))]
+            config: [.value(key: "port", type: .int, value: .number(8080), metadata: ConfigMetadata())]
         )
         let existingConfig = BasePluginConfig(values: ["port": .string("8080")])
 
@@ -231,8 +231,8 @@ struct ConfigMergerTests {
             name: "Test",
             pluginSchemaVersion: "1",
             config: [
-                .secret(secretKey: "KEPT_TOKEN", type: .string),
-                .secret(secretKey: "OLD_TOKEN", type: .string),
+                .secret(secretKey: "KEPT_TOKEN", type: .string, metadata: ConfigMetadata()),
+                .secret(secretKey: "OLD_TOKEN", type: .string, metadata: ConfigMetadata()),
             ]
         )
         let newManifest = PluginManifest(
@@ -240,8 +240,8 @@ struct ConfigMergerTests {
             name: "Test",
             pluginSchemaVersion: "1",
             config: [
-                .secret(secretKey: "KEPT_TOKEN", type: .string),
-                .secret(secretKey: "NEW_TOKEN", type: .string),
+                .secret(secretKey: "KEPT_TOKEN", type: .string, metadata: ConfigMetadata()),
+                .secret(secretKey: "NEW_TOKEN", type: .string, metadata: ConfigMetadata()),
             ]
         )
         let existingConfig = BasePluginConfig(
@@ -267,7 +267,7 @@ struct ConfigMergerTests {
             identifier: "com.test.plugin",
             name: "Test",
             pluginSchemaVersion: "1",
-            config: [.value(key: "url", type: .string, value: .string("x"))]
+            config: [.value(key: "url", type: .string, value: .string("x"), metadata: ConfigMetadata())]
         )
         let newManifest = oldManifest
         let existingConfig = BasePluginConfig(
