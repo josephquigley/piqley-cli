@@ -117,6 +117,9 @@ piqley plugin setup my-plugin --force
 # Install a packaged plugin
 piqley plugin install path/to/plugin.piqleyplugin
 
+# Update an installed plugin (preserves existing config values and secrets)
+piqley plugin update path/to/plugin.piqleyplugin
+
 # Open a plugin's config in your editor
 piqley plugin config my-plugin
 ```

@@ -342,6 +342,14 @@ Users install it with:
 piqley plugin install path/to/my-plugin.piqleyplugin
 ```
 
+To update an already-installed plugin to a newer version:
+
+```bash
+piqley plugin update path/to/my-plugin.piqleyplugin
+```
+
+The update command replaces the plugin files but preserves existing config values and secrets. New config entries added by the updated manifest are prompted, and entries removed from the manifest are cleaned up automatically.
+
 ### Multi-Platform Plugins
 
 Plugins can target multiple platforms by declaring platform-specific binaries in `piqley-build-manifest.json`. Supported platforms: `macos-arm64`, `linux-amd64`, `linux-arm64`.
