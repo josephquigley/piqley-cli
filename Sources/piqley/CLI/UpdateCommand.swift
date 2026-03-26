@@ -39,6 +39,102 @@ struct UpdateResult {
     let newManifest: PluginManifest
 }
 
+struct ConfigMergeResult {
+    var mergedConfig: BasePluginConfig
+    var skipValueKeys: Set<String>
+    var skipSecretKeys: Set<String>
+    var removedValueKeys: Set<String>
+    var removedSecretKeys: Set<String>
+    /// Maps key -> (oldType, newType) for entries whose type changed.
+    var typeChangedKeys: [String: (ConfigValueType, ConfigValueType)]
+}
+
+enum ConfigMerger {
+    static func merge(
+        oldManifest: PluginManifest,
+        newManifest: PluginManifest,
+        existingConfig: BasePluginConfig
+    ) -> ConfigMergeResult {
+        // Build keyed lookups from old manifest
+        var oldValueTypes: [String: ConfigValueType] = [:]
+        for entry in oldManifest.config {
+            if case let .value(key, type, _) = entry {
+                oldValueTypes[key] = type
+            }
+        }
+        var oldSecretTypes: [String: ConfigValueType] = [:]
+        for entry in oldManifest.config {
+            if case let .secret(secretKey, type) = entry {
+                oldSecretTypes[secretKey] = type
+            }
+        }
+
+        // Build keyed lookups from new manifest
+        var newValueTypes: [String: ConfigValueType] = [:]
+        for entry in newManifest.config {
+            if case let .value(key, type, _) = entry {
+                newValueTypes[key] = type
+            }
+        }
+        var newSecretKeys = Set<String>()
+        for entry in newManifest.config {
+            if case let .secret(secretKey, _) = entry {
+                newSecretKeys.insert(secretKey)
+            }
+        }
+
+        var mergedConfig = existingConfig
+        var skipValueKeys = Set<String>()
+        var skipSecretKeys = Set<String>()
+        var removedValueKeys = Set<String>()
+        var removedSecretKeys = Set<String>()
+        var typeChangedKeys: [String: (ConfigValueType, ConfigValueType)] = [:]
+
+        // Process value entries in new manifest
+        for (key, newType) in newValueTypes {
+            if let oldType = oldValueTypes[key] {
+                if oldType == newType, mergedConfig.values[key] != nil {
+                    skipValueKeys.insert(key)
+                } else if oldType != newType {
+                    mergedConfig.values.removeValue(forKey: key)
+                    typeChangedKeys[key] = (oldType, newType)
+                }
+            }
+        }
+
+        // Process secret entries in new manifest
+        for secretKey in newSecretKeys {
+            if oldSecretTypes[secretKey] != nil, mergedConfig.secrets[secretKey] != nil {
+                skipSecretKeys.insert(secretKey)
+            }
+        }
+
+        // Find removed value keys
+        for key in oldValueTypes.keys where newValueTypes[key] == nil {
+            mergedConfig.values.removeValue(forKey: key)
+            removedValueKeys.insert(key)
+        }
+
+        // Find removed secret keys
+        for key in oldSecretTypes.keys where !newSecretKeys.contains(key) {
+            mergedConfig.secrets.removeValue(forKey: key)
+            removedSecretKeys.insert(key)
+        }
+
+        // Reset isSetUp so setup binary re-runs
+        mergedConfig.isSetUp = nil
+
+        return ConfigMergeResult(
+            mergedConfig: mergedConfig,
+            skipValueKeys: skipValueKeys,
+            skipSecretKeys: skipSecretKeys,
+            removedValueKeys: removedValueKeys,
+            removedSecretKeys: removedSecretKeys,
+            typeChangedKeys: typeChangedKeys
+        )
+    }
+}
+
 enum PluginUpdater {
     @discardableResult
     static func update(from zipURL: URL, pluginsDirectory: URL) throws -> UpdateResult {
