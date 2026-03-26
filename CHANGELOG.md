@@ -31,7 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- `--debug` flag on `piqley process` that threads through to plugins via `PIQLEY_DEBUG` env var and `debug` JSON field
+- `--debug` flag on `piqley process` that threads through `PipelineOrchestrator` to plugins via `PIQLEY_DEBUG` env var and `debug` JSON field
 - Workflow editor blocks removal and rename of required pipeline stages (pipeline-start, pipeline-finished) with a user-facing message
 - `piqley plugin rules` can now be called with zero or one argument, resolving missing workflow/plugin interactively via TUI menus
 - Rules editor discovers consumed fields from upstream plugins' manifests and the target plugin's own manifest
