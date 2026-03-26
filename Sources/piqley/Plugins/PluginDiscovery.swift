@@ -85,6 +85,9 @@ struct PluginDiscovery: Sendable {
         return (plugins, updatedRegistry)
     }
 
+    /// Tracks which plugin+stage combos have already emitted a regex sanitizer warning.
+    private nonisolated(unsafe) static var regexSanitizerWarned: Set<String> = []
+
     static func loadStages(
         from pluginDir: URL, knownHooks: Set<String>,
         logger: Logger = Logger(label: "piqley.discovery")
@@ -127,9 +130,13 @@ struct PluginDiscovery: Sendable {
                 }
                 let (sanitized, didFix) = RegexSanitizer.sanitizeStageConfig(config)
                 if didFix {
-                    let plugin = pluginDir.lastPathComponent
-                    // swiftlint:disable:next line_length
-                    logger.warning("Plugin '\(plugin)' stage '\(stageName)': fixed double-escaped regex patterns. Re-save this stage to persist the fix.")
+                    let warnKey = "\(pluginDir.path):\(stageName)"
+                    if !regexSanitizerWarned.contains(warnKey) {
+                        regexSanitizerWarned.insert(warnKey)
+                        let plugin = pluginDir.lastPathComponent
+                        // swiftlint:disable:next line_length
+                        logger.warning("Plugin '\(plugin)' stage '\(stageName)': fixed double-escaped regex patterns. Re-save this stage to persist the fix.")
+                    }
                 }
                 stages[stageName] = sanitized
             } catch {
