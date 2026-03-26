@@ -7,6 +7,7 @@ final class CommandEditWizard {
     let pluginID: String
     var stages: [String: StageConfig]
     let pluginDir: URL
+    let rulesDir: URL
     let terminal: RawTerminal
     var modified = false
     var savedAt: Date?
@@ -28,11 +29,13 @@ final class CommandEditWizard {
 
     init(
         pluginID: String, stages: [String: StageConfig], pluginDir: URL,
+        rulesDir: URL,
         availableFields: [String: [FieldInfo]] = [:]
     ) {
         self.pluginID = pluginID
         self.stages = stages
         self.pluginDir = pluginDir
+        self.rulesDir = rulesDir
         terminal = RawTerminal()
         fieldCompletions = Self.buildFieldCompletions(from: availableFields)
     }
@@ -433,7 +436,7 @@ final class CommandEditWizard {
 
     private func save() {
         do {
-            try StageFileManager.saveStages(stages, to: pluginDir)
+            try StageFileManager.saveStages(stages, to: rulesDir)
             modified = false
             savedAt = Date()
         } catch {
@@ -442,7 +445,7 @@ final class CommandEditWizard {
     }
 
     private func quit() {
-        StageFileManager.cleanupEmptyStageFiles(stages: stages, pluginDir: pluginDir)
+        StageFileManager.cleanupEmptyStageFiles(stages: stages, pluginDir: rulesDir)
         terminal.restore()
         Foundation.exit(0)
     }
