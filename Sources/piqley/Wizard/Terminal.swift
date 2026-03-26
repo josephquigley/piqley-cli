@@ -305,9 +305,28 @@ extension RawTerminal {
         }
     }
 
-    /// Prompt for text input with autocomplete suggestions.
-    /// Tab completes the top match. If `browsableList` is provided, Ctrl+L opens
-    /// a selectable list to pick from. Returns nil if cancelled.
+    private func renderSuggestions(
+        matches: [String], scrollOffset: Int, maxSuggestions: Int,
+        highlightIndex: Int, startRow: Int
+    ) -> String {
+        let visibleEnd = min(scrollOffset + maxSuggestions, matches.count)
+        var buf = ""
+        for globalIdx in scrollOffset ..< visibleEnd {
+            buf += ANSI.moveTo(row: startRow + globalIdx - scrollOffset, col: 3)
+            if globalIdx == highlightIndex {
+                buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(matches[globalIdx])"
+            } else {
+                buf += "\(ANSI.dim)  \(matches[globalIdx])\(ANSI.reset)"
+            }
+        }
+        let remaining = matches.count - visibleEnd
+        if remaining > 0 {
+            buf += ANSI.moveTo(row: startRow + visibleEnd - scrollOffset, col: 3)
+            buf += "\(ANSI.dim)  ... \(remaining) more\(ANSI.reset)"
+        }
+        return buf
+    }
+
     /// Prompt for text input with autocomplete suggestions.
     /// Tab completes the top match. If `browsableList` is provided, Ctrl+L opens
     /// a selectable list to pick from. Returns nil if cancelled.
@@ -328,14 +347,15 @@ extension RawTerminal {
         let hasList = browsableList != nil
         var tabCycleIndex = 0
         var lastTabQuery = ""
+        var arrowIndex: Int?
+        var scrollOffset = 0
 
         while true {
             let query = input.lowercased()
-            // Track matched indices so we can map to insertCompletions
             let matchedIndices: [Int] = query.isEmpty
                 ? Array(completions.indices)
-                : completions.enumerated().compactMap { idx, completion in
-                    completion.lowercased().contains(query) ? idx : nil
+                : completions.enumerated().compactMap { idx, item in
+                    item.lowercased().contains(query) ? idx : nil
                 }
             let matches = matchedIndices.map { completions[$0] }
 
@@ -345,68 +365,76 @@ extension RawTerminal {
             let hintLines = hint.components(separatedBy: "\n").count
             let inputRow = titleLines + hintLines + 2
             let suggestionsRow = inputRow + 2
+            let visibleEnd = min(scrollOffset + maxSuggestions, matches.count)
+            let highlightIndex = arrowIndex ?? (
+                matchedIndices.isEmpty ? scrollOffset : {
+                    let pos = tabCycleIndex % matchedIndices.count
+                    return (pos >= scrollOffset && pos < visibleEnd) ? pos : scrollOffset
+                }()
+            )
 
-            var buf = ""
-            buf += ANSI.clearScreen()
-            buf += ANSI.moveTo(row: 1, col: 1)
+            var buf = ANSI.clearScreen() + ANSI.moveTo(row: 1, col: 1)
             buf += "\(ANSI.bold)\(title)\(ANSI.reset)"
             buf += ANSI.moveTo(row: titleLines + 1, col: 1)
             buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
             buf += ANSI.moveTo(row: inputRow, col: 1)
             buf += "\u{25B8} \(before)\u{2588}\(after)"
-
-            // Show suggestions or new-field hint
             if !matches.isEmpty {
-                for (displayIdx, match) in matches.prefix(maxSuggestions).enumerated() {
-                    buf += ANSI.moveTo(row: suggestionsRow + displayIdx, col: 3)
-                    if displayIdx == 0 {
-                        buf += "\(ANSI.dim)Tab \u{2192} \(ANSI.reset)\(match)"
-                    } else {
-                        buf += "\(ANSI.dim)  \(match)\(ANSI.reset)"
-                    }
-                }
-                if matches.count > maxSuggestions {
-                    buf += ANSI.moveTo(row: suggestionsRow + maxSuggestions, col: 3)
-                    buf += "\(ANSI.dim)  ... \(matches.count - maxSuggestions) more\(ANSI.reset)"
-                }
+                buf += renderSuggestions(
+                    matches: matches, scrollOffset: scrollOffset,
+                    maxSuggestions: maxSuggestions, highlightIndex: highlightIndex,
+                    startRow: suggestionsRow
+                )
             } else if !input.isEmpty, let noMatchHint {
                 buf += ANSI.moveTo(row: suggestionsRow, col: 3)
                 buf += "\(ANSI.dim)\(noMatchHint)\(ANSI.reset)"
             }
-
-            buf += ANSI.moveTo(row: size.rows, col: 1)
             let listHint = hasList ? "  Ctrl+L browse list" : ""
+            buf += ANSI.moveTo(row: size.rows, col: 1)
             buf += "\(ANSI.dim)\u{2190}\u{2192} move  Tab autocomplete\(listHint)  Enter confirm  Esc cancel\(ANSI.reset)"
             write(buf)
 
-            let key = readKey()
-            switch key {
+            switch readKey() {
             case .ctrlL where hasList:
-                if let list = browsableList,
-                   let idx = selectFromList(title: "Select field", items: list)
-                {
+                if let list = browsableList, let idx = selectFromList(title: "Select field", items: list) {
                     input = list[idx]
                     cursorPos = input.count
                 }
             case let .char(char):
                 input.insert(char, at: input.index(input.startIndex, offsetBy: cursorPos))
                 cursorPos += 1
+                arrowIndex = nil
+                scrollOffset = 0
             case .backspace:
-                if cursorPos > 0 {
-                    input.remove(at: input.index(input.startIndex, offsetBy: cursorPos - 1))
-                    cursorPos -= 1
-                }
+                guard cursorPos > 0 else { continue }
+                input.remove(at: input.index(input.startIndex, offsetBy: cursorPos - 1))
+                cursorPos -= 1
+                arrowIndex = nil
+                scrollOffset = 0
             case .cursorLeft:
                 if cursorPos > 0 { cursorPos -= 1 }
             case .cursorRight:
                 if cursorPos < input.count { cursorPos += 1 }
+            case .cursorDown where !matchedIndices.isEmpty:
+                arrowIndex = min((arrowIndex ?? -1) + 1, matchedIndices.count - 1)
+                if arrowIndex! >= scrollOffset + maxSuggestions {
+                    scrollOffset = arrowIndex! - maxSuggestions + 1
+                }
+            case .cursorUp where arrowIndex != nil && arrowIndex! > 0:
+                arrowIndex = arrowIndex! - 1
+                if arrowIndex! < scrollOffset { scrollOffset = arrowIndex! }
             case .tab:
-                if !matchedIndices.isEmpty {
-                    // Reset cycle when query changes
-                    if query != lastTabQuery {
-                        tabCycleIndex = 0
-                        lastTabQuery = query
-                    }
+                guard !matchedIndices.isEmpty else { continue }
+                if let arrow = arrowIndex {
+                    let idx = matchedIndices[arrow]
+                    input = insertCompletions?[idx] ?? completions[idx]
+                    cursorPos = input.count
+                    tabCycleIndex = arrow + 1
+                    lastTabQuery = query
+                    arrowIndex = nil
+                    scrollOffset = 0
+                } else {
+                    if query != lastTabQuery { tabCycleIndex = 0; lastTabQuery = query }
                     let idx = matchedIndices[tabCycleIndex % matchedIndices.count]
                     input = insertCompletions?[idx] ?? completions[idx]
                     cursorPos = input.count
@@ -456,24 +484,4 @@ extension RawTerminal {
         write(buf)
         _ = readKey()
     }
-}
-
-// MARK: - Key Enum
-
-enum Key: Equatable {
-    case char(Character)
-    case enter
-    case escape
-    case backspace
-    case tab
-    case cursorUp
-    case cursorDown
-    case cursorLeft
-    case cursorRight
-    case pageUp
-    case pageDown
-    case ctrlC
-    case ctrlL
-    case timeout
-    case unknown
 }

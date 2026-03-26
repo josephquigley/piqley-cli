@@ -24,3 +24,14 @@ enum ANSI {
         return (24, 80) // fallback
     }
 }
+
+// MARK: - Key Enum
+
+enum Key: Equatable {
+    case char(Character)
+    case enter, escape, backspace, tab
+    case cursorUp, cursorDown, cursorLeft, cursorRight
+    case pageUp, pageDown
+    case ctrlC, ctrlL
+    case timeout, unknown
+}
