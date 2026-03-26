@@ -10,7 +10,8 @@ struct PluginCommand: ParsableCommand {
         abstract: "Manage plugins",
         subcommands: [
             ListSubcommand.self, SetupSubcommand.self, InitSubcommand.self,
-            CreateSubcommand.self, InstallSubcommand.self, UninstallSubcommand.self,
+            CreateSubcommand.self, InstallSubcommand.self, UpdateSubcommand.self,
+            UninstallSubcommand.self,
             ConfigSubcommand.self, PluginRulesCommand.self, PluginCommandEditCommand.self,
         ]
     )

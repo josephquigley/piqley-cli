@@ -1,3 +1,4 @@
+import ArgumentParser
 import Foundation
 import PiqleyCore
 
@@ -298,5 +299,114 @@ enum PluginUpdater {
         {
             try fileManager.removeItem(at: item)
         }
+    }
+}
+
+struct UpdateSubcommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "update",
+        abstract: "Update an installed plugin from a .piqleyplugin package"
+    )
+
+    @Argument(help: "Path to the .piqleyplugin file")
+    var pluginFile: String
+
+    func validate() throws {
+        guard FileManager.default.fileExists(atPath: pluginFile) else {
+            throw UpdateError.fileNotFound
+        }
+        guard pluginFile.hasSuffix(".piqleyplugin") else {
+            throw UpdateError.notAPiqleyPlugin
+        }
+    }
+
+    func run() throws {
+        let zipURL = URL(fileURLWithPath: pluginFile)
+        let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
+
+        let result = try PluginUpdater.update(from: zipURL, pluginsDirectory: pluginsDir)
+
+        // Print version transition
+        if let oldVersion = result.oldManifest.pluginVersion,
+           let newVersion = result.newManifest.pluginVersion
+        {
+            print("Updating \(result.identifier) from \(oldVersion) to \(newVersion)")
+        }
+        print("Plugin files updated successfully.")
+
+        // Load existing config
+        let configStore = BasePluginConfigStore.default
+        let existingConfig = (try? configStore.load(for: result.identifier)) ?? BasePluginConfig()
+
+        // Merge configs
+        let mergeResult = ConfigMerger.merge(
+            oldManifest: result.oldManifest,
+            newManifest: result.newManifest,
+            existingConfig: existingConfig
+        )
+
+        // Print kept entries
+        for key in mergeResult.skipValueKeys.sorted() {
+            if let value = mergeResult.mergedConfig.values[key] {
+                print("Kept config '\(key)' = \(value)")
+            }
+        }
+        for key in mergeResult.skipSecretKeys.sorted() {
+            print("Kept secret '\(key)'")
+        }
+
+        // Print removed entries
+        for key in mergeResult.removedValueKeys.sorted() {
+            print("Removed config '\(key)' (no longer in manifest).")
+        }
+        for key in mergeResult.removedSecretKeys.sorted() {
+            print("Removed secret '\(key)' (no longer in manifest).")
+        }
+
+        // Print type changes
+        for (key, (oldType, newType)) in mergeResult.typeChangedKeys.sorted(by: { $0.key < $1.key }) {
+            print("Config '\(key)' type changed from \(oldType.rawValue) to \(newType.rawValue), re-prompting.")
+        }
+
+        // Save merged config before scan so scanner picks it up
+        try configStore.save(mergeResult.mergedConfig, for: result.identifier)
+
+        // Run scanner for new/changed entries + setup binary
+        guard !result.newManifest.config.isEmpty || result.newManifest.setup != nil else {
+            let secretStore = makeDefaultSecretStore()
+            let pruned = try SecretPruner.prune(configStore: configStore, secretStore: secretStore)
+            if !pruned.isEmpty {
+                print("Pruned \(pruned.count) orphaned secret(s).")
+            }
+            print("\nUpdate complete.")
+            return
+        }
+
+        let (_, allPlugins) = try WorkflowCommand.loadRegistryAndPlugins()
+        guard let plugin = allPlugins.first(where: { $0.identifier == result.identifier }) else {
+            print("\nUpdate complete.")
+            return
+        }
+
+        print("\nRunning setup for '\(plugin.name)'...\n")
+        let secretStore = makeDefaultSecretStore()
+        var scanner = PluginSetupScanner(
+            secretStore: secretStore,
+            configStore: configStore,
+            inputSource: StdinInputSource()
+        )
+        try scanner.scan(
+            plugin: plugin,
+            skipValueKeys: mergeResult.skipValueKeys,
+            skipSecretKeys: mergeResult.skipSecretKeys
+        )
+
+        // Prune orphaned secrets
+        let pruned = try SecretPruner.prune(configStore: configStore, secretStore: secretStore)
+        if !pruned.isEmpty {
+            print("Pruned \(pruned.count) orphaned secret(s).")
+        }
+
+        print("\nUpdate complete.")
     }
 }
