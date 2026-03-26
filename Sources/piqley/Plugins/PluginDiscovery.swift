@@ -125,7 +125,13 @@ struct PluginDiscovery: Sendable {
                         continue
                     }
                 }
-                stages[stageName] = config
+                let (sanitized, didFix) = RegexSanitizer.sanitizeStageConfig(config)
+                if didFix {
+                    let plugin = pluginDir.lastPathComponent
+                    // swiftlint:disable:next line_length
+                    logger.warning("Plugin '\(plugin)' stage '\(stageName)': fixed double-escaped regex patterns. Re-save this stage to persist the fix.")
+                }
+                stages[stageName] = sanitized
             } catch {
                 logger.warning("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' has malformed JSON — skipped")
             }
