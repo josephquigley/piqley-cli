@@ -274,6 +274,7 @@ struct RuleEvaluator: Sendable {
                         }
                         continue
                     }
+                    Self.autoCloneIfNeeded(action: action, working: &working, state: state, namespace: rule.namespace)
                     Self.applyAction(action, to: &working)
                 }
 
@@ -292,6 +293,26 @@ struct RuleEvaluator: Sendable {
         }
 
         return RuleEvaluationResult(namespace: working, skipped: skipped)
+    }
+
+    /// If a remove or replace action targets a field not yet in working,
+    /// seed it from the match rule's source namespace so the action has data to operate on.
+    static func autoCloneIfNeeded(
+        action: EmitAction,
+        working: inout [String: JSONValue],
+        state: [String: [String: JSONValue]],
+        namespace: String
+    ) {
+        switch action {
+        case let .remove(field, _, _), let .replace(field, _):
+            if working[field] == nil,
+               let source = state[namespace]?[field]
+            {
+                working[field] = source
+            }
+        default:
+            break
+        }
     }
 
     static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {

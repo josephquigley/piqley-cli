@@ -1016,4 +1016,85 @@ struct RuleEvaluatorTests {
         )
         #expect(result.namespace["keywords"] == .array([.string("from-file")]))
     }
+
+    // MARK: - Auto-clone on empty field
+
+    @Test("remove auto-clones from source namespace when field is empty")
+    func testRemoveAutoCloneFromSource() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "remove", field: "TIFF:Model", values: ["Sony"], replacements: nil, source: nil)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .array([.string("Sony"), .string("Canon"), .string("Nikon")])]]
+        )
+        #expect(result.namespace["TIFF:Model"] == .array([.string("Canon"), .string("Nikon")]))
+    }
+
+    @Test("remove does not auto-clone when field already exists in working")
+    func testRemoveNoAutoCloneWhenFieldExists() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "remove", field: "TIFF:Model", values: ["local-only"], replacements: nil, source: nil)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .array([.string("Sony"), .string("Canon")])]],
+            currentNamespace: ["TIFF:Model": .array([.string("local-only"), .string("kept")])]
+        )
+        #expect(result.namespace["TIFF:Model"] == .array([.string("kept")]))
+    }
+
+    @Test("remove is no-op when field missing from both working and source")
+    func testRemoveNoAutoCloneWhenSourceMissing() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "remove", field: "nonexistent", values: ["anything"], replacements: nil, source: nil)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]]
+        )
+        #expect(result.namespace["nonexistent"] == nil)
+    }
+
+    @Test("replace auto-clones from source namespace when field is empty")
+    func testReplaceAutoCloneFromSource() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "replace", field: "TIFF:Model", values: nil, replacements: [
+                    Replacement(pattern: "Sony", replacement: "Sony Alpha"),
+                ], source: nil)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .array([.string("Sony"), .string("Canon")])]]
+        )
+        #expect(result.namespace["TIFF:Model"] == .array([.string("Sony Alpha"), .string("Canon")]))
+    }
+
+    @Test("add does not auto-clone from source namespace")
+    func testAddNoAutoClone() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                pattern: "glob:*",
+                emit: [EmitConfig(action: nil, field: "TIFF:Model", values: ["new-value"], replacements: nil, source: nil)]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .array([.string("Sony"), .string("Canon")])]]
+        )
+        // add should only have the new value, not clone the originals
+        #expect(result.namespace["TIFF:Model"] == .array([.string("new-value")]))
+    }
 }

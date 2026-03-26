@@ -50,6 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `UpdateSubcommand` (`piqley plugin update`) ties together file update, config merge, and setup scanner
 - `PluginSetupScanner.scan()` accepts `skipValueKeys` and `skipSecretKeys` parameters to selectively skip prompting
 - Rules editor inspect view: press 'i' on a rule to see a sectioned read-only detail view; press 'e' from inspect to edit
+- Remove and replace emit actions auto-clone the target field from the match rule's source namespace when the field is absent from the plugin's working namespace
 - Workflow editor blocks removal and rename of required pipeline stages (pipeline-start, pipeline-finished) with a user-facing message
 - `piqley plugin rules` can now be called with zero or one argument, resolving missing workflow/plugin interactively via TUI menus
 - Rules editor discovers consumed fields from upstream plugins' manifests and the target plugin's own manifest
