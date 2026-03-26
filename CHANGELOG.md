@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - `piqley plugin command` now loads and saves stage files from the workflow rules directory, fixing deleted commands still running and edits not taking effect
+- `piqley plugin rules` and `piqley plugin command` now share argument resolution logic via `PluginWorkflowResolver`
 - Plugin's own fields no longer appear as both bare name and qualified name in field completions
 - Rules editor "when field matches" label now displays the full namespaced field name
 - Target field prompt hint verb now matches the selected action (e.g. "clone into" instead of "modify")
