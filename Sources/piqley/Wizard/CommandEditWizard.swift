@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import PiqleyCore
 
@@ -132,40 +133,56 @@ final class CommandEditWizard {
 
     // MARK: - Edit Command
 
+    private struct CommandState {
+        var command: String
+        var args: [String]
+        var timeout: Int?
+        var fork: Bool
+        var environment: [String: String]
+        var pluginProtocol: PluginProtocol?
+        var batchProxy: BatchProxyConfig?
+        var changed = false
+
+        init(from binary: HookConfig?) {
+            command = binary?.command ?? ""
+            args = binary?.args ?? []
+            timeout = binary?.timeout
+            fork = binary?.fork ?? false
+            environment = binary?.environment ?? [:]
+            pluginProtocol = binary?.pluginProtocol
+            batchProxy = binary?.batchProxy
+        }
+
+        func toHookConfig(preserving original: HookConfig?) -> HookConfig {
+            HookConfig(
+                command: command.isEmpty ? nil : command,
+                args: args, timeout: timeout,
+                pluginProtocol: pluginProtocol,
+                successCodes: original?.successCodes,
+                warningCodes: original?.warningCodes,
+                criticalCodes: original?.criticalCodes,
+                batchProxy: batchProxy,
+                environment: environment.isEmpty ? nil : environment,
+                fork: fork ? true : nil
+            )
+        }
+    }
+
     private func editCommand(stageName: String) {
         guard let stage = stages[stageName] else { return }
-        let currentBinary = stage.binary
-
-        var command = currentBinary?.command ?? ""
-        var args = currentBinary?.args ?? []
-        var timeout = currentBinary?.timeout
-        var fork = currentBinary?.fork ?? false
-        var environment = currentBinary?.environment ?? [:]
-        var pluginProtocol = currentBinary?.pluginProtocol
-        var batchProxy = currentBinary?.batchProxy
+        var state = CommandState(from: stage.binary)
 
         var cursor = 0
-        var changed = false
         while true {
-            let envSummary = environment.isEmpty
-                ? "(none)"
-                : environment.keys.sorted().joined(separator: ", ")
-            let argsSummary = args.isEmpty ? "(none)" : args.joined(separator: " ")
-            let timeoutStr = timeout.map { "\($0)s" } ?? "30s (default)"
-            let items = [
-                "Environment Variables  \(ANSI.dim)\(envSummary)\(ANSI.reset)",
-                "Command      \(ANSI.dim)\(command.isEmpty ? "(not set)" : command)\(ANSI.reset)",
-                "Arguments    \(ANSI.dim)\(argsSummary)\(ANSI.reset)",
-                "Timeout      \(ANSI.dim)\(timeoutStr)\(ANSI.reset)",
-                "Fork         \(ANSI.dim)\(fork ? "yes" : "no")\(ANSI.reset)",
-            ]
+            let items = commandFieldItems(state)
 
             let hint = "Note: command paths are relative to the plugin directory (not shell PATH)"
             terminal.drawScreen(
                 title: "\(stageName) command config\n\(ANSI.dim)\(hint)\(ANSI.reset)",
                 items: items,
                 cursor: cursor,
-                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} edit  s save  Esc done")
+                footer: footerWithSaveIndicator(
+                    "\u{2191}\u{2193} navigate  \u{23CE} edit  d delete  s save  Esc done")
             )
 
             let key = readKeyWithSaveTimeout()
@@ -173,123 +190,127 @@ final class CommandEditWizard {
             case .timeout: continue
             case .cursorUp: cursor = max(0, cursor - 1)
             case .cursorDown: cursor = min(items.count - 1, cursor + 1)
-            case .char("s"):
-                // Apply pending changes before saving
-                if changed {
-                    let newBinary = HookConfig(
-                        command: command.isEmpty ? nil : command,
-                        args: args, timeout: timeout,
-                        pluginProtocol: pluginProtocol,
-                        successCodes: currentBinary?.successCodes,
-                        warningCodes: currentBinary?.warningCodes,
-                        criticalCodes: currentBinary?.criticalCodes,
-                        batchProxy: batchProxy,
-                        environment: environment.isEmpty ? nil : environment,
-                        fork: fork ? true : nil
-                    )
+            case .char("d"):
+                if terminal.confirm("Delete command for \(stageName)?") {
                     stages[stageName] = StageConfig(
-                        preRules: stage.preRules, binary: newBinary, postRules: stage.postRules
+                        preRules: stage.preRules, binary: nil, postRules: stage.postRules
                     )
                     modified = true
-                    changed = false
+                    return
+                }
+            case .char("s"):
+                if state.changed {
+                    applyCommandState(stageName: stageName, stage: stage, state: &state)
                 }
                 save()
             case .enter:
-                switch cursor {
-                case 0: // Environment
-                    environment = editEnvironment(stageName: stageName, current: environment)
-                    changed = true
-                case 1: // Command
-                    if let val = terminal.promptForInput(
-                        title: "\(stageName): command",
-                        hint: "Relative to plugin dir (e.g. ./bin/my-plugin) or absolute path",
-                        defaultValue: command.isEmpty ? nil : command,
-                        allowEmpty: true
-                    ) {
-                        if val.isEmpty {
-                            command = val
-                            changed = true
-                        } else {
-                            // Validate binary exists and probe it
-                            let probeResult = BinaryProbe.probe(
-                                command: val, pluginDirectory: pluginDir
-                            )
-                            switch probeResult {
-                            case .notFound:
-                                let resolved = BinaryProbe.resolveExecutable(val, pluginDirectory: pluginDir)
-                                terminal.showMessage("Command not found at \(resolved)")
-                            case .notExecutable:
-                                let resolved = BinaryProbe.resolveExecutable(val, pluginDirectory: pluginDir)
-                                terminal.showMessage("Command exists but is not executable: \(resolved)")
-                            case let .piqleyPlugin(version):
-                                command = val
-                                // Auto-configure for piqley plugin
-                                pluginProtocol = .json
-                                terminal.showMessage("Detected piqley plugin (schema v\(version)). Protocol set to JSON.")
-                                changed = true
-                            case .cliTool:
-                                command = val
-                                // Auto-configure for CLI tool
-                                pluginProtocol = .pipe
-                                // Ask about invocation mode
-                                let modeItems = [
-                                    "Once per image",
-                                    "Once per pipeline \(ANSI.italic)(batch mode)\(ANSI.reset)",
-                                ]
-                                if let choice = terminal.selectFromList(
-                                    title: "Run once per image or once per pipeline across all source images?",
-                                    items: modeItems
-                                ) {
-                                    batchProxy = choice == 0 ? BatchProxyConfig(sort: nil) : nil
-                                }
-                                changed = true
-                            }
-                        }
-                    }
-                case 2: // Arguments
-                    args = editArgs(stageName: stageName, existing: args, envKeys: environment.keys.sorted())
-                    changed = true
-                case 3: // Timeout
-                    let timeoutDefault = timeout.map { String($0) }
-                    if let val = terminal.promptForInput(
-                        title: "\(stageName): timeout (seconds)",
-                        hint: "Default: 30. Press Enter to keep default.",
-                        defaultValue: timeoutDefault,
-                        allowEmpty: true
-                    ) {
-                        timeout = val.isEmpty ? nil : Int(val) ?? timeout
-                        changed = true
-                    }
-                case 4: // Fork
-                    fork = terminal.confirm("Enable fork (copy-on-write image isolation)?")
-                    changed = true
-                default: break
-                }
+                editCommandField(cursor: cursor, stageName: stageName, state: &state)
             case .escape:
-                if changed {
-                    let newBinary = HookConfig(
-                        command: command.isEmpty ? nil : command,
-                        args: args,
-                        timeout: timeout,
-                        pluginProtocol: pluginProtocol,
-                        successCodes: currentBinary?.successCodes,
-                        warningCodes: currentBinary?.warningCodes,
-                        criticalCodes: currentBinary?.criticalCodes,
-                        batchProxy: batchProxy,
-                        environment: environment.isEmpty ? nil : environment,
-                        fork: fork ? true : nil
-                    )
-                    let newStage = StageConfig(
-                        preRules: stage.preRules,
-                        binary: newBinary,
-                        postRules: stage.postRules
-                    )
-                    stages[stageName] = newStage
-                    modified = true
+                if state.changed {
+                    applyCommandState(stageName: stageName, stage: stage, state: &state)
                 }
                 return
             default: break
             }
+        }
+    }
+
+    private func commandFieldItems(_ state: CommandState) -> [String] {
+        let envSummary = state.environment.isEmpty
+            ? "(none)"
+            : state.environment.keys.sorted().joined(separator: ", ")
+        let argsSummary = state.args.isEmpty ? "(none)" : state.args.joined(separator: " ")
+        let timeoutStr = state.timeout.map { "\($0)s" } ?? "30s (default)"
+        return [
+            "Environment Variables  \(ANSI.dim)\(envSummary)\(ANSI.reset)",
+            "Command      \(ANSI.dim)\(state.command.isEmpty ? "(not set)" : state.command)\(ANSI.reset)",
+            "Arguments    \(ANSI.dim)\(argsSummary)\(ANSI.reset)",
+            "Timeout      \(ANSI.dim)\(timeoutStr)\(ANSI.reset)",
+            "Fork         \(ANSI.dim)\(state.fork ? "yes" : "no")\(ANSI.reset)",
+        ]
+    }
+
+    private func applyCommandState(stageName: String, stage: StageConfig, state: inout CommandState) {
+        let newBinary = state.toHookConfig(preserving: stage.binary)
+        stages[stageName] = StageConfig(
+            preRules: stage.preRules, binary: newBinary, postRules: stage.postRules
+        )
+        modified = true
+        state.changed = false
+    }
+
+    private func editCommandField(cursor: Int, stageName: String, state: inout CommandState) {
+        switch cursor {
+        case 0: // Environment
+            state.environment = editEnvironment(stageName: stageName, current: state.environment)
+            state.changed = true
+        case 1: // Command
+            editCommandBinary(stageName: stageName, state: &state)
+        case 2: // Arguments
+            state.args = editArgs(
+                stageName: stageName, existing: state.args,
+                envKeys: state.environment.keys.sorted()
+            )
+            state.changed = true
+        case 3: // Timeout
+            let timeoutDefault = state.timeout.map { String($0) }
+            if let val = terminal.promptForInput(
+                title: "\(stageName): timeout (seconds)",
+                hint: "Default: 30. Press Enter to keep default.",
+                defaultValue: timeoutDefault,
+                allowEmpty: true
+            ) {
+                state.timeout = val.isEmpty ? nil : Int(val) ?? state.timeout
+                state.changed = true
+            }
+        case 4: // Fork
+            state.fork = terminal.confirm("Enable fork (copy-on-write image isolation)?")
+            state.changed = true
+        default: break
+        }
+    }
+
+    private func editCommandBinary(stageName: String, state: inout CommandState) {
+        guard let val = terminal.promptForInput(
+            title: "\(stageName): command",
+            hint: "Relative to plugin dir (e.g. ./bin/my-plugin) or absolute path",
+            defaultValue: state.command.isEmpty ? nil : state.command,
+            allowEmpty: true
+        ) else { return }
+
+        if val.isEmpty {
+            state.command = val
+            state.changed = true
+            return
+        }
+
+        let probeResult = BinaryProbe.probe(command: val, pluginDirectory: pluginDir)
+        switch probeResult {
+        case .notFound:
+            let resolved = BinaryProbe.resolveExecutable(val, pluginDirectory: pluginDir)
+            terminal.showMessage("Command not found at \(resolved)")
+        case .notExecutable:
+            let resolved = BinaryProbe.resolveExecutable(val, pluginDirectory: pluginDir)
+            terminal.showMessage("Command exists but is not executable: \(resolved)")
+        case let .piqleyPlugin(version):
+            state.command = val
+            state.pluginProtocol = .json
+            terminal.showMessage("Detected piqley plugin (schema v\(version)). Protocol set to JSON.")
+            state.changed = true
+        case .cliTool:
+            state.command = val
+            state.pluginProtocol = .pipe
+            let modeItems = [
+                "Once per image",
+                "Once per pipeline \(ANSI.italic)(batch mode)\(ANSI.reset)",
+            ]
+            if let choice = terminal.selectFromList(
+                title: "Run once per image or once per pipeline across all source images?",
+                items: modeItems
+            ) {
+                state.batchProxy = choice == 0 ? BatchProxyConfig(sort: nil) : nil
+            }
+            state.changed = true
         }
     }
 

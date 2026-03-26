@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Delete command option (`d` key) in plugin command editor to remove a stage's command
 - Arrow key navigation (up/down) for autocomplete suggestion list
 - `piqley plugin update` command: replaces plugin files from a new `.piqleyplugin` zip while merging config/secrets
 - `PluginUpdater` with extraction, validation, and file replacement for plugin updates
