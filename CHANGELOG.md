@@ -37,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - `piqley plugin update` command: replaces plugin files from a new `.piqleyplugin` zip while merging config/secrets
 - `PluginUpdater` with extraction, validation, and file replacement for plugin updates
-- `ConfigMerger` for diffing old/new plugin manifests during update (preserves kept config values and secrets, detects removals and type changes)
+- `ConfigMerger` for diffing old/new plugin manifests during update (preserves kept values/secrets, detects removals and type changes)
 - `UpdateSubcommand` (`piqley plugin update`) ties together file update, config merge, and setup scanner
 - `PluginSetupScanner.scan()` accepts `skipValueKeys` and `skipSecretKeys` parameters to selectively skip prompting
 - Rules editor inspect view: press 'i' on a rule to see a sectioned read-only detail view; press 'e' from inspect to edit

@@ -58,29 +58,21 @@ enum ConfigMerger {
     ) -> ConfigMergeResult {
         // Build keyed lookups from old manifest
         var oldValueTypes: [String: ConfigValueType] = [:]
-        for entry in oldManifest.config {
-            if case let .value(key, type, _) = entry {
-                oldValueTypes[key] = type
-            }
-        }
         var oldSecretTypes: [String: ConfigValueType] = [:]
         for entry in oldManifest.config {
-            if case let .secret(secretKey, type) = entry {
-                oldSecretTypes[secretKey] = type
+            switch entry {
+            case let .value(key, type, _): oldValueTypes[key] = type
+            case let .secret(secretKey, type): oldSecretTypes[secretKey] = type
             }
         }
 
         // Build keyed lookups from new manifest
         var newValueTypes: [String: ConfigValueType] = [:]
-        for entry in newManifest.config {
-            if case let .value(key, type, _) = entry {
-                newValueTypes[key] = type
-            }
-        }
         var newSecretKeys = Set<String>()
         for entry in newManifest.config {
-            if case let .secret(secretKey, _) = entry {
-                newSecretKeys.insert(secretKey)
+            switch entry {
+            case let .value(key, type, _): newValueTypes[key] = type
+            case let .secret(secretKey, _): newSecretKeys.insert(secretKey)
             }
         }
 
@@ -371,9 +363,10 @@ struct UpdateSubcommand: ParsableCommand {
         // Save merged config before scan so scanner picks it up
         try configStore.save(mergeResult.mergedConfig, for: result.identifier)
 
+        let secretStore = makeDefaultSecretStore()
+
         // Run scanner for new/changed entries + setup binary
         guard !result.newManifest.config.isEmpty || result.newManifest.setup != nil else {
-            let secretStore = makeDefaultSecretStore()
             let pruned = try SecretPruner.prune(configStore: configStore, secretStore: secretStore)
             if !pruned.isEmpty {
                 print("Pruned \(pruned.count) orphaned secret(s).")
@@ -389,7 +382,6 @@ struct UpdateSubcommand: ParsableCommand {
         }
 
         print("\nRunning setup for '\(plugin.name)'...\n")
-        let secretStore = makeDefaultSecretStore()
         var scanner = PluginSetupScanner(
             secretStore: secretStore,
             configStore: configStore,
