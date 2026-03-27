@@ -41,7 +41,7 @@ struct PluginSetupScanner {
                 continue
             }
             if !force, let existing = baseConfig.values[key] {
-                print("[\(plugin.name)] \(entry.displayLabel) already set to: \(displayValue(existing))")
+                print("\(entry.displayLabel) already set to: \(displayValue(existing))")
                 continue
             }
             let resolved = promptForValue(pluginName: plugin.name, entry: entry, key: key, type: type, defaultValue: defaultValue)
@@ -59,7 +59,7 @@ struct PluginSetupScanner {
             // Check if we already have this alias mapped and the secret exists
             if let existingAlias = baseConfig.secrets[secretKey] {
                 if (try? secretStore.get(key: existingAlias)) != nil {
-                    print("[\(plugin.name)] \(entry.displayLabel) (secret) already set")
+                    print("\(entry.displayLabel) (secret) already set")
                     continue
                 }
             }
@@ -111,7 +111,7 @@ struct PluginSetupScanner {
     // MARK: - Prompting
 
     private mutating func promptForValue(
-        pluginName: String, entry: ConfigEntry, key _: String, type: ConfigValueType, defaultValue: JSONValue
+        pluginName _: String, entry: ConfigEntry, key _: String, type: ConfigValueType, defaultValue: JSONValue
     ) -> JSONValue {
         let hasDefault = defaultValue != .null && defaultValue != .string("")
         while true {
@@ -122,9 +122,9 @@ struct PluginSetupScanner {
             }
             if hasDefault {
                 let defaultStr = displayValue(defaultValue)
-                print("[\(pluginName)] \(entry.displayLabel) [\(defaultStr)]: ", terminator: "")
+                print("\(entry.displayLabel) [\(defaultStr)]: ", terminator: "")
             } else {
-                print("[\(pluginName)] \(entry.displayLabel): ", terminator: "")
+                print("\(entry.displayLabel): ", terminator: "")
             }
             guard let input = inputSource.readLine() else {
                 // EOF: return default if available, otherwise empty string
@@ -144,14 +144,14 @@ struct PluginSetupScanner {
         }
     }
 
-    private mutating func promptForSecret(pluginName: String, entry: ConfigEntry, key _: String) -> String {
+    private mutating func promptForSecret(pluginName _: String, entry: ConfigEntry, key _: String) -> String {
         while true {
             if case let .secret(_, _, metadata) = entry,
                let desc = metadata.description, !desc.isEmpty
             {
                 print("  \(desc)")
             }
-            print("[\(pluginName)] \(entry.displayLabel) (secret): ", terminator: "")
+            print("\(entry.displayLabel) (secret): ", terminator: "")
             guard let input = inputSource.readLine() else {
                 // EOF: return empty string to avoid infinite loop
                 return ""
