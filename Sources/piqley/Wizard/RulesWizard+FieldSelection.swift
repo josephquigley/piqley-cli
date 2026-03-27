@@ -29,13 +29,6 @@ extension RulesWizard {
         return (qualifiedName: selectedField.qualifiedName, displayName: selectedField.name)
     }
 
-    /// Formats available sources as inline tags for display above field prompts.
-    func formatSourceTags() -> String {
-        let sources = context.availableSources()
-        let tags = sources.map { "\(ANSI.dim)[\(ANSI.reset)\($0)\(ANSI.dim)]\(ANSI.reset)" }
-        return tags.joined(separator: " ")
-    }
-
     /// Builds a sorted list of field names for autocomplete, combining catalog fields
     /// and fields already used in existing rules. The plugin's own fields are listed
     /// first, then everything else alphabetically.
@@ -48,7 +41,7 @@ extension RulesWizard {
                 if source == pluginID {
                     ownFields.insert(field.name)
                 } else {
-                    otherFields.insert(field.name)
+                    otherFields.insert(field.qualifiedName)
                 }
             }
         }

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Field autocomplete now shows source-qualified names (e.g. `original:IPTC:Keywords`) for fields from other namespaces
 - Edit action title and menu labels now use verb phrases ("remove from", "add to") instead of bare action names
 - Long menu rows in the rules editor TUI are now truncated to terminal width instead of wrapping
 - Plugin setup prompts no longer show redundant `[PluginName]` prefix on each field

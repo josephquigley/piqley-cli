@@ -91,7 +91,7 @@ extension RulesWizard {
             let verb = actionFieldVerb(state.action)
             if let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(state.action)",
-                hint: "The field to \(verb) (e.g. keywords, IPTC:Keywords)",
+                hint: "The field to \(verb) (e.g. keywords, original:IPTC:Keywords)",
                 completions: completions,
                 browsableList: completions,
                 defaultValue: state.field,
