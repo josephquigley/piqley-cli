@@ -184,7 +184,7 @@ extension RulesWizard {
         switch action {
         case "add", "remove":
             let vals = emit.values?.joined(separator: ", ") ?? ""
-            return "\(action) \(target)=[\(vals)]"
+            return "\(actionFieldVerb(action)) \(target)=[\(vals)]"
         case "replace":
             if let replacements = emit.replacements {
                 let pairs = replacements.map { "\($0.pattern)\u{2192}\($0.replacement)" }

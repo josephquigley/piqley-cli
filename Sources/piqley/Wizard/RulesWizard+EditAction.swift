@@ -16,7 +16,7 @@ extension RulesWizard {
             cursor = min(cursor, items.count - 1)
 
             terminal.drawScreen(
-                title: "Edit action: \(state.action) \(state.field)",
+                title: "Edit action: \(actionFieldVerb(state.action)) \(state.field)",
                 items: items,
                 cursor: cursor,
                 footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  d delete value  Esc back"
@@ -89,10 +89,9 @@ extension RulesWizard {
         case .field:
             let completions = buildFieldCompletions()
             let verb = actionFieldVerb(state.action)
-            let sourcesTags = formatSourceTags()
             if let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(state.action)",
-                hint: "\(sourcesTags)\nThe field to \(verb) (e.g. keywords, IPTC:Keywords)",
+                hint: "The field to \(verb) (e.g. keywords, IPTC:Keywords)",
                 completions: completions,
                 browsableList: completions,
                 defaultValue: state.field,
