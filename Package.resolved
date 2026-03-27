@@ -2,6 +2,15 @@
   "originHash" : "775df165c5251365e7d9742b11d502f9e7151c7cfebfe55777edcdb07c2aba4a",
   "pins" : [
     {
+      "identity" : "piqley-core",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/josephquigley/piqley-core",
+      "state" : {
+        "revision" : "785854b119bca7ee6d97962149df678c28f01df8",
+        "version" : "0.14.0"
+      }
+    },
+    {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser.git",
