@@ -25,6 +25,7 @@ private func makePluginsDir(withPlugin identifier: String, hook: String, scriptU
     let manifest: [String: Any] = [
         "identifier": identifier,
         "name": identifier,
+        "type": "static",
         "pluginSchemaVersion": "1"
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifest)
@@ -87,6 +88,7 @@ private func makePluginsDirWithSkipRule(identifier: String, hook: String, script
     let manifest: [String: Any] = [
         "identifier": identifier,
         "name": identifier,
+        "type": "static",
         "pluginSchemaVersion": "1"
     ]
     try JSONSerialization.data(withJSONObject: manifest)
@@ -156,6 +158,7 @@ struct PipelineOrchestratorTests {
             let manifest: [String: Any] = [
                 "identifier": identifier,
                 "name": identifier,
+                "type": "static",
                 "pluginSchemaVersion": "1"
             ]
             let manifestData = try JSONSerialization.data(withJSONObject: manifest)
@@ -204,6 +207,7 @@ struct PipelineOrchestratorTests {
         let manifest: [String: Any] = [
             "identifier": "com.test.secret-plugin",
             "name": "secret-plugin",
+            "type": "static",
             "pluginSchemaVersion": "1",
             "config": [["secret_key": "api-key", "type": "string"]]
         ]

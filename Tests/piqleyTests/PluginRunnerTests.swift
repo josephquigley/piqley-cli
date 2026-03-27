@@ -27,6 +27,7 @@ private func makePlugin(
     let manifestJSON: [String: Any] = [
         "identifier": name,
         "name": name,
+        "type": "static",
         "pluginSchemaVersion": "1"
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifestJSON)
@@ -165,6 +166,7 @@ struct PluginRunnerTests {
         let manifestData = try JSONSerialization.data(withJSONObject: [
             "identifier": "slow",
             "name": "slow",
+            "type": "static",
             "pluginSchemaVersion": "1"
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
@@ -211,6 +213,7 @@ struct PluginRunnerTests {
         let manifestData = try JSONSerialization.data(withJSONObject: [
             "identifier": "token-test",
             "name": "token-test",
+            "type": "static",
             "pluginSchemaVersion": "1"
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))
@@ -256,6 +259,7 @@ struct PluginRunnerTests {
         let manifestData = try JSONSerialization.data(withJSONObject: [
             "identifier": "bad",
             "name": "bad",
+            "type": "static",
             "pluginSchemaVersion": "1"
         ] as [String: Any])
         try manifestData.write(to: tempDir.appendingPathComponent("manifest.json"))

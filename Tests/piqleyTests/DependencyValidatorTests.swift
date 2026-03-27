@@ -11,6 +11,7 @@ struct DependencyValidatorTests {
         PluginManifest(
             identifier: name,
             name: name,
+            type: .static,
             pluginSchemaVersion: "1",
             dependencies: dependencies?.map { PluginDependency(name: $0) }
         )

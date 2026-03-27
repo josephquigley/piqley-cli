@@ -70,6 +70,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "api-url", type: .string, value: .null, metadata: ConfigMetadata())],
             setup: nil
@@ -97,6 +98,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "port", type: .int, value: .number(8080), metadata: ConfigMetadata())],
             setup: nil
@@ -124,6 +126,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "api-url", type: .string, value: .null, metadata: ConfigMetadata())],
             setup: nil
@@ -156,6 +159,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "api-url", type: .string, value: .null, metadata: ConfigMetadata())],
             setup: nil
@@ -187,6 +191,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "count", type: .int, value: .null, metadata: ConfigMetadata())],
             setup: nil
@@ -215,6 +220,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.secret(secretKey: "api-token", type: .string, metadata: ConfigMetadata())],
             setup: nil
@@ -248,6 +254,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.secret(secretKey: "api-token", type: .string, metadata: ConfigMetadata())],
             setup: nil
@@ -283,6 +290,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [],
             setup: SetupConfig(command: "/non/existent/binary")
@@ -310,6 +318,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .value(key: "kept-url", type: .string, value: .null, metadata: ConfigMetadata()),
@@ -346,6 +355,7 @@ struct PluginSetupScannerTests {
         let manifest = PluginManifest(
             identifier: "com.test.test-plugin",
             name: "test-plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .secret(secretKey: "kept-token", type: .string, metadata: ConfigMetadata()),

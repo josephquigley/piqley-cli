@@ -39,6 +39,13 @@ struct PluginRulesCommand: ParsableCommand {
         let manifestData = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
 
+        guard manifest.type == .mutable else {
+            throw CleanError(
+                "'\(manifest.name)' is a static plugin and cannot be modified. "
+                    + "Config values can be changed with 'piqley plugin config'."
+            )
+        }
+
         // Load stages from workflow rules dir (not plugin dir)
         let rulesDir = WorkflowStore.pluginRulesDirectory(
             workflowName: workflowName, pluginIdentifier: pluginID

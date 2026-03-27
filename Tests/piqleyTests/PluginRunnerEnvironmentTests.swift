@@ -27,6 +27,7 @@ private func makePluginWithEnvironment(
     let manifestJSON: [String: Any] = [
         "identifier": name,
         "name": name,
+        "type": "static",
         "pluginSchemaVersion": "1"
     ]
     let manifestData = try JSONSerialization.data(withJSONObject: manifestJSON)

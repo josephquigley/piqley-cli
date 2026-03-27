@@ -29,6 +29,7 @@ private func createPluginZip(
     let manifest = PluginManifest(
         identifier: identifier,
         name: name,
+        type: .static,
         pluginSchemaVersion: "1",
         pluginVersion: version,
         config: config,
@@ -62,6 +63,7 @@ private func preInstallPlugin(
     let manifest = PluginManifest(
         identifier: identifier,
         name: name,
+        type: .static,
         pluginSchemaVersion: "1",
         pluginVersion: version,
         config: config,
@@ -155,6 +157,7 @@ struct ConfigMergerTests {
         let oldManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .value(key: "kept-url", type: .string, value: .string("default"), metadata: ConfigMetadata()),
@@ -164,6 +167,7 @@ struct ConfigMergerTests {
         let newManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .value(key: "kept-url", type: .string, value: .string("default"), metadata: ConfigMetadata()),
@@ -198,12 +202,14 @@ struct ConfigMergerTests {
         let oldManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "port", type: .string, value: .string("8080"), metadata: ConfigMetadata())]
         )
         let newManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "port", type: .int, value: .number(8080), metadata: ConfigMetadata())]
         )
@@ -229,6 +235,7 @@ struct ConfigMergerTests {
         let oldManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .secret(secretKey: "KEPT_TOKEN", type: .string, metadata: ConfigMetadata()),
@@ -238,6 +245,7 @@ struct ConfigMergerTests {
         let newManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .secret(secretKey: "KEPT_TOKEN", type: .string, metadata: ConfigMetadata()),
@@ -266,6 +274,7 @@ struct ConfigMergerTests {
         let oldManifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "url", type: .string, value: .string("x"), metadata: ConfigMetadata())]
         )

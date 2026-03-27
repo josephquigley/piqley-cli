@@ -1,24 +1,6 @@
 {
-  "originHash" : "8836c5c7e288c6d0835b5889979baffece8c56ff56067b1d5974919fbea6034f",
+  "originHash" : "775df165c5251365e7d9742b11d502f9e7151c7cfebfe55777edcdb07c2aba4a",
   "pins" : [
-    {
-      "identity" : "piqley-core",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/josephquigley/piqley-core",
-      "state" : {
-        "revision" : "2859450568fbe7eb4db17a6f56034b2234623878",
-        "version" : "0.12.0"
-      }
-    },
-    {
-      "identity" : "piqley-plugin-sdk",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/josephquigley/piqley-plugin-sdk.git",
-      "state" : {
-        "revision" : "775f28fb0292edbafa3d4f474741b0de59764227",
-        "version" : "0.12.0"
-      }
-    },
     {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",

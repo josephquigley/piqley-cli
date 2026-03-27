@@ -39,6 +39,7 @@ struct ConfigMigratorTests {
         let manifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test Plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [
                 .value(key: "url", type: .string, value: .string("https://default.com"), metadata: ConfigMetadata()),
@@ -135,6 +136,7 @@ struct ConfigMigratorTests {
         let manifest = PluginManifest(
             identifier: "com.test.plugin",
             name: "Test Plugin",
+            type: .static,
             pluginSchemaVersion: "1",
             config: [.value(key: "port", type: .int, value: .number(8080), metadata: ConfigMetadata())]
         )

@@ -11,6 +11,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.ghost",
           "name": "ghost",
+          "type": "static",
           "pluginSchemaVersion": "1",
           "config": [{"secret_key": "api-key", "type": "string"}]
         }
@@ -28,6 +29,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.minimal",
           "name": "minimal",
+          "type": "static",
           "pluginSchemaVersion": "1"
         }
         """
@@ -50,6 +52,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.test-plugin",
           "name": "test-plugin",
+          "type": "static",
           "pluginSchemaVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
@@ -72,6 +75,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.test-plugin",
           "name": "test-plugin",
+          "type": "static",
           "pluginSchemaVersion": "1",
           "setup": {"command": "./setup.sh", "args": ["--install"]}
         }
@@ -88,6 +92,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.t",
           "name": "t",
+          "type": "static",
           "pluginSchemaVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
@@ -106,6 +111,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.t",
           "name": "t",
+          "type": "static",
           "pluginSchemaVersion": "1",
           "config": [
             {"key": "base-url", "type": "string", "value": "https://example.com"},
@@ -126,6 +132,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.legacy",
           "name": "legacy",
+          "type": "static",
           "pluginSchemaVersion": "1"
         }
         """
@@ -142,6 +149,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.flickr",
           "name": "flickr",
+          "type": "static",
           "pluginSchemaVersion": "1",
           "dependencies": ["hashtag", "original"]
         }
@@ -156,6 +164,7 @@ struct PluginManifestTests {
         {
           "identifier": "com.piqley.simple",
           "name": "simple",
+          "type": "static",
           "pluginSchemaVersion": "1"
         }
         """
@@ -170,6 +179,7 @@ struct PluginManifestTests {
           "identifier": "com.piqley.desc-test",
           "name": "desc-test",
           "description": "A test plugin",
+          "type": "static",
           "pluginSchemaVersion": "1"
         }
         """

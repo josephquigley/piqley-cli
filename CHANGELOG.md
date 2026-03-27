@@ -41,6 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Mutation guard: `piqley plugin rules` and `piqley plugin command` reject edits on static plugins with a clear error message
+- `piqley plugin init` sets `type: .mutable` on newly created plugin manifests
 - Plugin config entries support optional `label` and `description` metadata: setup prompts, workflow config, and plugin init now show human-readable names instead of raw field identifiers
 - Delete command option (`d` key) in plugin command editor to remove a stage's command
 - Arrow key navigation (up/down) for autocomplete suggestion list

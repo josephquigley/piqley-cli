@@ -22,6 +22,7 @@ struct InstallCommandTests {
             let manifest = PluginManifest(
                 identifier: name,
                 name: name,
+                type: .static,
                 pluginSchemaVersion: protocolVersion
             )
             let data = try JSONEncoder.piqleyPrettyPrint.encode(manifest)
@@ -159,6 +160,7 @@ struct InstallCommandTests {
         let manifest: [String: Any] = [
             "identifier": "com.test.unsupported",
             "name": "unsupported",
+            "type": "static",
             "pluginSchemaVersion": "1",
             "supportedPlatforms": ["linux-amd64"],
         ]
@@ -200,6 +202,7 @@ struct InstallCommandTests {
         let manifest: [String: Any] = [
             "identifier": "com.test.multi",
             "name": "multi",
+            "type": "static",
             "pluginSchemaVersion": "1",
             "supportedPlatforms": [HostPlatform.current, "linux-amd64"],
         ]

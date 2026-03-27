@@ -25,7 +25,7 @@ struct PluginWorkflowResolverTests {
         let dir = pluginsDir.appendingPathComponent(id)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let manifest = PluginManifest(
-            identifier: id, name: id, pluginSchemaVersion: "1"
+            identifier: id, name: id, type: .static, pluginSchemaVersion: "1"
         )
         let data = try JSONEncoder.piqleyPrettyPrint.encode(manifest)
         try data.write(to: dir.appendingPathComponent(PluginFile.manifest))

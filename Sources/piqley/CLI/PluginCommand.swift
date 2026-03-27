@@ -229,6 +229,7 @@ struct PluginCommand: ParsableCommand {
                 PluginManifest(
                     identifier: identifier,
                     name: resolvedDisplayName,
+                    type: .mutable,
                     description: resolvedDescription,
                     pluginSchemaVersion: "1",
                     pluginVersion: SemanticVersion(major: 0, minor: 0, patch: 1),
@@ -242,6 +243,7 @@ struct PluginCommand: ParsableCommand {
                 PluginManifest(
                     identifier: identifier,
                     name: resolvedDisplayName,
+                    type: .mutable,
                     description: resolvedDescription,
                     pluginSchemaVersion: "1"
                 )

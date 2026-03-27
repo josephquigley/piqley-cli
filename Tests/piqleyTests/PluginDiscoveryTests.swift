@@ -21,6 +21,7 @@ struct PluginDiscoveryTests {
             let manifest: [String: Any] = [
                 "identifier": plugin.name,
                 "name": plugin.name,
+                "type": "static",
                 "pluginSchemaVersion": "1",
             ]
             let data = try JSONSerialization.data(withJSONObject: manifest)
@@ -82,7 +83,7 @@ struct PluginDiscoveryTests {
 
         let pluginDir = pluginsDirectory.appendingPathComponent("test-plugin")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        let manifest = #"{"identifier": "test-plugin", "name": "test-plugin", "pluginSchemaVersion": "1"}"#
+        let manifest = #"{"identifier": "test-plugin", "name": "test-plugin", "type": "static", "pluginSchemaVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
         let stage = #"{"binary": {"command": "./bin/tool"}}"#
         try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
@@ -103,7 +104,7 @@ struct PluginDiscoveryTests {
 
         let pluginDir = dir.appendingPathComponent("bad-version")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        let manifest = #"{"identifier": "bad-version", "name": "BadVersion", "pluginSchemaVersion": "999"}"#
+        let manifest = #"{"identifier": "bad-version", "name": "BadVersion", "type": "static", "pluginSchemaVersion": "999"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
         let stage = #"{"binary": {"command": "./bin/tool"}}"#
         try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
@@ -123,7 +124,7 @@ struct PluginDiscoveryTests {
 
         let pluginDir = dir.appendingPathComponent("wrong-dir-name")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        let manifest = #"{"identifier": "correct-id", "name": "Test", "pluginSchemaVersion": "1"}"#
+        let manifest = #"{"identifier": "correct-id", "name": "Test", "type": "static", "pluginSchemaVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
         let stage = #"{"binary": {"command": "./bin/tool"}}"#
         try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
@@ -143,7 +144,7 @@ struct PluginDiscoveryTests {
 
         let pluginDir = dir.appendingPathComponent("no-stages")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        let manifest = #"{"identifier": "no-stages", "name": "NoStages", "pluginSchemaVersion": "1"}"#
+        let manifest = #"{"identifier": "no-stages", "name": "NoStages", "type": "static", "pluginSchemaVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
 
         let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
