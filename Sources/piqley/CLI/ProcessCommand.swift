@@ -18,6 +18,9 @@ struct ProcessCommand: AsyncParsableCommand {
     @Flag(help: "Preview without uploading or modifying anything")
     var dryRun = false
 
+    @Flag(help: "Enable debug output from plugins")
+    var debug = false
+
     @Flag(help: "Delete the contents of the source folder after a successful run")
     var deleteSourceContents = false
 
@@ -57,7 +60,7 @@ struct ProcessCommand: AsyncParsableCommand {
         )
 
         let succeeded = try await orchestrator.run(
-            sourceURL: sourceURL, dryRun: dryRun,
+            sourceURL: sourceURL, dryRun: dryRun, debug: debug,
             nonInteractive: nonInteractive, overwriteSource: overwriteSource
         )
 

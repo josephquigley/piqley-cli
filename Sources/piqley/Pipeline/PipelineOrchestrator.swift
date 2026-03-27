@@ -32,7 +32,7 @@ struct PipelineOrchestrator: Sendable {
 
     /// Runs the full pipeline for a source folder.
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
-    func run(sourceURL: URL, dryRun: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
+    func run(sourceURL: URL, dryRun: Bool, debug: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
         let pipeline = workflow.pipeline
         let pipelineRunId = UUID().uuidString
 
@@ -118,7 +118,7 @@ struct PipelineOrchestrator: Sendable {
                     pluginIdentifier: pluginEntry, pluginName: pluginEntry,
                     hook: stage, temp: temp,
                     stateStore: stateStore, imageFiles: imageFiles,
-                    dryRun: dryRun, nonInteractive: nonInteractive,
+                    dryRun: dryRun, debug: debug, nonInteractive: nonInteractive,
                     skippedImages: skippedImages,
                     forkManager: forkManager,
                     executedPlugins: executedPlugins,
@@ -162,6 +162,7 @@ struct PipelineOrchestrator: Sendable {
         let stateStore: StateStore
         let imageFiles: [URL]
         let dryRun: Bool
+        let debug: Bool
         let nonInteractive: Bool
         let skippedImages: Set<String>
         let forkManager: ForkManager

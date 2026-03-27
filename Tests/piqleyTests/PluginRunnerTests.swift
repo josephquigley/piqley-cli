@@ -81,7 +81,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .success)
     }
@@ -101,7 +102,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .critical)
     }
@@ -121,7 +123,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .success)
     }
@@ -141,7 +144,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .critical)
     }
@@ -183,7 +187,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .critical)
     }
@@ -232,7 +237,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .success)
     }
@@ -280,7 +286,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .critical)
     }
@@ -309,7 +316,8 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
 
         let calls = (try? String(contentsOf: callLog, encoding: .utf8))?.split(separator: "\n") ?? []
@@ -346,8 +354,77 @@ struct PluginRunnerTests {
             hookConfig: hookConfig,
             tempFolder: tempFolder,
             executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
-            dryRun: false
+            dryRun: false,
+            debug: false
         )
         #expect(result == .success)
+    }
+
+    @Test("pipe protocol: PIQLEY_DEBUG env var is set when debug=true")
+    func testPipeDebugEnvVar() async throws {
+        let resultFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-debug-test-\(UUID().uuidString).txt")
+        let script = try makeTempScript("""
+        echo "$PIQLEY_DEBUG" > "\(resultFile.path)"
+        exit 0
+        """)
+        defer {
+            try? FileManager.default.removeItem(at: script)
+            try? FileManager.default.removeItem(at: resultFile)
+        }
+
+        let plugin = try makePlugin(name: "test", hook: "post-publish", scriptURL: script, protocol: "pipe")
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        let hookConfig = plugin.stages["post-publish"]?.binary
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
+        let (result, _) = try await runner.run(
+            hook: "post-publish",
+            hookConfig: hookConfig,
+            tempFolder: tempFolder,
+            executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
+            dryRun: false,
+            debug: true
+        )
+        #expect(result == .success)
+
+        let output = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(output == "1")
+    }
+
+    @Test("json protocol: debug field is included in JSON payload")
+    func testJSONDebugField() async throws {
+        // Script reads stdin JSON and checks for debug field
+        let resultFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-json-debug-\(UUID().uuidString).txt")
+        let script = try makeTempScript("""
+        input=$(cat)
+        debug=$(echo "$input" | python3 -c "import sys,json; print(json.load(sys.stdin).get('debug', 'missing'))")
+        echo "$debug" > "\(resultFile.path)"
+        printf '{"type":"result","success":true,"error":null}\\n'
+        exit 0
+        """)
+        defer {
+            try? FileManager.default.removeItem(at: script)
+            try? FileManager.default.removeItem(at: resultFile)
+        }
+
+        let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        let hookConfig = plugin.stages["publish"]?.binary
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
+        let (result, _) = try await runner.run(
+            hook: "publish",
+            hookConfig: hookConfig,
+            tempFolder: tempFolder,
+            executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
+            dryRun: false,
+            debug: true
+        )
+        #expect(result == .success)
+
+        let output = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(output == "True")
     }
 }

@@ -273,6 +273,7 @@ extension PipelineOrchestrator {
             tempFolder: ctx.temp,
             executionLogPath: execLogPath,
             dryRun: ctx.dryRun,
+            debug: ctx.debug,
             state: pluginState,
             skipped: skipped,
             imageFolderOverride: imageFolderURL,

@@ -19,14 +19,16 @@ struct PluginRunner: Sendable {
 
     static let defaultTimeoutSeconds = 30
 
-    /// Runs the plugin for a given hook. Returns the exit code result and any state
-    /// returned by the plugin (JSON protocol only, nil for pipe/batchProxy).
+    // Runs the plugin for a given hook. Returns the exit code result and any state
+    // returned by the plugin (JSON protocol only, nil for pipe/batchProxy).
+    // swiftlint:disable:next function_parameter_count
     func run(
         hook: String,
         hookConfig: HookConfig?,
         tempFolder: TempFolder,
         executionLogPath: URL,
         dryRun: Bool,
+        debug: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
         skipped: [SkipRecord] = [],
         imageFolderOverride: URL? = nil,
@@ -58,6 +60,7 @@ struct PluginRunner: Sendable {
                 tempFolder: tempFolder,
                 executionLogPath: executionLogPath,
                 dryRun: dryRun,
+                debug: debug,
                 state: state,
                 imageFolderOverride: imageFolderOverride,
                 pipelineRunId: pipelineRunId
@@ -71,6 +74,7 @@ struct PluginRunner: Sendable {
             imagePath: nil,
             executionLogPath: executionLogPath,
             dryRun: dryRun,
+            debug: debug,
             pipelineRunId: pipelineRunId
         )
         // Resolve environment mapping templates against state for the first image
@@ -94,6 +98,7 @@ struct PluginRunner: Sendable {
                 folderPath: effectiveFolderURL,
                 executionLogPath: executionLogPath,
                 dryRun: dryRun,
+                debug: debug,
                 state: state,
                 skipped: skipped,
                 pipelineRunId: pipelineRunId
@@ -121,6 +126,7 @@ struct PluginRunner: Sendable {
         let folderPath: URL
         let executionLogPath: URL
         let dryRun: Bool
+        let debug: Bool
         let state: [String: [String: [String: JSONValue]]]?
         let skipped: [SkipRecord]
         let pipelineRunId: String?
@@ -150,6 +156,7 @@ struct PluginRunner: Sendable {
             folderPath: context.folderPath,
             executionLogPath: context.executionLogPath,
             dryRun: context.dryRun,
+            debug: context.debug,
             state: context.state,
             skipped: context.skipped,
             pipelineRunId: context.pipelineRunId
@@ -289,6 +296,7 @@ struct PluginRunner: Sendable {
         let tempFolder: TempFolder
         let executionLogPath: URL
         let dryRun: Bool
+        let debug: Bool
         let state: [String: [String: [String: JSONValue]]]?
         let imageFolderOverride: URL?
         let pipelineRunId: String?
@@ -305,6 +313,7 @@ struct PluginRunner: Sendable {
                 imagePath: image,
                 executionLogPath: context.executionLogPath,
                 dryRun: context.dryRun,
+                debug: context.debug,
                 pipelineRunId: context.pipelineRunId
             )
             let imageName = image.lastPathComponent
@@ -344,18 +353,21 @@ struct PluginRunner: Sendable {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func buildEnvironment(
         hook: String,
         folderPath: URL,
         imagePath: URL?,
         executionLogPath: URL,
         dryRun: Bool,
+        debug: Bool,
         pipelineRunId: String? = nil
     ) -> [String: String] {
         var env: [String: String] = [
             PluginEnvironment.folderPath: folderPath.path,
             PluginEnvironment.hook: hook,
             PluginEnvironment.dryRun: dryRun ? "1" : "0",
+            PluginEnvironment.debug: debug ? "1" : "0",
             PluginEnvironment.execLogPath: executionLogPath.path,
         ]
         if let imagePath {
@@ -379,6 +391,7 @@ struct PluginRunner: Sendable {
         folderPath: URL,
         executionLogPath: URL,
         dryRun: Bool,
+        debug: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
         skipped: [SkipRecord] = [],
         pipelineRunId: String? = nil
@@ -395,6 +408,7 @@ struct PluginRunner: Sendable {
             dataPath: dataPath,
             logPath: logPath,
             dryRun: dryRun,
+            debug: debug,
             state: state,
             pluginVersion: pluginVersion,
             lastExecutedVersion: nil,
