@@ -196,6 +196,42 @@ struct PluginRunnerEnvironmentTests {
         #expect(result == "true")
     }
 
+    @Test("bare colon-delimited field falls back to plugin namespace")
+    func testBareFieldFallsBackToPluginNamespace() async throws {
+        let script = try makeTempScript("exit 0")
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        let plugin = try makePluginWithEnvironment(
+            name: "com.test.myplugin", hook: "publish", scriptURL: script, environment: [:]
+        )
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
+        let state: [String: [String: JSONValue]] = [
+            "com.test.myplugin": ["IPTC:Keywords": .array([.string("landscape"), .string("sunset")])]
+        ]
+        let result = await runner.resolveTemplate("{{IPTC:Keywords}}", imageState: state, imageName: nil)
+        #expect(result == "landscape,sunset")
+    }
+
+    @Test("bare field fallback does not shadow a real namespace match")
+    func testBareFieldDoesNotShadowRealNamespace() async throws {
+        let script = try makeTempScript("exit 0")
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        let plugin = try makePluginWithEnvironment(
+            name: "com.test.myplugin", hook: "publish", scriptURL: script, environment: [:]
+        )
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
+        let state: [String: [String: JSONValue]] = [
+            "original": ["EXIF:CameraMake": .string("Canon")]
+        ]
+        let result = await runner.resolveTemplate("{{original:EXIF:CameraMake}}", imageState: state, imageName: nil)
+        #expect(result == "Canon")
+    }
+
     // MARK: - Integration: environment vars available to subprocess
 
     @Test("environment mapping makes resolved vars available to pipe subprocess")

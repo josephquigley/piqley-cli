@@ -82,14 +82,26 @@ extension PluginRunner {
             return ""
         }
 
-        guard let namespaceState = imageState?[namespace],
-              let value = namespaceState[field]
-        else {
-            logger.warning(
-                "[\(plugin.name)] Environment template '{{\(reference)}}' resolved to empty — field not found in state"
-            )
-            return ""
+        // If the parsed namespace exists in state, use it directly.
+        if let namespaceState = imageState?[namespace],
+           let value = namespaceState[field]
+        {
+            return jsonValueToString(value)
         }
-        return jsonValueToString(value)
+
+        // Fallback: the namespace part may actually be part of a colon-delimited
+        // field name (e.g., "IPTC:Keywords") rather than a state namespace.
+        // Try the full reference as a field name in the plugin's own namespace.
+        if imageState?[namespace] == nil {
+            let selfNamespace = plugin.identifier
+            if let value = imageState?[selfNamespace]?[reference] {
+                return jsonValueToString(value)
+            }
+        }
+
+        logger.warning(
+            "[\(plugin.name)] Environment template '{{\(reference)}}' resolved to empty — field not found in state"
+        )
+        return ""
     }
 }
