@@ -15,6 +15,61 @@ enum ANSI {
     static let red = "\u{1b}[31m"
     static let yellow = "\u{1b}[33m"
 
+    /// Truncate a string to `maxWidth` visible characters, preserving ANSI escapes.
+    /// Appends "…" when truncated and resets formatting.
+    static func truncate(_ string: String, maxWidth: Int) -> String {
+        guard maxWidth > 0 else { return "" }
+        var visible = 0
+        var result = ""
+        var idx = string.startIndex
+        while idx < string.endIndex {
+            if string[idx] == "\u{1b}" {
+                // Consume entire ANSI escape sequence
+                let seqStart = idx
+                idx = string.index(after: idx)
+                if idx < string.endIndex, string[idx] == "[" {
+                    idx = string.index(after: idx)
+                    while idx < string.endIndex, !string[idx].isLetter {
+                        idx = string.index(after: idx)
+                    }
+                    if idx < string.endIndex {
+                        idx = string.index(after: idx) // consume the letter
+                    }
+                }
+                result += string[seqStart ..< idx]
+            } else {
+                if visible >= maxWidth - 1 {
+                    // Check if remaining visible chars would exceed maxWidth
+                    var remaining = 0
+                    var scan = idx
+                    while scan < string.endIndex {
+                        if string[scan] == "\u{1b}" {
+                            scan = string.index(after: scan)
+                            if scan < string.endIndex, string[scan] == "[" {
+                                scan = string.index(after: scan)
+                                while scan < string.endIndex, !string[scan].isLetter {
+                                    scan = string.index(after: scan)
+                                }
+                                if scan < string.endIndex { scan = string.index(after: scan) }
+                            }
+                        } else {
+                            remaining += 1
+                            scan = string.index(after: scan)
+                        }
+                    }
+                    if remaining > 1 {
+                        result += "\u{2026}\(reset)"
+                        return result
+                    }
+                }
+                result.append(string[idx])
+                visible += 1
+                idx = string.index(after: idx)
+            }
+        }
+        return result
+    }
+
     /// Get terminal size (rows, cols).
     static func terminalSize() -> (rows: Int, cols: Int) {
         var windowSize = winsize()

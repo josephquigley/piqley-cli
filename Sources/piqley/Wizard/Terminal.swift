@@ -164,9 +164,11 @@ extension RawTerminal {
             let (idx, text) = entry
             buf += ANSI.moveTo(row: row + itemStartRow, col: 1)
             if idx == cursor {
-                buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
+                let truncated = ANSI.truncate(text, maxWidth: size.cols - 4)
+                buf += "\(ANSI.inverse) \u{25B8} \(truncated) \(ANSI.reset)"
             } else {
-                buf += "   \(text)"
+                let truncated = ANSI.truncate(text, maxWidth: size.cols - 3)
+                buf += "   \(truncated)"
             }
         }
 

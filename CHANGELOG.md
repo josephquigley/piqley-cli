@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Long menu rows in the rules editor TUI are now truncated to terminal width instead of wrapping
 - Plugin setup prompts no longer show redundant `[PluginName]` prefix on each field
 - Regex sanitizer warning now lists which workflow(s) contain the bad stage file
 - Double-escaped regex patterns in stage files (e.g. `\\\\d` instead of `\\d`) are now detected and fixed at load time with a one-time warning
