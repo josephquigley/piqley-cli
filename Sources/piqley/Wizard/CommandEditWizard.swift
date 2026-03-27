@@ -336,7 +336,8 @@ final class CommandEditWizard {
                 defaultValue: defaultArg,
                 allowEmpty: !args.isEmpty
             ) else {
-                break
+                // User pressed Esc: preserve existing args if nothing was entered yet
+                return args.isEmpty ? existing : args
             }
             if arg.isEmpty { break }
             args.append(arg)
