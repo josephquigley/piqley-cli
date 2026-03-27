@@ -1097,4 +1097,74 @@ struct RuleEvaluatorTests {
         // add should only have the new value, not clone the originals
         #expect(result.namespace["TIFF:Model"] == .array([.string("new-value")]))
     }
+
+    // MARK: - Referenced namespaces
+
+    @Test("cross-namespace match field included in referencedNamespaces")
+    func testCrossNamespaceMatchFieldIncluded() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "other.plugin:someField",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["tag"], replacements: nil, source: nil)]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.referencedNamespaces.contains("other.plugin"))
+    }
+
+    @Test("clone source namespace included in referencedNamespaces")
+    func testCloneSourceNamespaceIncluded() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "tags", values: nil, replacements: nil, source: "other.plugin:keywords")]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.referencedNamespaces.contains("other.plugin"))
+    }
+
+    @Test("reserved namespaces excluded from referencedNamespaces")
+    func testReservedNamespacesExcluded() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "read:someField",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["tag"], replacements: nil, source: nil)]
+            )],
+            pluginId: "com.test.myplugin",
+            logger: logger
+        )
+        #expect(!evaluator.referencedNamespaces.contains("read"))
+        #expect(!evaluator.referencedNamespaces.contains("com.test.myplugin"))
+    }
+
+    @Test("local fields produce empty referencedNamespaces")
+    func testLocalFieldsProduceEmptySet() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "score",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: nil, field: "keywords", values: ["tag"], replacements: nil, source: nil)]
+            )],
+            pluginId: "com.test.myplugin",
+            logger: logger
+        )
+        #expect(evaluator.referencedNamespaces.isEmpty)
+    }
+
+    @Test("wildcard clone source namespace included in referencedNamespaces")
+    func testWildcardCloneSourceIncluded() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "*", values: nil, replacements: nil, source: "foreign.plugin")]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.referencedNamespaces.contains("foreign.plugin"))
+    }
 }

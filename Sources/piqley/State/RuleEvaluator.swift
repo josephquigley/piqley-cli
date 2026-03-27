@@ -45,6 +45,7 @@ struct RuleEvaluationResult: Sendable {
 
 struct RuleEvaluator: Sendable {
     let compiledRules: [CompiledRule]
+    let referencedNamespaces: Set<String>
 
     /// Compiles rules. If nonInteractive, invalid rules are skipped with warnings logged.
     /// Otherwise, errors are thrown.
@@ -118,6 +119,27 @@ struct RuleEvaluator: Sendable {
                 writeActions: writeActions
             ))
         }
+        // Collect foreign namespaces referenced by compiled rules
+        let reserved: Set<String> = {
+            var set: Set<String> = ["", "read", "self", ReservedName.skip]
+            if let pluginId { set.insert(pluginId) }
+            return set
+        }()
+        var namespaces = Set<String>()
+        for rule in compiled {
+            if !reserved.contains(rule.namespace) {
+                namespaces.insert(rule.namespace)
+            }
+            for action in rule.emitActions + rule.writeActions {
+                if case let .clone(_, sourceNamespace, _) = action,
+                   !reserved.contains(sourceNamespace)
+                {
+                    namespaces.insert(sourceNamespace)
+                }
+            }
+        }
+        referencedNamespaces = namespaces
+
         compiledRules = compiled
     }
 

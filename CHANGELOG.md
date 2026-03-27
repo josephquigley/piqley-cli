@@ -54,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Delete command option (`d` key) in plugin command editor to remove a stage's command
 - Arrow key navigation (up/down) for autocomplete suggestion list
 - `piqley plugin update` command: replaces plugin files from a new `.piqleyplugin` zip while merging config/secrets
+- RuleEvaluator now auto-resolves foreign namespaces referenced in match fields and clone sources, so rules referencing unlisted dependencies no longer silently fail
 - `PluginUpdater` with extraction, validation, and file replacement for plugin updates
 - `ConfigMerger` for diffing old/new plugin manifests during update (preserves kept values/secrets, detects removals and type changes)
 - `UpdateSubcommand` (`piqley plugin update`) ties together file update, config merge, and setup scanner

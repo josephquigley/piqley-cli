@@ -200,12 +200,13 @@ extension PipelineOrchestrator {
 
         var didRun = false
         var currentSkipped = skippedImages
+        let ruleDeps = Array(evaluator.referencedNamespaces)
         for imageName in await ctx.stateStore.allImageNames {
             if currentSkipped.contains(imageName) { continue }
 
             let resolved = await ctx.stateStore.resolve(
                 image: imageName,
-                dependencies: manifestDeps + [ReservedName.original, ctx.pluginIdentifier, ReservedName.skip]
+                dependencies: manifestDeps + ruleDeps + [ReservedName.original, ctx.pluginIdentifier, ReservedName.skip]
             )
             let currentNamespace = resolved[ctx.pluginIdentifier] ?? [:]
             let ruleResult = await evaluator.evaluate(
