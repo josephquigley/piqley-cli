@@ -6,6 +6,7 @@ import PiqleyCore
 final class RulesWizard {
     var context: RuleEditingContext
     let rulesDir: URL
+    let workflowName: String
     let terminal: RawTerminal
     var modified = false
     var savedAt: Date?
@@ -14,9 +15,10 @@ final class RulesWizard {
     /// Deleted rules are shown struck-through and removed on save.
     var deletedRules: Set<String> = []
 
-    init(context: RuleEditingContext, rulesDir: URL) {
+    init(context: RuleEditingContext, rulesDir: URL, workflowName: String) {
         self.context = context
         self.rulesDir = rulesDir
+        self.workflowName = workflowName
         terminal = RawTerminal()
     }
 

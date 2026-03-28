@@ -83,7 +83,7 @@ extension WorkflowCommand {
                 stages: stages
             )
 
-            let wizard = RulesWizard(context: context, rulesDir: rulesDir)
+            let wizard = RulesWizard(context: context, rulesDir: rulesDir, workflowName: workflowName)
             try wizard.run()
         }
 

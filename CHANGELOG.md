@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Rules editor now prompts to add the plugin to a stage's pipeline when saving rules for a stage the plugin isn't assigned to
 - `piqley plugin update` now shows raw config values (e.g. `quigs.photo`) instead of type-wrapped values (e.g. `string("quigs.photo")`)
 - Pressing Esc in command argument prompt now preserves existing args instead of discarding them
 - Environment templates with bare colon-delimited field names (e.g. `{{IPTC:Keywords}}`) now resolve correctly via plugin namespace fallback
