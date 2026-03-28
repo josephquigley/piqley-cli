@@ -50,6 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `workflow edit` now allows editing rules by pressing Enter on a plugin in the stage view, launching a nested rules editor scoped to that stage
 - Mutation guard: `piqley plugin rules` and `piqley plugin command` reject edits on static plugins with a clear error message
 - `piqley plugin init` sets `type: .mutable` on newly created plugin manifests
 - Local path dependency for piqley-plugin-sdk in development builds

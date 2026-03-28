@@ -92,6 +92,40 @@ extension RulesWizard {
         Foundation.exit(0)
     }
 
+    /// Prompt to save or discard unsaved changes when exiting `runForStage`.
+    /// Returns `true` if the user chose to go back (cancel), `false` to proceed with exit.
+    @discardableResult
+    func promptUnsavedAndReturn() -> Bool {
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)You have unsaved rule changes.\(ANSI.reset)"
+        buf += ANSI.moveTo(row: 3, col: 1)
+        buf += "  s  Save and return"
+        buf += ANSI.moveTo(row: 4, col: 1)
+        buf += "  d  Discard and return"
+        buf += ANSI.moveTo(row: 5, col: 1)
+        buf += "  Esc  Cancel (go back)"
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        buf += "\(ANSI.dim)s save  d discard  Esc cancel\(ANSI.reset)"
+        terminal.write(buf)
+
+        while true {
+            let key = terminal.readKey()
+            switch key {
+            case .char("s"):
+                save()
+                return false
+            case .char("d"):
+                return false
+            case .escape:
+                return true
+            default: break
+            }
+        }
+    }
+
     /// Prompt to save if there are unsaved changes, then exit or return.
     /// Returns true if the user chose to stay (cancel), false if exiting.
     func promptUnsavedAndExit() {
