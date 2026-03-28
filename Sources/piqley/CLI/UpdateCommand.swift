@@ -337,27 +337,36 @@ struct UpdateSubcommand: ParsableCommand {
             existingConfig: existingConfig
         )
 
+        // Build display label lookups from manifests
+        let newLabels = Self.displayLabels(from: result.newManifest)
+        let oldLabels = Self.displayLabels(from: result.oldManifest)
+
         // Print kept entries
         for key in mergeResult.skipValueKeys.sorted() {
             if let value = mergeResult.mergedConfig.values[key] {
-                print("Kept config '\(key)' = \(value)")
+                let label = newLabels[key] ?? key
+                print("Kept config '\(label)' = \(displayValue(value))")
             }
         }
         for key in mergeResult.skipSecretKeys.sorted() {
-            print("Kept secret '\(key)'")
+            let label = newLabels[key] ?? key
+            print("Kept secret '\(label)'")
         }
 
         // Print removed entries
         for key in mergeResult.removedValueKeys.sorted() {
-            print("Removed config '\(key)' (no longer in manifest).")
+            let label = oldLabels[key] ?? key
+            print("Removed config '\(label)' (no longer in manifest).")
         }
         for key in mergeResult.removedSecretKeys.sorted() {
-            print("Removed secret '\(key)' (no longer in manifest).")
+            let label = oldLabels[key] ?? key
+            print("Removed secret '\(label)' (no longer in manifest).")
         }
 
         // Print type changes
         for (key, (oldType, newType)) in mergeResult.typeChangedKeys.sorted(by: { $0.key < $1.key }) {
-            print("Config '\(key)' type changed from \(oldType.rawValue) to \(newType.rawValue), re-prompting.")
+            let label = newLabels[key] ?? key
+            print("Config '\(label)' type changed from \(oldType.rawValue) to \(newType.rawValue), re-prompting.")
         }
 
         // Save merged config before scan so scanner picks it up
@@ -400,5 +409,33 @@ struct UpdateSubcommand: ParsableCommand {
         }
 
         print("\nUpdate complete.")
+    }
+
+    private func displayValue(_ value: JSONValue) -> String {
+        switch value {
+        case let .string(str): str
+        case let .number(num):
+            if num.truncatingRemainder(dividingBy: 1) == 0 {
+                String(Int(num))
+            } else {
+                String(num)
+            }
+        case let .bool(flag): String(flag)
+        default: ""
+        }
+    }
+
+    /// Build a dictionary mapping each config key to its display label.
+    private static func displayLabels(from manifest: PluginManifest) -> [String: String] {
+        var labels: [String: String] = [:]
+        for entry in manifest.config {
+            switch entry {
+            case let .value(key, _, _, _):
+                labels[key] = entry.displayLabel
+            case let .secret(secretKey, _, _):
+                labels[secretKey] = entry.displayLabel
+            }
+        }
+        return labels
     }
 }

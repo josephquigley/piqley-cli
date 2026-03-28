@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- `piqley plugin update` now shows raw config values (e.g. `quigs.photo`) instead of type-wrapped values (e.g. `string("quigs.photo")`)
 - Pressing Esc in command argument prompt now preserves existing args instead of discarding them
 - Environment templates with bare colon-delimited field names (e.g. `{{IPTC:Keywords}}`) now resolve correctly via plugin namespace fallback
 - Field autocomplete now shows source-qualified names (e.g. `original:IPTC:Keywords`) for fields from other namespaces
@@ -174,6 +175,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- `piqley plugin update` now shows human-readable display labels instead of raw config keys
+- `piqley plugin rules` no longer requires the plugin to be mutable
+- Rules wizard field selection prompt clarified to "Which plugin contains the field?"
+- Bump PiqleyCore dependency to 0.15.0
 - Clone source prompts now use autocomplete with qualified field completions instead of plain text input
 - Clone source hint text simplified: removed inline source tag list, uses "source" terminology
 - Removed save-time confirmation prompt for rules referencing non-dependency plugins

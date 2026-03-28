@@ -412,6 +412,68 @@ GOOS=linux GOARCH=arm64 go build -o dist/linux-arm64/my-plugin
 
 See the [SDK README](https://github.com/josephquigley/piqley-plugin-sdk#multi-platform-support) for the full build workflow.
 
+## Reading State from the Rule Engine
+
+The rule engine resolves field values into a `ResolvedState` dictionary. The SDK provides typed accessors on `ResolvedState` (accessed via `request.state`):
+
+| Accessor | Expects | Returns |
+|----------|---------|---------|
+| `.string(key)` | `.string("value")` | `String?` |
+| `.bool(key)` | `.bool(true)` | `Bool?` |
+| `.strings(key)` | `.array([.string("a"), .string("b")])` | `[String]?` |
+
+### The `add` action always produces arrays
+
+The rule engine's `add` action — the most common action type — normalizes **all** values into `.array([.string])`, even for fields that are logically scalar (booleans, single strings). This means:
+
+```
+(always) → add isFeatureImage=[true]
+(always) → add schedule_offset=[1d]
+```
+
+Both produce `.array([.string("true")])` and `.array([.string("1d")])` in the resolved state, **not** `.string("true")` or `.string("1d")`.
+
+### The mismatch
+
+If your plugin reads these with `.string()`:
+
+```swift
+// BUG: returns nil because the value is .array, not .string
+let isFeature = ns.string(GhostField.isFeatureImage) == "true"
+let offset = ns.string(GhostField.scheduleOffset)
+```
+
+The `.string()` accessor pattern-matches on `.string(let v)`, so it returns `nil` for array-wrapped values.
+
+### The fix: always use `.strings()` for rule-engine fields
+
+Read all rule-engine-produced fields with `.strings()` and unwrap:
+
+```swift
+// Scalar bool from rule engine
+let isFeature = ns.strings(GhostField.isFeatureImage)?.first == "true"
+
+// Scalar string from rule engine
+let offset = ns.strings(GhostField.scheduleOffset)?.first
+
+// Actual arrays (tags, keywords) — already correct
+let tags: [String] = ns.strings(GhostField.tags) ?? []
+```
+
+This works regardless of whether the rule uses `add`, `set`, or `replace`, because `.strings()` handles the `.array` case that the rule engine produces.
+
+### When `.string()` is safe
+
+Use `.string()` only when reading values set by other **plugins** via `PluginState.set(_:to:)`, which stores them as `.string`. Values that pass through the rule engine should always be read with `.strings()`.
+
+### Quick reference
+
+| Value source | Storage format | Read with |
+|---|---|---|
+| Rule engine (`add`, `replace`, `remove`) | `.array([.string])` | `.strings()` |
+| Plugin state (`PluginState.set`) | `.string` | `.string()` |
+| Plugin state (`PluginState.set` array overload) | `.array([.string])` | `.strings()` |
+
 ## Further Reading
 
 - [Getting Started](getting-started.md) for piqley basics and CLI commands

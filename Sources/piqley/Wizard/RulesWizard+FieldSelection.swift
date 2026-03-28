@@ -14,7 +14,7 @@ extension RulesWizard {
             }
         }
         guard let sourceIdx = terminal.selectFromList(
-            title: "Where is the field you want to match?",
+            title: "Which plugin contains the field?",
             items: sourceItems
         ) else { return nil }
         let source = sources[sourceIdx]
