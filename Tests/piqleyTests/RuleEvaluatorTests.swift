@@ -1167,4 +1167,36 @@ struct RuleEvaluatorTests {
         )
         #expect(evaluator.referencedNamespaces.contains("foreign.plugin"))
     }
+
+    // MARK: - Unconditional rules
+
+    @Test("unconditional rule always fires")
+    func unconditionalRuleAlwaysFires() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(action: "add", field: "isFeatureImage", values: ["true"], replacements: nil, source: nil)]
+        )
+        let evaluator = try RuleEvaluator(
+            rules: [rule],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony")]]
+        )
+        #expect(result.namespace["isFeatureImage"] == .array([.string("true")]))
+    }
+
+    @Test("unconditional rule fires with empty state")
+    func unconditionalRuleFiresWithEmptyState() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(action: "add", field: "isFeatureImage", values: ["true"], replacements: nil, source: nil)]
+        )
+        let evaluator = try RuleEvaluator(
+            rules: [rule],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(state: [:])
+        #expect(result.namespace["isFeatureImage"] == .array([.string("true")]))
+    }
 }
