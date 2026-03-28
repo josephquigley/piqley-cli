@@ -11,6 +11,7 @@ struct WorkflowCommand: ParsableCommand {
             CloneSubcommand.self, DeleteSubcommand.self,
             AddPluginSubcommand.self, RemovePluginSubcommand.self,
             OpenSubcommand.self, ConfigSubcommand.self,
+            RulesSubcommand.self, CommandSubcommand.self,
         ]
     )
 

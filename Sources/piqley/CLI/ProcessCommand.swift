@@ -51,7 +51,8 @@ struct ProcessCommand: AsyncParsableCommand {
         let secretStore = makeDefaultSecretStore()
         let stagesDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(PiqleyPath.stages)
-        let registry = try StageRegistry.load(from: stagesDir)
+        var registry = try StageRegistry.load(from: stagesDir)
+        WorkflowStore.scanAndRegisterStages(workflowName: workflow.name, registry: &registry)
         let orchestrator = PipelineOrchestrator(
             workflow: workflow,
             pluginsDirectory: PipelineOrchestrator.defaultPluginsDirectory,

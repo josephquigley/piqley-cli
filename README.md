@@ -52,8 +52,8 @@ piqley process /path/to/exported/photos
 | `piqley plugin init [id] [name]` | Create a new declarative-only plugin interactively |
 | `piqley plugin create <dir>` | Scaffold a new plugin project from an SDK skeleton |
 | `piqley plugin install <file>` | Install a `.piqleyplugin` package (`--force` to overwrite) |
-| `piqley plugin config <name>` | Open a plugin's config file in your editor |
-| `piqley plugin rules edit <id>` | Interactive rule editor for a plugin's declarative metadata rules |
+| `piqley workflow rules [workflow] <plugin>` | Interactive rule editor for a plugin's declarative metadata rules |
+| `piqley workflow command [workflow] <plugin>` | Edit binary command configuration for a plugin's stages |
 | `piqley secret set <key>` | Store a secret in the macOS Keychain |
 | `piqley secret delete <key>` | Remove a secret from the Keychain |
 | `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |

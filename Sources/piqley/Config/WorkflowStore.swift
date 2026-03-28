@@ -28,6 +28,48 @@ enum WorkflowStore {
         rulesDirectory(name: workflowName, root: root).appendingPathComponent(pluginIdentifier)
     }
 
+    /// Scans all plugin rules directories under a workflow for stage files
+    /// and auto-registers any stage names not already known to the registry.
+    static func scanAndRegisterStages(
+        workflowName: String, registry: inout StageRegistry, root: URL? = nil
+    ) {
+        let rulesDir = rulesDirectory(name: workflowName, root: root)
+        guard let pluginDirs = try? FileManager.default.contentsOfDirectory(
+            at: rulesDir, includingPropertiesForKeys: [.isDirectoryKey]
+        ) else { return }
+
+        let knownNames = registry.allKnownNames
+        for pluginDir in pluginDirs {
+            guard (try? pluginDir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+            guard let files = try? FileManager.default.contentsOfDirectory(
+                at: pluginDir, includingPropertiesForKeys: nil
+            ) else { continue }
+
+            for file in files {
+                let filename = file.lastPathComponent
+                guard filename.hasPrefix(PluginFile.stagePrefix),
+                      filename.hasSuffix(PluginFile.stageSuffix) else { continue }
+                let stageName = String(
+                    filename.dropFirst(PluginFile.stagePrefix.count)
+                        .dropLast(PluginFile.stageSuffix.count)
+                )
+                if !knownNames.contains(stageName) {
+                    registry.autoRegister(stageName)
+                }
+            }
+        }
+    }
+
+    /// Checks whether a specific stage file exists in a workflow's rules directory for a plugin.
+    static func hasStageFile(
+        workflowName: String, pluginIdentifier: String, stageName: String, root: URL? = nil
+    ) -> Bool {
+        let stageFile = pluginRulesDirectory(
+            workflowName: workflowName, pluginIdentifier: pluginIdentifier, root: root
+        ).appendingPathComponent("\(PluginFile.stagePrefix)\(stageName)\(PluginFile.stageSuffix)")
+        return FileManager.default.fileExists(atPath: stageFile.path)
+    }
+
     static func exists(name: String, root: URL? = nil) -> Bool {
         let dir = directoryURL(name: name, root: root)
         var isDir: ObjCBool = false

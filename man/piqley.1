@@ -58,10 +58,12 @@
 .Op Fl -no-examples
 .Op Fl -non-interactive
 .Nm
-.Cm plugin config
-.Ar plugin-name
+.Cm workflow rules
+.Op Ar workflow-name
+.Ar plugin-id
 .Nm
-.Cm plugin rules edit
+.Cm workflow command
+.Op Ar workflow-name
 .Ar plugin-id
 .Nm
 .Cm uninstall
@@ -239,19 +241,11 @@ argument.
 When
 .Ar plugin-name
 is omitted in interactive mode, the command prompts for a name.
-.Ss plugin config plugin-name
-Open the specified plugin's
-.Pa config.json
-in the editor specified by the
-.Ev EDITOR
-environment variable.
-On macOS, falls back to the system
-.Xr open 1
-command if
-.Ev EDITOR
-is not set.
-.Ss plugin rules edit plugin-id
-Open the interactive rule editor for the specified plugin.
+.Ss workflow rules [workflow-name] plugin-id
+Open the interactive rule editor for the specified plugin within a workflow.
+If
+.Ar workflow-name
+is omitted, a list of available workflows is presented for selection.
 The editor is a full-screen terminal wizard that guides you through
 creating, editing, removing, and reordering declarative metadata rules.
 .Pp
@@ -282,6 +276,12 @@ on confirmation.
 If a stage has no binary configured, all rules are placed in
 .Li preRules
 automatically without prompting for a slot choice.
+.Ss workflow command [workflow-name] plugin-id
+Edit binary command configuration for a plugin's stages within a workflow.
+If
+.Ar workflow-name
+is omitted, a list of available workflows is presented for selection.
+Only mutable plugins may be edited with this command.
 .Ss uninstall
 Remove all piqley configuration, plugins, and stored secrets.
 Deletes the

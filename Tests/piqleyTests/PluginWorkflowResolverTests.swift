@@ -35,7 +35,7 @@ struct PluginWorkflowResolverTests {
     func twoArgs() throws {
         let resolver = PluginWorkflowResolver(
             firstArg: "my-workflow", secondArg: "my-plugin",
-            usageHint: "piqley plugin command", workflowsRoot: testDir,
+            usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
         let (workflowName, pluginID) = try resolver.resolve()
@@ -50,7 +50,7 @@ struct PluginWorkflowResolverTests {
 
         let resolver = PluginWorkflowResolver(
             firstArg: "com.test.plugin", secondArg: nil,
-            usageHint: "piqley plugin command", workflowsRoot: testDir,
+            usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
         let (workflowName, pluginID) = try resolver.resolve()
@@ -64,7 +64,7 @@ struct PluginWorkflowResolverTests {
 
         let resolver = PluginWorkflowResolver(
             firstArg: "wf1", secondArg: nil,
-            usageHint: "piqley plugin command", workflowsRoot: testDir,
+            usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
         let (workflowName, pluginID) = try resolver.resolve()
@@ -76,7 +76,7 @@ struct PluginWorkflowResolverTests {
     func singleArgUnknown() throws {
         let resolver = PluginWorkflowResolver(
             firstArg: "nonexistent", secondArg: nil,
-            usageHint: "piqley plugin command", workflowsRoot: testDir,
+            usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
         #expect(throws: CleanError.self) {
@@ -90,7 +90,7 @@ struct PluginWorkflowResolverTests {
 
         let resolver = PluginWorkflowResolver(
             firstArg: "com.orphan.plugin", secondArg: nil,
-            usageHint: "piqley plugin command", workflowsRoot: testDir,
+            usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
         #expect(throws: CleanError.self) {
@@ -104,7 +104,7 @@ struct PluginWorkflowResolverTests {
 
         let resolver = PluginWorkflowResolver(
             firstArg: "empty-wf", secondArg: nil,
-            usageHint: "piqley plugin command", workflowsRoot: testDir,
+            usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
         #expect(throws: CleanError.self) {

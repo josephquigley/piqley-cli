@@ -588,7 +588,7 @@ Your plugin receives secrets in its input payload. The key format is scoped to t
 Hand-editing JSON is fine, but the TUI editor is faster for iteration:
 
 ```bash
-piqley plugin rules edit my-plugin
+piqley workflow rules my-plugin
 ```
 
 Use Ctrl+L to browse available metadata fields from a real image.

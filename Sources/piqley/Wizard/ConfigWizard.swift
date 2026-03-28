@@ -29,6 +29,9 @@ final class ConfigWizard {
         self.pluginsDirectory = pluginsDirectory
         discoveredIdentifiers = Set(discoveredPlugins.map(\.identifier))
         terminal = RawTerminal()
+
+        // Scan workflow rules dirs for stages not yet in the registry
+        WorkflowStore.scanAndRegisterStages(workflowName: workflow.name, registry: &self.registry)
     }
 
     func run() {
@@ -162,7 +165,15 @@ final class ConfigWizard {
     private func availablePluginCount(for stageName: String) -> Int {
         let currentPlugins = Set(workflow.pipeline[stageName] ?? [])
         return discoveredPlugins
-            .filter { $0.stages.keys.contains(stageName) && !currentPlugins.contains($0.identifier) }
+            .filter { plugin in
+                guard !currentPlugins.contains(plugin.identifier) else { return false }
+                return plugin.stages.keys.contains(stageName)
+                    || WorkflowStore.hasStageFile(
+                        workflowName: workflow.name,
+                        pluginIdentifier: plugin.identifier,
+                        stageName: stageName
+                    )
+            }
             .count
     }
 

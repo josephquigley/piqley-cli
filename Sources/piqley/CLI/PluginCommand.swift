@@ -12,7 +12,6 @@ struct PluginCommand: ParsableCommand {
             ListSubcommand.self, SetupSubcommand.self, InitSubcommand.self,
             CreateSubcommand.self, InstallSubcommand.self, UpdateSubcommand.self,
             UninstallSubcommand.self,
-            ConfigSubcommand.self, PluginRulesCommand.self, PluginCommandEditCommand.self,
         ]
     )
 
@@ -452,29 +451,6 @@ struct PluginCommand: ParsableCommand {
         private static func writeStageJSON(_ dict: [String: Any], to directory: URL, fileName: String) throws {
             let data = try JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: directory.appendingPathComponent(fileName))
-        }
-    }
-
-    struct ConfigSubcommand: ParsableCommand {
-        static let configuration = CommandConfiguration(
-            commandName: "config",
-            abstract: "Open a plugin's config file in your editor"
-        )
-
-        @Argument(help: "Plugin name")
-        var pluginName: String
-
-        func run() throws {
-            let configStore = BasePluginConfigStore.default
-            let configPath = configStore.directory
-                .appendingPathComponent("\(pluginName).json")
-                .path
-
-            guard FileManager.default.fileExists(atPath: configPath) else {
-                throw CleanError("Config file not found for plugin '\(pluginName)' at \(configPath)")
-            }
-
-            try openInEditor(configPath)
         }
     }
 }
