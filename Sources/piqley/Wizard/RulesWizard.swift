@@ -27,6 +27,21 @@ final class RulesWizard {
         stageSelect()
     }
 
+    /// Run the rules wizard for a single stage, skipping the stage selector.
+    /// Used when launched from ConfigWizard where the stage context is already known.
+    func runForStage(_ stageName: String) {
+        defer { terminal.restore() }
+        while true {
+            slotSelect(stageName: stageName)
+            if modified {
+                let goBack = promptUnsavedAndReturn()
+                if goBack { continue }
+            }
+            StageFileManager.cleanupEmptyStageFiles(stages: context.stages, pluginDir: rulesDir)
+            return
+        }
+    }
+
     func footerWithSaveIndicator(_ base: String) -> String {
         if let savedAt, Date().timeIntervalSince(savedAt) < 2 {
             return "\(ANSI.green)\(ANSI.bold)Saved\(ANSI.reset)  \(base)"

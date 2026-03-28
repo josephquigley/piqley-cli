@@ -209,7 +209,7 @@ final class ConfigWizard {
                 title: title,
                 items: items,
                 cursor: cursor,
-                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  a add  \(removeLabel)  r reorder  s save  Esc back")
+                footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} rules  a add  \(removeLabel)  r reorder  s save  Esc back")
             )
 
             let key = readKeyWithSaveTimeout()
@@ -219,6 +219,14 @@ final class ConfigWizard {
             case .cursorDown: cursor = min(max(items.count - 1, 0), cursor + 1)
             case .pageUp: cursor = max(0, cursor - 10)
             case .pageDown: cursor = min(max(items.count - 1, 0), cursor + 10)
+            case .enter:
+                if !plugins.isEmpty, cursor < plugins.count {
+                    let pluginID = plugins[cursor]
+                    let rmKey = removalKey(stage: stageName, plugin: pluginID)
+                    if !removedPlugins.contains(rmKey), discoveredIdentifiers.contains(pluginID) {
+                        editRulesForPlugin(pluginID, inStage: stageName)
+                    }
+                }
             case .char("a"):
                 addPlugin(stageName: stageName)
             case .char("d"):
