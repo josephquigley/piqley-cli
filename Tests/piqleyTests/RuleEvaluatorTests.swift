@@ -699,8 +699,8 @@ struct RuleEvaluatorTests {
         #expect(result.namespace["existing"] == .string("preserved"))
     }
 
-    @Test("clone overwrites existing value")
-    func cloneOverwrites() async throws {
+    @Test("clone merges with existing array values")
+    func cloneMergesArrays() async throws {
         let evaluator = try RuleEvaluator(
             rules: [makeRule(
                 field: "original:IPTC:Keywords",
@@ -713,7 +713,41 @@ struct RuleEvaluatorTests {
             state: ["original": ["IPTC:Keywords": .array([.string("new-value")])]],
             currentNamespace: ["keywords": .array([.string("old-value")])]
         )
-        #expect(result.namespace["keywords"] == .array([.string("new-value")]))
+        #expect(result.namespace["keywords"] == .array([.string("old-value"), .string("new-value")]))
+    }
+
+    @Test("clone deduplicates when merging arrays")
+    func cloneDeduplicates() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("shared"), .string("new")])]],
+            currentNamespace: ["keywords": .array([.string("shared"), .string("old")])]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("shared"), .string("old"), .string("new")]))
+    }
+
+    @Test("clone replaces when target field does not exist")
+    func cloneReplacesWhenEmpty() async throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:IPTC:Keywords",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "clone", field: "keywords", values: nil, replacements: nil, source: "original:IPTC:Keywords")]
+            )],
+            logger: logger
+        )
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("value")])]],
+            currentNamespace: [:]
+        )
+        #expect(result.namespace["keywords"] == .array([.string("value")]))
     }
 
     @Test("clone from non-existent source is no-op")

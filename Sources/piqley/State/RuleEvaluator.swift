@@ -231,11 +231,7 @@ struct RuleEvaluator: Sendable {
         }
     }
 
-    /// Evaluate rules for a given hook against resolved state.
-    /// state is [namespace: [field: JSONValue]]
-    /// currentNamespace is the plugin's current emitted state.
-    /// metadataBuffer is used to resolve read: namespace fields and apply write actions.
-    /// Returns the complete updated namespace (untouched fields preserved).
+    /// Evaluate rules against resolved state, returning the updated namespace.
     func evaluate(
         state: [String: [String: JSONValue]],
         currentNamespace: [String: JSONValue] = [:],
@@ -291,24 +287,23 @@ struct RuleEvaluator: Sendable {
                         break
                     }
                     if case let .clone(field, sourceNamespace, sourceField) = action {
-                        // Clone is handled inline because it needs access to state and metadataBuffer
                         if sourceNamespace == "read", let buffer = metadataBuffer, let image = imageName {
                             let fileMetadata = await buffer.load(image: image)
                             if field == "*" {
                                 for (key, val) in fileMetadata {
-                                    working[key] = val
+                                    Self.mergeClonedValue(val, into: &working, forKey: key)
                                 }
                             } else if let sourceField, let val = fileMetadata[sourceField] {
-                                working[field] = val
+                                Self.mergeClonedValue(val, into: &working, forKey: field)
                             }
                         } else if field == "*" {
                             if let namespaceData = state[sourceNamespace] {
                                 for (key, val) in namespaceData {
-                                    working[key] = val
+                                    Self.mergeClonedValue(val, into: &working, forKey: key)
                                 }
                             }
                         } else if let sourceField, let val = state[sourceNamespace]?[sourceField] {
-                            working[field] = val
+                            Self.mergeClonedValue(val, into: &working, forKey: field)
                         }
                         continue
                     }
@@ -383,7 +378,6 @@ struct RuleEvaluator: Sendable {
     static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {
         switch action {
         case .skip:
-            // Skip is handled by evaluate(); no-op here.
             break
 
         case let .add(field, values):
@@ -434,11 +428,7 @@ struct RuleEvaluator: Sendable {
                 working.removeValue(forKey: field)
             }
 
-        case .clone:
-            // Clone is handled inline in evaluate(), not via applyAction.
-            break
-
-        case .writeBack:
+        case .clone, .writeBack:
             break
         }
     }
@@ -455,6 +445,20 @@ struct RuleEvaluator: Sendable {
             }
         default:
             return []
+        }
+    }
+
+    /// Merges `source` into `working[key]`, appending unique array values. Non-array values are replaced.
+    private static func mergeClonedValue(_ source: JSONValue, into working: inout [String: JSONValue], forKey key: String) {
+        let incoming = extractStrings(from: source)
+        if !incoming.isEmpty, working[key] != nil {
+            var existing = extractStrings(from: working[key])
+            for val in incoming where !existing.contains(val) {
+                existing.append(val)
+            }
+            working[key] = .array(existing.map { .string($0) })
+        } else {
+            working[key] = source
         }
     }
 
