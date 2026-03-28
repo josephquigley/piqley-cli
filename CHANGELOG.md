@@ -53,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Plugin config entries support optional `label` and `description` metadata: setup prompts, workflow config, and plugin init now show human-readable names instead of raw field identifiers
 - Delete command option (`d` key) in plugin command editor to remove a stage's command
 - Arrow key navigation (up/down) for autocomplete suggestion list
+- Support for unconditional rules (rules with no match condition that always fire)
 - `piqley plugin update` command: replaces plugin files from a new `.piqleyplugin` zip while merging config/secrets
 - RuleEvaluator now auto-resolves foreign namespaces referenced in match fields and clone sources, so rules referencing unlisted dependencies no longer silently fail
 - `PluginUpdater` with extraction, validation, and file replacement for plugin updates

@@ -158,8 +158,11 @@ extension RulesWizard {
     // MARK: - Formatting
 
     func formatRule(_ rule: Rule, index: Int) -> String {
-        let field = rule.match.field
-        let pattern = rule.match.pattern
+        let matchDesc = if let match = rule.match {
+            "\(match.field) ~ \(match.pattern)"
+        } else {
+            "(always)"
+        }
         let emitSummary = rule.emit.map { emit in
             let action = emit.action ?? "add"
             let target = emit.field ?? "keywords"
@@ -174,7 +177,7 @@ extension RulesWizard {
             return "\(action) \(target)"
         }.joined(separator: "; ")
         let writeSummary = rule.write.isEmpty ? "" : " +write"
-        return "\(index + 1). \(field) ~ \(pattern) \u{2192} \(emitSummary)\(writeSummary)"
+        return "\(index + 1). \(matchDesc) \u{2192} \(emitSummary)\(writeSummary)"
     }
 
     /// Formats a single emit/write action for display in the edit menu.
@@ -228,31 +231,44 @@ extension RulesWizard {
             buf += ANSI.moveTo(row: 1, col: 1)
 
             // Title
-            let displayName = resolveFieldDisplayName(rule.match.field)
-            buf += "\(ANSI.bold)Rule \(index + 1): \(displayName) ~ \(rule.match.pattern)\(ANSI.reset)"
-
-            // Match section
             var row = 3
-            buf += ANSI.moveTo(row: row, col: 1)
-            buf += "\(ANSI.dim)\u{2500}\u{2500} Match \(String(repeating: "\u{2500}", count: max(0, size.cols - 9)))\(ANSI.reset)"
-            row += 1
+            if let match = rule.match {
+                let displayName = resolveFieldDisplayName(match.field)
+                buf += "\(ANSI.bold)Rule \(index + 1): \(displayName) ~ \(match.pattern)\(ANSI.reset)"
 
-            buf += ANSI.moveTo(row: row, col: 1)
-            let fieldDisplay: String = if displayName == rule.match.field {
-                displayName
+                // Match section
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "\(ANSI.dim)\u{2500}\u{2500} Match \(String(repeating: "\u{2500}", count: max(0, size.cols - 9)))\(ANSI.reset)"
+                row += 1
+
+                buf += ANSI.moveTo(row: row, col: 1)
+                let fieldDisplay: String = if displayName == match.field {
+                    displayName
+                } else {
+                    "\(displayName)  \(ANSI.dim)(\(match.field))\(ANSI.reset)"
+                }
+                buf += "  Field:    \(fieldDisplay)"
+                row += 1
+
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "  Pattern:  \(match.pattern)"
+                row += 1
+
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "  Negated:  \(match.not == true ? "yes" : "no")"
+                row += 2
             } else {
-                "\(displayName)  \(ANSI.dim)(\(rule.match.field))\(ANSI.reset)"
+                buf += "\(ANSI.bold)Rule \(index + 1): add (constant)\(ANSI.reset)"
+
+                // Match section
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "\(ANSI.dim)\u{2500}\u{2500} Match \(String(repeating: "\u{2500}", count: max(0, size.cols - 9)))\(ANSI.reset)"
+                row += 1
+
+                buf += ANSI.moveTo(row: row, col: 1)
+                buf += "  (always applies)"
+                row += 2
             }
-            buf += "  Field:    \(fieldDisplay)"
-            row += 1
-
-            buf += ANSI.moveTo(row: row, col: 1)
-            buf += "  Pattern:  \(rule.match.pattern)"
-            row += 1
-
-            buf += ANSI.moveTo(row: row, col: 1)
-            buf += "  Negated:  \(rule.match.not == true ? "yes" : "no")"
-            row += 2
 
             // Emit Actions section
             buf += ANSI.moveTo(row: row, col: 1)

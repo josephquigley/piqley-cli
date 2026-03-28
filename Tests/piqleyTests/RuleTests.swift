@@ -23,8 +23,8 @@ struct RuleTests {
         }
         """
         let rule = try JSONDecoder.piqley.decode(Rule.self, from: Data(json.utf8))
-        #expect(rule.match.field == "original:TIFF:Model")
-        #expect(rule.match.pattern == "regex:.*a7r.*")
+        #expect(rule.match?.field == "original:TIFF:Model")
+        #expect(rule.match?.pattern == "regex:.*a7r.*")
         #expect(rule.emit[0].field == "keywords")
         #expect(rule.emit[0].values == ["sony", "mirrorless"])
     }
@@ -47,7 +47,7 @@ struct RuleTests {
         """
         let rule = try JSONDecoder.piqley.decode(Rule.self, from: Data(json.utf8))
         #expect(rule.emit[0].field == "keywords")
-        #expect(rule.match.field == "original:IPTC:Keywords")
+        #expect(rule.match?.field == "original:IPTC:Keywords")
         #expect(rule.emit[0].values == ["nature"])
     }
 }

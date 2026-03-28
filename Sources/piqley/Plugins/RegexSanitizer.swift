@@ -62,9 +62,14 @@ enum RegexSanitizer {
         var didFix = false
 
         // Sanitize match pattern
-        let (fixedPattern, matchFix) = sanitize(rule.match.pattern)
-        if matchFix { didFix = true }
-        let fixedMatch = MatchConfig(field: rule.match.field, pattern: fixedPattern, not: rule.match.not)
+        let fixedMatch: MatchConfig?
+        if let match = rule.match {
+            let (fixedPattern, matchFix) = sanitize(match.pattern)
+            if matchFix { didFix = true }
+            fixedMatch = MatchConfig(field: match.field, pattern: fixedPattern, not: match.not)
+        } else {
+            fixedMatch = nil
+        }
 
         // Sanitize emit configs
         let fixedEmit = rule.emit.map { emit -> EmitConfig in

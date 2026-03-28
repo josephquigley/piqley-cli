@@ -13,9 +13,10 @@ enum EmitAction: Sendable {
 }
 
 struct CompiledRule: Sendable {
+    let unconditional: Bool
     let namespace: String // match-side namespace
     let field: String // match-side field
-    let matcher: any TagMatcher & Sendable
+    let matcher: (any TagMatcher & Sendable)?
     let not: Bool
     let emitActions: [EmitAction]
     let writeActions: [EmitAction]
@@ -52,32 +53,48 @@ struct RuleEvaluator: Sendable {
     init(rules: [Rule], pluginId: String? = nil, nonInteractive: Bool = false, logger: Logger) throws {
         var compiled: [CompiledRule] = []
         for (index, rule) in rules.enumerated() {
-            // Parse field: split on first ":"
-            let (namespace, field) = Self.splitField(rule.match.field, pluginId: pluginId)
+            let isUnconditional = rule.match == nil
+            let namespace: String
+            let field: String
+            let matcher: (any TagMatcher & Sendable)?
+            let not: Bool
 
-            // Reject unresolved self: prefix when no pluginId was provided
-            if namespace == "self" {
-                let compError = RuleCompilationError.unresolvedSelf(ruleIndex: index)
-                if nonInteractive {
-                    logger.warning("\(compError.localizedDescription) — skipping rule")
-                    continue
-                }
-                throw compError
-            }
+            if let match = rule.match {
+                // Parse field: split on first ":"
+                let split = Self.splitField(match.field, pluginId: pluginId)
+                namespace = split.namespace
+                field = split.field
 
-            // Compile match pattern
-            let matcher: any TagMatcher & Sendable
-            do {
-                matcher = try TagMatcherFactory.build(from: rule.match.pattern)
-            } catch {
-                let compError = RuleCompilationError.invalidRegex(
-                    ruleIndex: index, pattern: rule.match.pattern, underlying: error
-                )
-                if nonInteractive {
-                    logger.warning("\(compError.localizedDescription) — skipping rule")
-                    continue
+                // Reject unresolved self: prefix when no pluginId was provided
+                if namespace == "self" {
+                    let compError = RuleCompilationError.unresolvedSelf(ruleIndex: index)
+                    if nonInteractive {
+                        logger.warning("\(compError.localizedDescription) — skipping rule")
+                        continue
+                    }
+                    throw compError
                 }
-                throw compError
+
+                // Compile match pattern
+                do {
+                    matcher = try TagMatcherFactory.build(from: match.pattern)
+                } catch {
+                    let compError = RuleCompilationError.invalidRegex(
+                        ruleIndex: index, pattern: match.pattern, underlying: error
+                    )
+                    if nonInteractive {
+                        logger.warning("\(compError.localizedDescription) — skipping rule")
+                        continue
+                    }
+                    throw compError
+                }
+
+                not = match.not ?? false
+            } else {
+                namespace = ""
+                field = ""
+                matcher = nil
+                not = false
             }
 
             // Compile emit actions
@@ -111,10 +128,11 @@ struct RuleEvaluator: Sendable {
             }
 
             compiled.append(CompiledRule(
+                unconditional: isUnconditional,
                 namespace: namespace,
                 field: field,
                 matcher: matcher,
-                not: rule.match.not ?? false,
+                not: not,
                 emitActions: emitActions,
                 writeActions: writeActions
             ))
@@ -230,34 +248,32 @@ struct RuleEvaluator: Sendable {
         var skipped = false
 
         for rule in compiledRules {
-            // Resolve the match field value
-            let value: JSONValue?
-            if rule.namespace == "read", let buffer = metadataBuffer, let image = imageName {
-                let fileMetadata = await buffer.load(image: image)
-                value = fileMetadata[rule.field]
-            } else if rule.namespace.isEmpty, rule.field == "skip", let image = imageName {
-                value = Self.resolveSkipField(image: image, state: state)
+            let shouldApply: Bool
+
+            if rule.unconditional {
+                shouldApply = true
             } else {
-                value = state[rule.namespace]?[rule.field]
-            }
-
-            guard let value else { continue }
-
-            let matched: Bool = switch value {
-            case let .string(str):
-                rule.matcher.matches(str)
-            case let .array(arr):
-                arr.contains { element in
-                    if case let .string(str) = element {
-                        return rule.matcher.matches(str)
-                    }
-                    return false
+                // Resolve the match field value
+                let value: JSONValue?
+                if rule.namespace == "read", let buffer = metadataBuffer, let image = imageName {
+                    let fileMetadata = await buffer.load(image: image)
+                    value = fileMetadata[rule.field]
+                } else if rule.namespace.isEmpty, rule.field == "skip", let image = imageName {
+                    value = Self.resolveSkipField(image: image, state: state)
+                } else {
+                    value = state[rule.namespace]?[rule.field]
                 }
-            default:
-                false
-            }
 
-            let shouldApply = rule.not ? !matched : matched
+                guard let value else { continue }
+
+                shouldApply = Self.resolveMatch(
+                    rule: rule,
+                    state: state,
+                    metadataBuffer: metadataBuffer,
+                    imageName: imageName,
+                    resolvedValue: value
+                )
+            }
 
             if shouldApply {
                 // Emit actions first (modify plugin namespace)
@@ -315,6 +331,33 @@ struct RuleEvaluator: Sendable {
         }
 
         return RuleEvaluationResult(namespace: working, skipped: skipped)
+    }
+
+    /// Resolve the match field value for a conditional rule and determine
+    /// whether the rule's matcher matches the resolved value.
+    /// Returns nil when the field value cannot be resolved (rule should be skipped).
+    private static func resolveMatch(
+        rule: CompiledRule,
+        state _: [String: [String: JSONValue]],
+        metadataBuffer _: MetadataBuffer?,
+        imageName _: String?,
+        resolvedValue: JSONValue
+    ) -> Bool {
+        let matcher = rule.matcher!
+        let matched: Bool = switch resolvedValue {
+        case let .string(str):
+            matcher.matches(str)
+        case let .array(arr):
+            arr.contains { element in
+                if case let .string(str) = element {
+                    return matcher.matches(str)
+                }
+                return false
+            }
+        default:
+            false
+        }
+        return rule.not ? !matched : matched
     }
 
     /// If a remove or replace action targets a field not yet in working,

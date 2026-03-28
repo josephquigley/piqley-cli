@@ -84,7 +84,7 @@ struct RegexSanitizerTests {
 
         let (result, didFix) = RegexSanitizer.sanitizeStageConfig(stage)
         #expect(didFix)
-        #expect(result.preRules![0].match.pattern == "regex:^\\d+$")
+        #expect(result.preRules![0].match?.pattern == "regex:^\\d+$")
     }
 
     @Test("sanitizeStageConfig returns false when nothing to fix")

@@ -153,8 +153,8 @@ struct PluginInitTests {
         #expect(!postRules.isEmpty)
 
         // Spot-check first pre-process rule
-        #expect(preRules[0].match.field == "original:TIFF:Model")
-        #expect(preRules[0].match.pattern == "Canon EOS R5")
+        #expect(preRules[0].match?.field == "original:TIFF:Model")
+        #expect(preRules[0].match?.pattern == "Canon EOS R5")
         #expect(preRules[0].emit[0].values == ["Canon", "EOS R5"])
 
         // Spot-check post-process write action

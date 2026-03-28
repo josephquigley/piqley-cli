@@ -6,9 +6,9 @@ extension RulesWizard {
     /// Returns the modified Rule on Save, or nil on Esc (cancel).
     func editRuleMenu(existing: Rule) -> Rule? {
         var state = EditRuleState(
-            matchField: existing.match.field,
-            matchPattern: existing.match.pattern,
-            matchNot: existing.match.not,
+            matchField: existing.match?.field,
+            matchPattern: existing.match?.pattern,
+            matchNot: existing.match?.not,
             emitActions: existing.emit,
             writeActions: existing.write
         )
@@ -17,7 +17,11 @@ extension RulesWizard {
         while true {
             let items = buildEditRuleMenuItems(state: state)
             cursor = min(cursor, items.labels.count - 1)
-            let matchDesc = "\(resolveFieldDisplayName(state.matchField)) ~ \(state.matchPattern)"
+            let matchDesc = if let matchField = state.matchField, let matchPattern = state.matchPattern {
+                "\(resolveFieldDisplayName(matchField)) ~ \(matchPattern)"
+            } else {
+                "add (constant)"
+            }
 
             terminal.drawScreen(
                 title: "Edit rule: \(matchDesc)",
@@ -49,8 +53,8 @@ extension RulesWizard {
     // MARK: - State
 
     struct EditRuleState {
-        var matchField: String
-        var matchPattern: String
+        var matchField: String?
+        var matchPattern: String?
         var matchNot: Bool?
         var emitActions: [EmitConfig]
         var writeActions: [EmitConfig]
@@ -83,14 +87,19 @@ extension RulesWizard {
         var labels: [String] = []
         var tags: [EditRuleMenuTag] = []
 
-        labels.append("Field: \(resolveFieldDisplayName(state.matchField))")
-        tags.append(.matchField)
+        if let matchField = state.matchField {
+            labels.append("Field: \(resolveFieldDisplayName(matchField))")
+            tags.append(.matchField)
 
-        labels.append("Pattern: \(state.matchPattern)")
-        tags.append(.matchPattern)
+            labels.append("Pattern: \(state.matchPattern ?? "")")
+            tags.append(.matchPattern)
 
-        labels.append("Negated: \(state.matchNot == true ? "yes" : "no")")
-        tags.append(.matchNegated)
+            labels.append("Negated: \(state.matchNot == true ? "yes" : "no")")
+            tags.append(.matchNegated)
+        } else {
+            labels.append("\(ANSI.dim)Type: add (constant)\(ANSI.reset)")
+            tags.append(.save)
+        }
 
         for (idx, emit) in state.emitActions.enumerated() {
             labels.append(formatEmitAction(emit))
@@ -126,7 +135,7 @@ extension RulesWizard {
 
         case .matchPattern:
             if let newPattern = terminal.promptForInput(
-                title: "Enter match pattern for \(resolveFieldDisplayName(state.matchField))",
+                title: "Enter match pattern for \(resolveFieldDisplayName(state.matchField ?? ""))",
                 hint: "Plain text = exact match. Prefix with glob: or regex: for advanced.",
                 defaultValue: state.matchPattern
             ) {
@@ -175,15 +184,16 @@ extension RulesWizard {
     /// Returns Rule?? — outer optional is nil if validation failed (continue loop),
     /// inner optional is the saved Rule on success.
     private func trySaveRule(state: EditRuleState) -> Rule?? {
-        // Use RuleBuilder for field/pattern validation and emit/write validation.
-        // Then construct Rule directly to preserve the `not` flag (RuleBuilder.setMatch
-        // does not expose a `not` parameter, so we set it on MatchConfig directly).
         var builder = RuleBuilder(context: context)
-        let matchResult = builder.setMatch(field: state.matchField, pattern: state.matchPattern)
-        if case let .failure(error) = matchResult {
-            showError(error)
-            return nil
+
+        if let matchField = state.matchField, let matchPattern = state.matchPattern {
+            let matchResult = builder.setMatch(field: matchField, pattern: matchPattern)
+            if case let .failure(error) = matchResult {
+                showError(error)
+                return nil
+            }
         }
+
         for emit in state.emitActions {
             if case let .failure(error) = builder.addEmit(emit) {
                 showError(error)
@@ -196,11 +206,13 @@ extension RulesWizard {
                 return nil
             }
         }
-        // Validate via builder.build() for the noMatch / noActions check,
-        // then reconstruct Rule with the correct `not` flag.
         switch builder.build() {
         case .success:
-            let match = MatchConfig(field: state.matchField, pattern: state.matchPattern, not: state.matchNot)
+            let match: MatchConfig? = if let matchField = state.matchField, let matchPattern = state.matchPattern {
+                MatchConfig(field: matchField, pattern: matchPattern, not: state.matchNot)
+            } else {
+                nil
+            }
             let rule = Rule(match: match, emit: state.emitActions, write: state.writeActions)
             return .some(rule)
         case let .failure(error):
