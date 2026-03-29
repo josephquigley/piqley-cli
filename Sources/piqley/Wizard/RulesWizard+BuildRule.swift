@@ -176,7 +176,31 @@ extension RulesWizard {
         }
 
         switch action {
-        case "add", "remove":
+        case "add":
+            let qualifiedCompletions = buildQualifiedFieldCompletions()
+            var values: [String] = []
+            while true {
+                let ordinal = values.isEmpty ? "first" : "next"
+                let hint = values.isEmpty
+                    ? "e.g. sony, regex:.*pattern.*, or use {{field}} for dynamic values"
+                    : "Enter another value, or press Enter to finish"
+                guard let value = terminal.promptWithAutocomplete(
+                    title: "Enter \(ordinal) value",
+                    hint: hint,
+                    completions: qualifiedCompletions,
+                    allowEmpty: !values.isEmpty,
+                    triggerPrefix: "{{"
+                ) else {
+                    if values.isEmpty { return nil }
+                    break
+                }
+                if value.isEmpty { break }
+                values.append(value)
+            }
+            if values.isEmpty { return nil }
+            return EmitConfig(action: action, field: field, values: values, replacements: nil, source: nil)
+
+        case "remove":
             var values: [String] = []
             while true {
                 let ordinal = values.isEmpty ? "first" : "next"
@@ -188,7 +212,6 @@ extension RulesWizard {
                     hint: hint,
                     allowEmpty: !values.isEmpty
                 ) else {
-                    // Esc pressed: cancel if no values yet, otherwise finish with what we have
                     if values.isEmpty { return nil }
                     break
                 }

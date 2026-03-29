@@ -108,7 +108,18 @@ extension RulesWizard {
             state.not = (state.not == true) ? nil : true
 
         case let .value(idx):
-            if let newVal = terminal.promptForInput(
+            if state.action == "add" {
+                let qualifiedCompletions = buildQualifiedFieldCompletions()
+                if let newVal = terminal.promptWithAutocomplete(
+                    title: "Edit value",
+                    hint: "e.g. sony, regex:.*pattern.*, or use {{field}} for dynamic values",
+                    completions: qualifiedCompletions,
+                    defaultValue: state.values[idx],
+                    triggerPrefix: "{{"
+                ) {
+                    state.values[idx] = newVal
+                }
+            } else if let newVal = terminal.promptForInput(
                 title: "Edit value",
                 hint: "Enter new value",
                 defaultValue: state.values[idx]
@@ -182,7 +193,17 @@ extension RulesWizard {
         state.source = ""
 
         switch newAction {
-        case "add", "remove":
+        case "add":
+            let qualifiedCompletions = buildQualifiedFieldCompletions()
+            if let val = terminal.promptWithAutocomplete(
+                title: "Enter first value",
+                hint: "e.g. sony, regex:.*pattern.*, or use {{field}} for dynamic values",
+                completions: qualifiedCompletions,
+                triggerPrefix: "{{"
+            ) {
+                state.values.append(val)
+            }
+        case "remove":
             if let val = terminal.promptForInput(
                 title: "Enter first value",
                 hint: "e.g. sony  or  regex:.*\\d+mm.*"
@@ -226,6 +247,16 @@ extension RulesWizard {
                 hint: "What to replace with (use $1, $2 for capture groups)"
             ) {
                 state.replacements.append(Replacement(pattern: pat, replacement: repStr))
+            }
+        } else if state.action == "add" {
+            let qualifiedCompletions = buildQualifiedFieldCompletions()
+            if let val = terminal.promptWithAutocomplete(
+                title: "Enter value",
+                hint: "e.g. sony, regex:.*pattern.*, or use {{field}} for dynamic values",
+                completions: qualifiedCompletions,
+                triggerPrefix: "{{"
+            ) {
+                state.values.append(val)
             }
         } else {
             if let val = terminal.promptForInput(
