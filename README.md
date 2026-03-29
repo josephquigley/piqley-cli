@@ -20,7 +20,7 @@
 
 Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, social media, or your own custom workflow.
 
-Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system). Mix and match first-party and custom plugins into a pipeline that fits your workflow.
+Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system). Mix and match plugins into a pipeline that fits your workflow.
 
 It works with any photo editor that exports to a folder (Lightroom, Capture One, Apple Photos, darktable, RawTherapee, etc.) and pairs well with [Hazel](https://www.noodlesoft.com) on macOS or any folder-watching automation for a fully hands-off workflow.
 
@@ -34,7 +34,7 @@ cp .build/release/piqley /usr/local/bin/piqley
 ## Quick Start
 
 ```bash
-# Interactive setup: installs bundled plugins and configures secrets
+# Interactive setup: configures plugins and secrets
 piqley setup
 
 # Process a folder of exported photos
@@ -45,7 +45,7 @@ piqley process /path/to/exported/photos
 
 | Command | Description |
 |---------|-------------|
-| `piqley setup` | Interactive configuration and bundled plugin installation |
+| `piqley setup` | Interactive configuration and plugin setup |
 | `piqley process [workflow] <path>` | Process and publish photos (workflow name required when multiple exist) |
 | `piqley plugin list` | List all installed plugins with active/inactive status |
 | `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
