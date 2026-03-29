@@ -27,7 +27,7 @@ extension RulesWizard {
                 title: "Edit rule: \(matchDesc)",
                 items: items.labels,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  d delete  Esc cancel"
+                footer: "\u{2191}\u{2193} navigate  \u{23CE} edit  d delete  s save  Esc cancel"
             )
 
             let key = terminal.readKey()
@@ -42,6 +42,10 @@ extension RulesWizard {
                 }
             case .char("d"):
                 handleEditRuleMenuDelete(tag: items.tags[cursor], state: &state)
+            case .char("s"):
+                if let result = trySaveRule(state: state) {
+                    return result
+                }
             case .escape:
                 return nil
             default:
@@ -66,7 +70,6 @@ extension RulesWizard {
         case matchField, matchPattern, matchNegated
         case emit(Int), addEmit
         case write(Int), addWrite
-        case save
     }
 
     struct EditRuleMenuItems {
@@ -98,7 +101,7 @@ extension RulesWizard {
             tags.append(.matchNegated)
         } else {
             labels.append("\(ANSI.dim)Type: add (constant)\(ANSI.reset)")
-            tags.append(.save)
+            tags.append(.matchField)
         }
 
         for (idx, emit) in state.emitActions.enumerated() {
@@ -114,9 +117,6 @@ extension RulesWizard {
         }
         labels.append("\(ANSI.dim)+ Add write action\(ANSI.reset)")
         tags.append(.addWrite)
-
-        labels.append("\(ANSI.bold)Save\(ANSI.reset)")
-        tags.append(.save)
 
         return EditRuleMenuItems(labels: labels, tags: tags)
     }
@@ -166,9 +166,6 @@ extension RulesWizard {
         case .addWrite:
             addEmitToList(&state.writeActions, title: "Select write action type")
             return nil
-
-        case .save:
-            return trySaveRule(state: state)
         }
     }
 
