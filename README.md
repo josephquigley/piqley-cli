@@ -20,7 +20,7 @@
 
 Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, social media, or your own custom workflow.
 
-Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, #AnalogFilmIsNotDead? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system). Mix and match plugins into a pipeline that fits your workflow.
+Want to export full-resolution photos with all metadata but strip GPS and private tags before publishing? Piqley can do that. Want to use keyword metadata and IPTC tags to draft a social media post without typing anything, `#AnalogFilmIsNotDead`? Piqley can do that. Want to use different hashtags for different services? Piqley can do that. Under the hood, everything is a [plugin](#plugin-system). Mix and match plugins into a pipeline that fits your workflow.
 
 It works with any photo editor that exports to a folder (Lightroom, Capture One, Apple Photos, darktable, RawTherapee, etc.) and pairs well with [Hazel](https://www.noodlesoft.com) on macOS or any folder-watching automation for a fully hands-off workflow.
 
@@ -163,7 +163,7 @@ done
 
 ### Building Plugins
 
-The [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides a Swift library for building plugins. You can also skip the SDK entirely and write a plain executable in any language. See the SDK README for the full manifest schema and protocol details.
+The [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides a Swift library for building plugins. You can also skip the SDK entirely and write a plain executable in any language. See the [SDK README](https://github.com/josephquigley/piqley-plugin-sdk) for the full manifest schema and protocol details.
 
 ## Development
 
