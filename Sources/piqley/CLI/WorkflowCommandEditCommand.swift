@@ -78,7 +78,7 @@ extension WorkflowCommand {
                 rulesBaseDir: rulesBaseDir
             )
 
-            // Add the target plugin's own consumed fields
+            // Add the target plugin's own fields
             var allDeps = deps
             if !manifest.fields.isEmpty {
                 allDeps.append(FieldDiscovery.DependencyInfo(identifier: pluginID, fields: manifest.fields))
