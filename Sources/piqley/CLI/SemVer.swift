@@ -23,10 +23,7 @@ struct SemVer: Comparable, Sendable {
     /// Determines if `other` is compatible with `self` per semver rules.
     /// For major >= 1: same major. For major 0: same major AND minor.
     func isCompatible(with other: SemVer) -> Bool {
-        if major >= 1 {
-            return major == other.major
-        }
-        return major == other.major && minor == other.minor
+        major == other.major
     }
 
     static func < (lhs: SemVer, rhs: SemVer) -> Bool {

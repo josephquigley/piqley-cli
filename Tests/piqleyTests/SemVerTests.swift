@@ -50,12 +50,14 @@ struct SemVerTests {
         #expect(cli.isCompatible(with: other) == false)
     }
 
-    @Test("isCompatible matches major+minor for 0.x")
+    @Test("isCompatible matches major for 0.x")
     func testCompatibleMinor() throws {
         let cli = try SemVer.parse("0.1.0")
         let tag = try SemVer.parse("0.1.5")
-        let other = try SemVer.parse("0.2.0")
+        let other = try SemVer.parse("0.12.7")
+        let different = try SemVer.parse("1.0.0")
         #expect(cli.isCompatible(with: tag) == true)
-        #expect(cli.isCompatible(with: other) == false)
+        #expect(cli.isCompatible(with: other) == true)
+        #expect(cli.isCompatible(with: different) == false)
     }
 }
