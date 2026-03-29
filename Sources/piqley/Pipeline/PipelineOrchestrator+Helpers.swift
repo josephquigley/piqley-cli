@@ -249,7 +249,7 @@ extension PipelineOrchestrator {
         imageFolderURL: URL? = nil,
         metadataBuffer: MetadataBuffer? = nil,
         pipelineRunId: String? = nil
-    ) async throws -> HookResult {
+    ) async throws -> (HookResult, [String]) {
         let runner = PluginRunner(
             plugin: loadedPlugin, secrets: secrets, pluginConfig: pluginConfig,
             metadataBuffer: metadataBuffer
@@ -283,6 +283,12 @@ extension PipelineOrchestrator {
         let result = output.exitResult
         let returnedState = output.state
 
+        // Create skip records for images the plugin skipped at runtime
+        for filename in output.skippedImages {
+            let record = JSONValue.object(["file": .string(filename), "plugin": .string(ctx.pluginIdentifier)])
+            await ctx.stateStore.appendSkipRecord(image: filename, record: record)
+        }
+
         // Store returned state under the plugin's namespace
         if let returnedState {
             let checkURL = imageFolderURL ?? ctx.temp.url
@@ -310,15 +316,15 @@ extension PipelineOrchestrator {
         switch result {
         case .success:
             logger.info("[\(loadedPlugin.name)] hook '\(ctx.hook)': success")
-            return .success
+            return (.success, output.skippedImages)
         case .warning:
             logger.warning("[\(loadedPlugin.name)] hook '\(ctx.hook)': completed with warnings")
-            return .warning
+            return (.warning, output.skippedImages)
         case .critical:
             logger.error(
                 "[\(loadedPlugin.name)] hook '\(ctx.hook)': critical failure — aborting pipeline"
             )
-            return .critical
+            return (.critical, output.skippedImages)
         }
     }
 }

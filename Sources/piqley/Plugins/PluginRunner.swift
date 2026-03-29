@@ -24,6 +24,7 @@ struct PluginRunner: Sendable {
         let exitResult: ExitCodeResult
         let state: [String: [String: JSONValue]]?
         let errorMessage: String?
+        let skippedImages: [String]
     }
 
     // Runs the plugin for a given hook. Returns the exit code result, any state
@@ -44,12 +45,12 @@ struct PluginRunner: Sendable {
     ) async throws -> RunOutput {
         guard let hookConfig else {
             logger.error("Plugin '\(plugin.identifier)' has no hook config for hook '\(hook)'")
-            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil, skippedImages: [])
         }
 
         guard let command = hookConfig.command else {
             logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': no command specified")
-            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil, skippedImages: [])
         }
 
         let proto = hookConfig.pluginProtocol ?? .json
@@ -57,7 +58,7 @@ struct PluginRunner: Sendable {
 
         if proto == .json, hookConfig.batchProxy != nil {
             logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': batchProxy is only valid with pipe protocol")
-            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil, skippedImages: [])
         }
 
         if proto == .pipe, let batchProxy = hookConfig.batchProxy {
@@ -73,7 +74,7 @@ struct PluginRunner: Sendable {
                 imageFolderOverride: imageFolderOverride,
                 pipelineRunId: pipelineRunId
             ))
-            return RunOutput(exitResult: result, state: nil, errorMessage: nil)
+            return RunOutput(exitResult: result, state: nil, errorMessage: nil, skippedImages: [])
         }
 
         var environment = buildEnvironment(
@@ -118,7 +119,7 @@ struct PluginRunner: Sendable {
                 environment: environment,
                 hookConfig: hookConfig
             )
-            return RunOutput(exitResult: result, state: nil, errorMessage: nil)
+            return RunOutput(exitResult: result, state: nil, errorMessage: nil, skippedImages: [])
         }
     }
 
@@ -196,6 +197,7 @@ struct PluginRunner: Sendable {
         var gotResult = false
         var resultState: [String: [String: JSONValue]]?
         var resultError: String?
+        var skippedFilenames: [String] = []
 
         // Background task reads stderr and updates activity
         let stderrTask = Task {
@@ -233,8 +235,11 @@ struct PluginRunner: Sendable {
                     logger.info("[\(plugin.name)]: \(obj.message ?? "")")
                 case "imageResult":
                     logger.debug(
-                        "[\(plugin.name)] imageResult: \(obj.filename ?? "") success=\(obj.success ?? false)"
+                        "[\(plugin.name)] imageResult: \(obj.filename ?? "") status=\(obj.status?.rawValue ?? "unknown")"
                     )
+                    if obj.status == .skip, let filename = obj.filename {
+                        skippedFilenames.append(filename)
+                    }
                 case "result":
                     gotResult = true
                     resultState = obj.state
@@ -253,13 +258,14 @@ struct PluginRunner: Sendable {
 
         if !gotResult {
             logger.warning("[\(plugin.name)]: no 'result' line received — treating as critical")
-            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil, skippedImages: [])
         }
 
         return RunOutput(
             exitResult: evaluator.evaluate(process.terminationStatus),
             state: resultState,
-            errorMessage: resultError
+            errorMessage: resultError,
+            skippedImages: skippedFilenames
         )
     }
 

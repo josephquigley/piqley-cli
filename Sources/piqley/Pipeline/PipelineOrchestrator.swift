@@ -305,7 +305,7 @@ struct PipelineOrchestrator: Sendable {
                     }
                 }
 
-                let result = try await runBinary(
+                let (result, runtimeSkips) = try await runBinary(
                     ctx, loadedPlugin: loadedPlugin,
                     secrets: secrets, pluginConfig: pluginConfig,
                     hookConfig: stageConfig.binary, manifestDeps: manifestDeps,
@@ -315,6 +315,7 @@ struct PipelineOrchestrator: Sendable {
                     metadataBuffer: buffer,
                     pipelineRunId: ctx.pipelineRunId
                 )
+                skippedImages.formUnion(runtimeSkips)
                 switch result {
                 case .success, .warning:
                     binaryDidRun = true
