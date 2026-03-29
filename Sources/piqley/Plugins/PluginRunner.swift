@@ -234,11 +234,12 @@ struct PluginRunner: Sendable {
                 case "progress":
                     logger.info("[\(plugin.name)]: \(obj.message ?? "")")
                 case "imageResult":
-                    logger.info(
+                    logger.debug(
                         "[\(plugin.name)] imageResult: \(obj.filename ?? "") status=\(obj.status?.rawValue ?? "unknown")"
                     )
                     if obj.status == .skip, let filename = obj.filename {
                         skippedFilenames.append(filename)
+                        logger.info("[\(plugin.name)] Skipping: \(filename)")
                     }
                 case "result":
                     gotResult = true

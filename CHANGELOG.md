@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
-- Plugin `imageResult` messages (including skip statuses) are now logged at info level instead of debug, making them visible during normal pipeline runs
+- Images skipped by plugins are now reported during pipeline runs
 - Edit rule menu now uses `s` save and `d` delete keyboard shortcuts, consistent with other TUI screens
 - Target field hints and autocomplete no longer suggest read-only namespaces (e.g. `original`, `read`) for write actions
 - Read-only field count note now appears below the autocomplete suggestions in the field selection prompt, instead of as a separate screen beforehand
