@@ -21,7 +21,7 @@ extension WorkflowCommand {
                 firstArg: firstArg, secondArg: secondArg,
                 usageHint: "piqley workflow command"
             )
-            let (workflowName, pluginID) = try resolver.resolve()
+            let (workflowName, pluginID, _) = try resolver.resolve()
 
             // Verify plugin is in the workflow's pipeline
             let workflow = try WorkflowStore.load(name: workflowName)

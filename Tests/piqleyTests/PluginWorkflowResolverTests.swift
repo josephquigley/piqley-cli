@@ -31,6 +31,16 @@ struct PluginWorkflowResolverTests {
         try data.write(to: dir.appendingPathComponent(PluginFile.manifest))
     }
 
+    private func loadedPlugin(id: String) -> LoadedPlugin {
+        LoadedPlugin(
+            identifier: id,
+            name: id,
+            directory: pluginsDir.appendingPathComponent(id),
+            manifest: PluginManifest(identifier: id, name: id, type: .static, pluginSchemaVersion: "1"),
+            stages: [:]
+        )
+    }
+
     @Test("two args returns workflow and plugin directly")
     func twoArgs() throws {
         let resolver = PluginWorkflowResolver(
@@ -38,7 +48,7 @@ struct PluginWorkflowResolverTests {
             usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
-        let (workflowName, pluginID) = try resolver.resolve()
+        let (workflowName, pluginID, _) = try resolver.resolve()
         #expect(workflowName == "my-workflow")
         #expect(pluginID == "my-plugin")
     }
@@ -53,7 +63,7 @@ struct PluginWorkflowResolverTests {
             usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
-        let (workflowName, pluginID) = try resolver.resolve()
+        let (workflowName, pluginID, _) = try resolver.resolve()
         #expect(workflowName == "wf1")
         #expect(pluginID == "com.test.plugin")
     }
@@ -67,7 +77,7 @@ struct PluginWorkflowResolverTests {
             usageHint: "piqley workflow command", workflowsRoot: testDir,
             pluginsDirectory: pluginsDir
         )
-        let (workflowName, pluginID) = try resolver.resolve()
+        let (workflowName, pluginID, _) = try resolver.resolve()
         #expect(workflowName == "wf1")
         #expect(pluginID == "com.test.plugin")
     }
@@ -110,5 +120,71 @@ struct PluginWorkflowResolverTests {
         #expect(throws: CleanError.self) {
             try resolver.resolve()
         }
+    }
+
+    // MARK: - Inactive Plugin Tests
+
+    @Test("two args with discovered plugins returns isInactive true when not in pipeline")
+    func twoArgsInactive() throws {
+        try createWorkflow(name: "wf1", plugins: ["pre-process": ["com.active.plugin"]])
+        try createPlugin(id: "com.inactive.plugin")
+
+        let discovered = [loadedPlugin(id: "com.inactive.plugin")]
+        let resolver = PluginWorkflowResolver(
+            firstArg: "wf1", secondArg: "com.inactive.plugin",
+            usageHint: "piqley workflow rules", workflowsRoot: testDir,
+            pluginsDirectory: pluginsDir, discoveredPlugins: discovered
+        )
+        let result = try resolver.resolve()
+        #expect(result.workflowName == "wf1")
+        #expect(result.pluginID == "com.inactive.plugin")
+        #expect(result.isInactive == true)
+    }
+
+    @Test("two args with discovered plugins returns isInactive false when in pipeline")
+    func twoArgsActive() throws {
+        try createWorkflow(name: "wf1", plugins: ["pre-process": ["com.active.plugin"]])
+        try createPlugin(id: "com.active.plugin")
+
+        let discovered = [loadedPlugin(id: "com.active.plugin")]
+        let resolver = PluginWorkflowResolver(
+            firstArg: "wf1", secondArg: "com.active.plugin",
+            usageHint: "piqley workflow rules", workflowsRoot: testDir,
+            pluginsDirectory: pluginsDir, discoveredPlugins: discovered
+        )
+        let result = try resolver.resolve()
+        #expect(result.workflowName == "wf1")
+        #expect(result.pluginID == "com.active.plugin")
+        #expect(result.isInactive == false)
+    }
+
+    @Test("two args without discovered plugins returns isInactive false (legacy behavior)")
+    func twoArgsLegacy() throws {
+        try createWorkflow(name: "wf1", plugins: ["pre-process": ["com.active.plugin"]])
+
+        let resolver = PluginWorkflowResolver(
+            firstArg: "wf1", secondArg: "com.active.plugin",
+            usageHint: "piqley workflow rules", workflowsRoot: testDir,
+            pluginsDirectory: pluginsDir
+        )
+        let result = try resolver.resolve()
+        #expect(result.workflowName == "wf1")
+        #expect(result.pluginID == "com.active.plugin")
+        #expect(result.isInactive == false)
+    }
+
+    @Test("single arg workflow with one plugin auto-resolves with isInactive false")
+    func singleArgWorkflowWithDiscovered() throws {
+        try createWorkflow(name: "wf1", plugins: ["pre-process": ["com.active.plugin"]])
+
+        let resolver = PluginWorkflowResolver(
+            firstArg: "wf1", secondArg: nil,
+            usageHint: "piqley workflow rules", workflowsRoot: testDir,
+            pluginsDirectory: pluginsDir, discoveredPlugins: []
+        )
+        let result = try resolver.resolve()
+        #expect(result.workflowName == "wf1")
+        #expect(result.pluginID == "com.active.plugin")
+        #expect(result.isInactive == false)
     }
 }
