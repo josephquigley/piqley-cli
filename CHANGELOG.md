@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - Read-only field count note now appears below the autocomplete suggestions in the field selection prompt, instead of as a separate screen beforehand
+- Clone rule type now supports unconditional mode (always runs), matching the add/add (when matching) pattern
 - Plugin detail action menu now uses arrow keys and Enter, consistent with other TUI screens
 - `plugin create` now replaces `__PLUGIN_IDENTIFIER__` in template files via a required `--identifier` option (reverse-TLD format)
 - `plugin create` now uses plain semver tags and fails early when the template download returns a non-200 response

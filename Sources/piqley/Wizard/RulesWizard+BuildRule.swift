@@ -9,7 +9,10 @@ extension RulesWizard {
             return editRuleMenu(existing: existing)
         }
 
-        let ruleTypes = ["add", "add (when matching)", "replace", "remove from", "remove field", "clone"]
+        let ruleTypes = [
+            "add", "add (when matching)", "replace", "remove from",
+            "remove field", "clone", "clone (when matching)",
+        ]
         guard let typeIdx = terminal.selectFromList(
             title: "Select rule type",
             items: ruleTypes
@@ -27,17 +30,19 @@ extension RulesWizard {
         case 4:
             return buildConditionalRule(action: "removeField")
         case 5:
+            return buildUnconditionalRule(action: "clone")
+        case 6:
             return buildConditionalRule(action: "clone")
         default:
             return nil
         }
     }
 
-    private func buildUnconditionalRule() -> Rule? {
+    private func buildUnconditionalRule(action: String = "add") -> Rule? {
         var builder = RuleBuilder(context: context)
 
         // Prompt for emit config
-        guard let config = promptForEmitConfig(action: "add") else { return nil }
+        guard let config = promptForEmitConfig(action: action) else { return nil }
         if case let .failure(error) = builder.addEmit(config) {
             showError(error)
             return nil
