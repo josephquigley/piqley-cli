@@ -12,6 +12,7 @@
   <img src="https://img.shields.io/badge/Swift-6.0-orange" alt="Swift 6.0"/>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS | Linux"/>
   <img src="https://img.shields.io/github/license/josephquigley/piqley-cli" alt="License"/>
+  <img src="https://img.shields.io/badge/Fully_Dogfooded-Yes-brightgreen?labelColor=555" alt="Fully Dogfooded: Yes"/>
 </p>
 <p align="center">
   <a href="https://ko-fi.com/I3I2LL7Y1"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"/></a>
