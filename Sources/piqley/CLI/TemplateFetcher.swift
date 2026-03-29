@@ -19,8 +19,7 @@ enum TemplateFetcher {
     static func fetchAndExtractTemplate(
         repoURL: String, tag: SemVer, language: String
     ) throws -> (templateDir: URL, tempDir: URL) {
-        let tagString = "v\(tag.versionString)"
-        let tarballURL = "\(repoURL)/archive/refs/tags/\(tagString).tar.gz"
+        let tarballURL = "\(repoURL)/archive/refs/tags/\(tag.versionString).tar.gz"
 
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-create-\(UUID().uuidString)")
@@ -28,15 +27,26 @@ enum TemplateFetcher {
 
         let tarballPath = tempDir.appendingPathComponent("sdk.tar.gz")
 
-        // Download tarball
+        // Download tarball, capturing the HTTP status code
         let curlProcess = Process()
+        let curlStdout = Pipe()
         curlProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        curlProcess.arguments = ["curl", "-sL", "-o", tarballPath.path, tarballURL]
+        curlProcess.arguments = [
+            "curl", "-sL", "-o", tarballPath.path,
+            "-w", "%{http_code}", tarballURL,
+        ]
+        curlProcess.standardOutput = curlStdout
         curlProcess.standardError = FileHandle.nullDevice
         try curlProcess.run()
         curlProcess.waitUntilExit()
 
+        let httpCode = String(
+            data: curlStdout.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        )?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
         guard curlProcess.terminationStatus == 0,
+              httpCode == "200",
               FileManager.default.fileExists(atPath: tarballPath.path)
         else {
             try? FileManager.default.removeItem(at: tempDir)
