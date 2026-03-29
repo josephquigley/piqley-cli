@@ -266,7 +266,7 @@ struct PluginRunnerEnvironmentTests {
         ]
         let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "post-publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -275,10 +275,10 @@ struct PluginRunnerEnvironmentTests {
             debug: false,
             state: state
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
 
-        let output = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(output == "Nikon|portrait,studio|hello")
+        let fileContents = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(fileContents == "Nikon|portrait,studio|hello")
     }
 
     @Test("environment mapping vars are substituted in args")
@@ -311,7 +311,7 @@ struct PluginRunnerEnvironmentTests {
         ]
         let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "post-publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -320,10 +320,10 @@ struct PluginRunnerEnvironmentTests {
             debug: false,
             state: state
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
 
-        let output = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(output == "Sony|literal-arg")
+        let fileContents = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(fileContents == "Sony|literal-arg")
     }
 
     @Test("batchProxy resolves environment per image")
@@ -356,7 +356,7 @@ struct PluginRunnerEnvironmentTests {
         ]
         let hookConfig = plugin.stages["pre-process"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "pre-process",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -365,7 +365,7 @@ struct PluginRunnerEnvironmentTests {
             debug: false,
             state: state
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
 
         let calls = (try? String(contentsOf: callLog, encoding: .utf8))?
             .split(separator: "\n").map(String.init) ?? []

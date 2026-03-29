@@ -77,7 +77,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -85,7 +85,57 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
+    }
+
+    @Test("json protocol: error message is captured from result line")
+    func testJSONErrorMessage() async throws {
+        let script = try makeTempScript("""
+        printf '{"type":"result","success":false,"error":"Ghost API returned 401 Unauthorized"}\\n'
+        exit 1
+        """)
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        let hookConfig = plugin.stages["publish"]?.binary
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
+        let output = try await runner.run(
+            hook: "publish",
+            hookConfig: hookConfig,
+            tempFolder: tempFolder,
+            executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
+            dryRun: false,
+            debug: false
+        )
+        #expect(output.exitResult == .critical)
+        #expect(output.errorMessage == "Ghost API returned 401 Unauthorized")
+    }
+
+    @Test("json protocol: success result has nil error message")
+    func testJSONSuccessNoError() async throws {
+        let script = try makeTempScript("""
+        printf '{"type":"result","success":true,"error":null}\\n'
+        exit 0
+        """)
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        let plugin = try makePlugin(name: "test", hook: "publish", scriptURL: script, protocol: "json")
+        defer { try? FileManager.default.removeItem(at: plugin.directory) }
+
+        let hookConfig = plugin.stages["publish"]?.binary
+        let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
+        let output = try await runner.run(
+            hook: "publish",
+            hookConfig: hookConfig,
+            tempFolder: tempFolder,
+            executionLogPath: FileManager.default.temporaryDirectory.appendingPathComponent("exec.jsonl"),
+            dryRun: false,
+            debug: false
+        )
+        #expect(output.exitResult == .success)
+        #expect(output.errorMessage == nil)
     }
 
     @Test("json protocol: non-zero critical exit code returns .critical")
@@ -98,7 +148,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -106,7 +156,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .critical)
+        #expect(output.exitResult == .critical)
     }
 
     @Test("pipe protocol: exit 0 returns .success")
@@ -119,7 +169,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "post-publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -127,7 +177,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
     }
 
     @Test("pipe protocol: exit 1 returns .critical")
@@ -140,7 +190,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "post-publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -148,7 +198,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .critical)
+        #expect(output.exitResult == .critical)
     }
 
     @Test("inactivity timeout kills process and returns .critical")
@@ -184,7 +234,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -192,7 +242,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .critical)
+        #expect(output.exitResult == .critical)
     }
 
     @Test("$PIQLEY_IMAGE_FOLDER_PATH token is substituted in args")
@@ -235,7 +285,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -243,7 +293,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
     }
 
     @Test("batchProxy declared on json protocol returns critical (validation error)")
@@ -285,7 +335,7 @@ struct PluginRunnerTests {
         // Stage was skipped by loadStages — hookConfig will be nil → runner returns .critical
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -293,7 +343,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .critical)
+        #expect(output.exitResult == .critical)
     }
 
     @Test("batchProxy+pipe calls plugin once per image in folder")
@@ -353,7 +403,7 @@ struct PluginRunnerTests {
         ])
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: config)
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -361,7 +411,7 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: false
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
     }
 
     @Test("pipe protocol: PIQLEY_DEBUG env var is set when debug=true")
@@ -382,7 +432,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["post-publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let runOutput = try await runner.run(
             hook: "post-publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -390,10 +440,10 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: true
         )
-        #expect(result == .success)
+        #expect(runOutput.exitResult == .success)
 
-        let output = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(output == "1")
+        let fileContents = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(fileContents == "1")
     }
 
     @Test("json protocol: debug field is included in JSON payload")
@@ -418,7 +468,7 @@ struct PluginRunnerTests {
 
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let runOutput = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -426,9 +476,9 @@ struct PluginRunnerTests {
             dryRun: false,
             debug: true
         )
-        #expect(result == .success)
+        #expect(runOutput.exitResult == .success)
 
-        let output = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
-        #expect(output == "True")
+        let fileContents = try String(contentsOf: resultFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(fileContents == "True")
     }
 }

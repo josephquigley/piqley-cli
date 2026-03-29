@@ -19,8 +19,16 @@ struct PluginRunner: Sendable {
 
     static let defaultTimeoutSeconds = 30
 
-    // Runs the plugin for a given hook. Returns the exit code result and any state
-    // returned by the plugin (JSON protocol only, nil for pipe/batchProxy).
+    /// Result of running a plugin hook.
+    struct RunOutput {
+        let exitResult: ExitCodeResult
+        let state: [String: [String: JSONValue]]?
+        let errorMessage: String?
+    }
+
+    // Runs the plugin for a given hook. Returns the exit code result, any state
+    // returned by the plugin (JSON protocol only, nil for pipe/batchProxy),
+    // and an optional error message from the plugin's result line.
     // swiftlint:disable:next function_parameter_count
     func run(
         hook: String,
@@ -33,15 +41,15 @@ struct PluginRunner: Sendable {
         skipped: [SkipRecord] = [],
         imageFolderOverride: URL? = nil,
         pipelineRunId: String? = nil
-    ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
+    ) async throws -> RunOutput {
         guard let hookConfig else {
             logger.error("Plugin '\(plugin.identifier)' has no hook config for hook '\(hook)'")
-            return (.critical, nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
         }
 
         guard let command = hookConfig.command else {
             logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': no command specified")
-            return (.critical, nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
         }
 
         let proto = hookConfig.pluginProtocol ?? .json
@@ -49,7 +57,7 @@ struct PluginRunner: Sendable {
 
         if proto == .json, hookConfig.batchProxy != nil {
             logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': batchProxy is only valid with pipe protocol")
-            return (.critical, nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
         }
 
         if proto == .pipe, let batchProxy = hookConfig.batchProxy {
@@ -65,7 +73,7 @@ struct PluginRunner: Sendable {
                 imageFolderOverride: imageFolderOverride,
                 pipelineRunId: pipelineRunId
             ))
-            return (result, nil)
+            return RunOutput(exitResult: result, state: nil, errorMessage: nil)
         }
 
         var environment = buildEnvironment(
@@ -110,7 +118,7 @@ struct PluginRunner: Sendable {
                 environment: environment,
                 hookConfig: hookConfig
             )
-            return (result, nil)
+            return RunOutput(exitResult: result, state: nil, errorMessage: nil)
         }
     }
 
@@ -134,7 +142,7 @@ struct PluginRunner: Sendable {
 
     private func runJSON(
         context: JSONRunContext
-    ) async throws -> (ExitCodeResult, [String: [String: JSONValue]]?) {
+    ) async throws -> RunOutput {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: context.executable)
         process.arguments = context.args
@@ -182,11 +190,12 @@ struct PluginRunner: Sendable {
         stderrPipe: Pipe,
         hookConfig: HookConfig,
         timeoutSeconds: Int
-    ) async -> (ExitCodeResult, [String: [String: JSONValue]]?) {
+    ) async -> RunOutput {
         let evaluator = hookConfig.makeEvaluator()
         let activityTracker = ActivityTracker()
         var gotResult = false
         var resultState: [String: [String: JSONValue]]?
+        var resultError: String?
 
         // Background task reads stderr and updates activity
         let stderrTask = Task {
@@ -229,6 +238,7 @@ struct PluginRunner: Sendable {
                 case "result":
                     gotResult = true
                     resultState = obj.state
+                    resultError = obj.error
                 default:
                     break
                 }
@@ -243,10 +253,14 @@ struct PluginRunner: Sendable {
 
         if !gotResult {
             logger.warning("[\(plugin.name)]: no 'result' line received — treating as critical")
-            return (.critical, nil)
+            return RunOutput(exitResult: .critical, state: nil, errorMessage: nil)
         }
 
-        return (evaluator.evaluate(process.terminationStatus), resultState)
+        return RunOutput(
+            exitResult: evaluator.evaluate(process.terminationStatus),
+            state: resultState,
+            errorMessage: resultError
+        )
     }
 
     // MARK: - Pipe Protocol
