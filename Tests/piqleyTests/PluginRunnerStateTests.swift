@@ -74,7 +74,7 @@ struct PluginRunnerStateTests {
         ]
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, _) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -82,7 +82,7 @@ struct PluginRunnerStateTests {
             dryRun: false,
             state: state
         )
-        #expect(result == .success)
+        #expect(output.exitResult == .success)
     }
 
     @Test("state is captured from plugin result response")
@@ -99,7 +99,7 @@ struct PluginRunnerStateTests {
 
         let hookConfig = plugin.stages["post-process"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, returnedState) = try await runner.run(
+        let output = try await runner.run(
             hook: "post-process",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -107,8 +107,8 @@ struct PluginRunnerStateTests {
             dryRun: false,
             state: nil
         )
-        #expect(result == .success)
-        #expect(returnedState?["test.jpg"]?["hashtags"] == .array([.string("#cat"), .string("#dog")]))
+        #expect(output.exitResult == .success)
+        #expect(output.state?["test.jpg"]?["hashtags"] == .array([.string("#cat"), .string("#dog")]))
     }
 
     @Test("no state in response returns nil")
@@ -125,7 +125,7 @@ struct PluginRunnerStateTests {
 
         let hookConfig = plugin.stages["publish"]?.binary
         let runner = PluginRunner(plugin: plugin, secrets: [:], pluginConfig: PluginConfig())
-        let (result, returnedState) = try await runner.run(
+        let output = try await runner.run(
             hook: "publish",
             hookConfig: hookConfig,
             tempFolder: tempFolder,
@@ -133,7 +133,7 @@ struct PluginRunnerStateTests {
             dryRun: false,
             state: nil
         )
-        #expect(result == .success)
-        #expect(returnedState == nil)
+        #expect(output.exitResult == .success)
+        #expect(output.state == nil)
     }
 }

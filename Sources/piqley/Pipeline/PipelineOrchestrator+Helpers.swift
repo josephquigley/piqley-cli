@@ -267,7 +267,7 @@ extension PipelineOrchestrator {
         )
 
         logger.info("Running plugin '\(loadedPlugin.name)' for hook '\(ctx.hook)'")
-        let (result, returnedState) = try await runner.run(
+        let output = try await runner.run(
             hook: ctx.hook,
             hookConfig: hookConfig,
             tempFolder: ctx.temp,
@@ -278,6 +278,8 @@ extension PipelineOrchestrator {
             imageFolderOverride: imageFolderURL,
             pipelineRunId: pipelineRunId
         )
+        let result = output.exitResult
+        let returnedState = output.state
 
         // Store returned state under the plugin's namespace
         if let returnedState {
@@ -297,6 +299,10 @@ extension PipelineOrchestrator {
                     )
                 }
             }
+        }
+
+        if let errorMessage = output.errorMessage {
+            logger.error("[\(loadedPlugin.name)] error: \(errorMessage)")
         }
 
         switch result {
