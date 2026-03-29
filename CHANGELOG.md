@@ -186,7 +186,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
-- CLI commands use `manifest.fields` instead of `manifest.consumedFields` (follows PiqleyCore rename)
+- CLI commands use `manifest.fields` instead of `manifest.consumedFields` (follows PiqleyCore 0.16.0 rename)
 - Stage plugin list now shows inactive plugins below a divider, allowing direct activation via Enter or 'a'
 - `piqley plugin rules` moved to `piqley workflow rules` (operates on workflow-scoped rule files)
 - `piqley plugin command` moved to `piqley workflow command` (operates on workflow-scoped rule files)

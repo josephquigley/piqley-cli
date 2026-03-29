@@ -44,9 +44,8 @@ extension ConfigWizard {
         )
 
         var allDeps = deps
-        if !plugin.manifest.consumedFields.isEmpty {
-            let ownFields = plugin.manifest.consumedFields.map(\.name)
-            allDeps.append(FieldDiscovery.DependencyInfo(identifier: pluginID, fields: ownFields))
+        if !plugin.manifest.fields.isEmpty {
+            allDeps.append(FieldDiscovery.DependencyInfo(identifier: pluginID, fields: plugin.manifest.fields))
         }
 
         let availableFields = FieldDiscovery.buildAvailableFields(dependencies: allDeps)

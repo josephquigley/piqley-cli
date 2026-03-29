@@ -80,9 +80,8 @@ extension WorkflowCommand {
 
             // Add the target plugin's own consumed fields
             var allDeps = deps
-            if !manifest.consumedFields.isEmpty {
-                let ownFields = manifest.consumedFields.map(\.name)
-                allDeps.append(FieldDiscovery.DependencyInfo(identifier: pluginID, fields: ownFields))
+            if !manifest.fields.isEmpty {
+                allDeps.append(FieldDiscovery.DependencyInfo(identifier: pluginID, fields: manifest.fields))
             }
 
             let availableFields = FieldDiscovery.buildAvailableFields(dependencies: allDeps)
