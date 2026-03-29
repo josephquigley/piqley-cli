@@ -218,6 +218,7 @@ extension ConfigWizard {
     func showDiscoveredPluginDetail(plugin: LoadedPlugin) {
         let manifest = plugin.manifest
         let allStages = registry.executionOrder
+        var cursor = 0
 
         while true {
             let pipelineStages = allStages.filter { stage in
@@ -266,13 +267,19 @@ extension ConfigWizard {
                 ))
             }
 
+            cursor = min(cursor, max(0, menuItems.count - 1))
+
             for (idx, item) in menuItems.enumerated() {
-                buf += ANSI.moveTo(row: row + idx, col: 3)
-                buf += "\(ANSI.dim)\(idx + 1).\(ANSI.reset) \(item.label)"
+                buf += ANSI.moveTo(row: row + idx, col: 1)
+                if idx == cursor {
+                    buf += "\(ANSI.inverse) \u{25B8} \(item.label) \(ANSI.reset)"
+                } else {
+                    buf += "   \(item.label)"
+                }
             }
 
             buf += ANSI.moveTo(row: size.rows, col: 1)
-            buf += "\(ANSI.dim)1-\(menuItems.count) select action"
+            buf += "\(ANSI.dim)\u{2191}\u{2193} select action  Enter confirm"
             buf += "  Esc back\(ANSI.reset)"
 
             terminal.write(buf)
@@ -281,12 +288,14 @@ extension ConfigWizard {
             switch key {
             case .escape:
                 return
-            case let .char(char):
-                if let digit = char.wholeNumberValue,
-                   digit >= 1, digit <= menuItems.count
-                {
+            case .cursorUp:
+                cursor = max(0, cursor - 1)
+            case .cursorDown:
+                cursor = min(max(0, menuItems.count - 1), cursor + 1)
+            case .enter:
+                if !menuItems.isEmpty {
                     applyAction(
-                        menuItems[digit - 1].action,
+                        menuItems[cursor].action,
                         identifier: plugin.identifier
                     )
                     return
