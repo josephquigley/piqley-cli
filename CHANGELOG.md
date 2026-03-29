@@ -177,6 +177,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Stage plugin list now shows inactive plugins below a divider, allowing direct activation via Enter or 'a'
 - `piqley plugin rules` moved to `piqley workflow rules` (operates on workflow-scoped rule files)
 - `piqley plugin command` moved to `piqley workflow command` (operates on workflow-scoped rule files)
 - ConfigWizard and pipeline orchestrator now scan workflow rules directories for stage files and auto-register unknown stages
