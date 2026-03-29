@@ -42,7 +42,7 @@ final class ConfigWizard {
     // MARK: - Stage Select
 
     /// Selectable items on the stage selector: 4 stages + "List all Plugins"
-    private enum StageMenuItem {
+    enum StageMenuItem {
         case stage(String)
         case allPlugins
     }
@@ -98,83 +98,10 @@ final class ConfigWizard {
         }
     }
 
-    private func drawStageScreen(stages: [String], menuItems _: [StageMenuItem], cursor: Int) {
-        let size = ANSI.terminalSize()
-        var buf = ""
-        buf += ANSI.clearScreen()
-        buf += ANSI.moveTo(row: 1, col: 1)
-        buf += "\(ANSI.bold)Edit Workflow: \(workflow.name)\(ANSI.reset)"
-
-        // Stage items (rows 3..6)
-        for (idx, stage) in stages.enumerated() {
-            let plugins = workflow.pipeline[stage] ?? []
-            let count = plugins.count
-            let label = count == 1 ? "plugin" : "plugins"
-            let missingCount = plugins.filter { !discoveredIdentifiers.contains($0) }.count
-            var text = "\(stage) (\(count) \(label))"
-            if missingCount > 0 {
-                text += "  \(ANSI.red)\(missingCount) missing\(ANSI.reset)"
-            }
-            buf += ANSI.moveTo(row: 3 + idx, col: 1)
-            if idx == cursor {
-                buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
-            } else {
-                buf += "   \(text)"
-            }
-        }
-
-        // Blank line, then "List all Plugins"
-        let allPluginsRow = 3 + stages.count + 1
-        let allPluginsIdx = stages.count
-        let allPluginsText = "List all Plugins"
-        buf += ANSI.moveTo(row: allPluginsRow, col: 1)
-        if cursor == allPluginsIdx {
-            buf += "\(ANSI.inverse) \u{25B8} \(allPluginsText) \(ANSI.reset)"
-        } else {
-            buf += "   \(allPluginsText)"
-        }
-
-        // Plugin count metadata
-        let pipelineIdentifiers = Set(workflow.pipeline.values.flatMap(\.self))
-        let activeCount = discoveredPlugins.filter { pipelineIdentifiers.contains($0.identifier) }.count
-        let missingCount = pipelineIdentifiers.subtracting(discoveredIdentifiers).count
-        buf += ANSI.moveTo(row: allPluginsRow + 1, col: 4)
-        var summary = "\(ANSI.dim)\(discoveredPlugins.count) installed, \(activeCount) active in pipeline"
-        if missingCount > 0 {
-            summary += ", \(ANSI.reset)\(ANSI.red)\(missingCount) missing\(ANSI.reset)\(ANSI.dim)"
-        }
-        summary += "\(ANSI.reset)"
-        buf += summary
-
-        // Footer
-        buf += ANSI.moveTo(row: size.rows, col: 1)
-        let footerText = footerWithSaveIndicator(
-            "\u{2191}\u{2193} navigate  \u{23CE} select  a add  u dup  v activate  x remove  n rename  r reorder  s save  Esc quit"
-        )
-        buf += "\(ANSI.dim)\(footerText)\(ANSI.reset)"
-
-        terminal.write(buf)
-    }
-
     // MARK: - Plugin List
 
     private func removalKey(stage: String, plugin: String) -> String {
         "\(stage):\(plugin)"
-    }
-
-    private func availablePluginCount(for stageName: String) -> Int {
-        let currentPlugins = Set(workflow.pipeline[stageName] ?? [])
-        return discoveredPlugins
-            .filter { plugin in
-                guard !currentPlugins.contains(plugin.identifier) else { return false }
-                return plugin.stages.keys.contains(stageName)
-                    || WorkflowStore.hasStageFile(
-                        workflowName: workflow.name,
-                        pluginIdentifier: plugin.identifier,
-                        stageName: stageName
-                    )
-            }
-            .count
     }
 
     private func pluginList(stageName: String) {
@@ -182,7 +109,7 @@ final class ConfigWizard {
 
         while true {
             let plugins = workflow.pipeline[stageName] ?? []
-            let items: [String] = plugins.isEmpty
+            let activeItems: [String] = plugins.isEmpty
                 ? ["(no plugins)"]
                 : plugins.map { plugin in
                     let key = removalKey(stage: stageName, plugin: plugin)
@@ -195,19 +122,19 @@ final class ConfigWizard {
                     return plugin
                 }
 
+            let inactivePlugins = inactivePluginIdentifiers(for: stageName, excluding: Set(plugins))
+            let (displayItems, dividerIndex) = buildDisplayItems(active: activeItems, inactive: inactivePlugins)
+
+            let inactiveStartIndex = (dividerIndex ?? Int.max) + 1
+            let isOnInactive = cursor >= inactiveStartIndex && cursor < displayItems.count
+
             let isCurrentRemoved = !plugins.isEmpty && cursor < plugins.count
                 && removedPlugins.contains(removalKey(stage: stageName, plugin: plugins[cursor]))
             let removeLabel = isCurrentRemoved ? "d undelete" : "d remove"
 
-            let available = availablePluginCount(for: stageName)
-            var title = "\(stageName) plugins"
-            if available > 0 {
-                title += "\n\(ANSI.dim)\(available) plugin(s) available to add\(ANSI.reset)"
-            }
-
             terminal.drawScreen(
-                title: title,
-                items: items,
+                title: "\(stageName) plugins",
+                items: displayItems,
                 cursor: cursor,
                 footer: footerWithSaveIndicator("\u{2191}\u{2193} navigate  \u{23CE} rules  a add  \(removeLabel)  r reorder  s save  Esc back")
             )
@@ -215,10 +142,11 @@ final class ConfigWizard {
             let key = readKeyWithSaveTimeout()
             switch key {
             case .timeout: continue
-            case .cursorUp: cursor = max(0, cursor - 1)
-            case .cursorDown: cursor = min(max(items.count - 1, 0), cursor + 1)
-            case .pageUp: cursor = max(0, cursor - 10)
-            case .pageDown: cursor = min(max(items.count - 1, 0), cursor + 10)
+            case .cursorUp, .cursorDown, .pageUp, .pageDown:
+                cursor = navigateCursor(key: key, cursor: cursor, itemCount: displayItems.count, dividerIndex: dividerIndex)
+            case .enter where isOnInactive, .char("a") where isOnInactive:
+                activateInactivePlugin(inactivePlugins[cursor - inactiveStartIndex], stageName: stageName)
+                cursor = 0
             case .enter:
                 if !plugins.isEmpty, cursor < plugins.count {
                     let pluginID = plugins[cursor]
@@ -230,15 +158,7 @@ final class ConfigWizard {
             case .char("a"):
                 addPlugin(stageName: stageName)
             case .char("d"):
-                if !plugins.isEmpty, cursor < plugins.count {
-                    let rmKey = removalKey(stage: stageName, plugin: plugins[cursor])
-                    if removedPlugins.contains(rmKey) {
-                        removedPlugins.remove(rmKey)
-                    } else {
-                        removedPlugins.insert(rmKey)
-                        modified = true
-                    }
-                }
+                togglePluginRemoval(plugins: plugins, cursor: cursor, stageName: stageName)
             case .char("r"):
                 if !plugins.isEmpty, cursor < plugins.count, plugins.count > 1 {
                     if let newPos = interactiveReorder(stageName: stageName, startIndex: cursor) {
@@ -251,6 +171,58 @@ final class ConfigWizard {
                 return
             default: break
             }
+        }
+    }
+
+    private func inactivePluginIdentifiers(for stageName: String, excluding currentPlugins: Set<String>) -> [String] {
+        discoveredPlugins
+            .filter { plugin in
+                guard !currentPlugins.contains(plugin.identifier) else { return false }
+                return plugin.stages.keys.contains(stageName)
+                    || WorkflowStore.hasStageFile(
+                        workflowName: workflow.name,
+                        pluginIdentifier: plugin.identifier,
+                        stageName: stageName
+                    )
+            }
+            .map(\.identifier)
+            .sorted()
+    }
+
+    private func buildDisplayItems(active: [String], inactive: [String]) -> (items: [String], dividerIndex: Int?) {
+        var items = active
+        guard !inactive.isEmpty else { return (items, nil) }
+        let dividerIndex = items.count
+        items.append("\(ANSI.dim)── inactive ──\(ANSI.reset)")
+        items += inactive.map { "\(ANSI.dim)\(ANSI.italic)\($0)\(ANSI.reset)" }
+        return (items, dividerIndex)
+    }
+
+    private func navigateCursor(key: Key, cursor: Int, itemCount: Int, dividerIndex: Int?) -> Int {
+        let maxIdx = max(itemCount - 1, 0)
+        var newCursor: Int
+        switch key {
+        case .cursorUp: newCursor = max(0, cursor - 1)
+        case .cursorDown: newCursor = min(maxIdx, cursor + 1)
+        case .pageUp: newCursor = max(0, cursor - 10)
+        case .pageDown: newCursor = min(maxIdx, cursor + 10)
+        default: return cursor
+        }
+        if newCursor == dividerIndex {
+            let direction = (key == .cursorUp || key == .pageUp) ? -1 : 1
+            newCursor = max(0, min(maxIdx, newCursor + direction))
+        }
+        return newCursor
+    }
+
+    private func togglePluginRemoval(plugins: [String], cursor: Int, stageName: String) {
+        guard !plugins.isEmpty, cursor < plugins.count else { return }
+        let rmKey = removalKey(stage: stageName, plugin: plugins[cursor])
+        if removedPlugins.contains(rmKey) {
+            removedPlugins.remove(rmKey)
+        } else {
+            removedPlugins.insert(rmKey)
+            modified = true
         }
     }
 
@@ -284,6 +256,19 @@ final class ConfigWizard {
             pluginDirectory: pluginDir
         )
 
+        modified = true
+    }
+
+    private func activateInactivePlugin(_ identifier: String, stageName: String) {
+        var list = workflow.pipeline[stageName] ?? []
+        list.append(identifier)
+        workflow.pipeline[stageName] = list
+        let pluginDir = pluginsDirectory.appendingPathComponent(identifier)
+        try? WorkflowStore.seedRules(
+            workflowName: workflow.name,
+            pluginIdentifier: identifier,
+            pluginDirectory: pluginDir
+        )
         modified = true
     }
 

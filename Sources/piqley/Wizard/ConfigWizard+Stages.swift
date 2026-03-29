@@ -2,6 +2,64 @@ import Foundation
 import PiqleyCore
 
 extension ConfigWizard {
+    func drawStageScreen(stages: [String], menuItems _: [StageMenuItem], cursor: Int) {
+        let size = ANSI.terminalSize()
+        var buf = ""
+        buf += ANSI.clearScreen()
+        buf += ANSI.moveTo(row: 1, col: 1)
+        buf += "\(ANSI.bold)Edit Workflow: \(workflow.name)\(ANSI.reset)"
+
+        // Stage items (rows 3..6)
+        for (idx, stage) in stages.enumerated() {
+            let plugins = workflow.pipeline[stage] ?? []
+            let count = plugins.count
+            let label = count == 1 ? "plugin" : "plugins"
+            let missingCount = plugins.filter { !discoveredIdentifiers.contains($0) }.count
+            var text = "\(stage) (\(count) \(label))"
+            if missingCount > 0 {
+                text += "  \(ANSI.red)\(missingCount) missing\(ANSI.reset)"
+            }
+            buf += ANSI.moveTo(row: 3 + idx, col: 1)
+            if idx == cursor {
+                buf += "\(ANSI.inverse) \u{25B8} \(text) \(ANSI.reset)"
+            } else {
+                buf += "   \(text)"
+            }
+        }
+
+        // Blank line, then "List all Plugins"
+        let allPluginsRow = 3 + stages.count + 1
+        let allPluginsIdx = stages.count
+        let allPluginsText = "List all Plugins"
+        buf += ANSI.moveTo(row: allPluginsRow, col: 1)
+        if cursor == allPluginsIdx {
+            buf += "\(ANSI.inverse) \u{25B8} \(allPluginsText) \(ANSI.reset)"
+        } else {
+            buf += "   \(allPluginsText)"
+        }
+
+        // Plugin count metadata
+        let pipelineIdentifiers = Set(workflow.pipeline.values.flatMap(\.self))
+        let activeCount = discoveredPlugins.filter { pipelineIdentifiers.contains($0.identifier) }.count
+        let missingCount = pipelineIdentifiers.subtracting(discoveredIdentifiers).count
+        buf += ANSI.moveTo(row: allPluginsRow + 1, col: 4)
+        var summary = "\(ANSI.dim)\(discoveredPlugins.count) installed, \(activeCount) active in pipeline"
+        if missingCount > 0 {
+            summary += ", \(ANSI.reset)\(ANSI.red)\(missingCount) missing\(ANSI.reset)\(ANSI.dim)"
+        }
+        summary += "\(ANSI.reset)"
+        buf += summary
+
+        // Footer
+        buf += ANSI.moveTo(row: size.rows, col: 1)
+        let footerText = footerWithSaveIndicator(
+            "\u{2191}\u{2193} navigate  \u{23CE} select  a add  u dup  v activate  x remove  n rename  r reorder  s save  Esc quit"
+        )
+        buf += "\(ANSI.dim)\(footerText)\(ANSI.reset)"
+
+        terminal.write(buf)
+    }
+
     func addStage() {
         guard let name = terminal.promptForInput(title: "New stage name", hint: "lowercase-with-hyphens") else { return }
         guard StageRegistry.isValidName(name) else {
