@@ -146,7 +146,11 @@ extension RulesWizard {
     }
 
     func promptForEmitConfig(action: String) -> EmitConfig? {
-        let uniqueFields = buildFieldCompletions()
+        let (uniqueFields, readOnlyCount) = buildWritableFieldCompletions()
+
+        if readOnlyCount > 0 {
+            terminal.showMessage("\(ANSI.dim)\(readOnlyCount) read-only field\(readOnlyCount == 1 ? "" : "s") not shown\(ANSI.reset)")
+        }
 
         var field: String
         while true {

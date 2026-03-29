@@ -61,6 +61,42 @@ extension RulesWizard {
         return ownFields.sorted() + otherFields.sorted()
     }
 
+    /// Builds field completions excluding read-only fields, for use in emit/write target prompts.
+    /// Returns the filtered completions and a count of how many read-only fields were excluded.
+    func buildWritableFieldCompletions() -> (completions: [String], readOnlyCount: Int) {
+        var ownFields = Set<String>()
+        var otherFields = Set<String>()
+        var readOnlyCount = 0
+        let pluginID = context.pluginIdentifier
+        for source in context.availableSources() {
+            for field in context.fields(in: source) {
+                if field.readOnly {
+                    readOnlyCount += 1
+                    continue
+                }
+                if source == pluginID {
+                    ownFields.insert(field.name)
+                } else {
+                    otherFields.insert(field.qualifiedName)
+                }
+            }
+        }
+        for stageName in context.stageNames() {
+            for slot in [RuleSlot.pre, .post] {
+                for rule in context.rules(forStage: stageName, slot: slot) {
+                    for emit in rule.emit {
+                        if let field = emit.field { ownFields.insert(field) }
+                    }
+                    for write in rule.write {
+                        if let field = write.field { ownFields.insert(field) }
+                    }
+                }
+            }
+        }
+        otherFields.subtract(ownFields)
+        return (completions: ownFields.sorted() + otherFields.sorted(), readOnlyCount: readOnlyCount)
+    }
+
     /// Builds completions with all qualified names (source:field) for use in
     /// prompts where the user needs to specify a fully qualified field reference.
     func buildQualifiedFieldCompletions() -> [String] {
