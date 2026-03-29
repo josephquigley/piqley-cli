@@ -83,7 +83,7 @@ enum FieldDiscovery {
         rulesBaseDir: URL,
         pluginsDir: URL = PipelineOrchestrator.defaultPluginsDirectory
     ) -> [DependencyInfo] {
-        // 1. Find target's stage and position
+        // 1. Find target's latest stage and position (latest maximises upstream visibility)
         var targetStageIndex = stageOrder.count
         var targetPosition = 0
         for (stageIdx, stage) in stageOrder.enumerated() {
@@ -91,7 +91,6 @@ enum FieldDiscovery {
             if let pos = plugins.firstIndex(of: targetPlugin) {
                 targetStageIndex = stageIdx
                 targetPosition = pos
-                break
             }
         }
 

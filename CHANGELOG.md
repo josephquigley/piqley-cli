@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Field autocomplete in the rule editor now sees all upstream plugins when a plugin appears in multiple stages (previously only considered the first stage occurrence)
 - Images skipped by plugins are now reported during pipeline runs
 - Image warnings from plugins now display with filename and message instead of raw imageResult output
 - Edit rule menu now uses `s` save and `d` delete keyboard shortcuts, consistent with other TUI screens
