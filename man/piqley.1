@@ -1,4 +1,4 @@
-.Dd March 18, 2026
+.Dd March 29, 2026
 .Dt PIQLEY 1
 .Os
 .Sh NAME
@@ -10,12 +10,15 @@
 .Op Ar workflow-name
 .Ar folder-path
 .Op Fl -dry-run
+.Op Fl -debug
 .Op Fl -delete-source-contents
 .Op Fl -delete-source-folder
 .Op Fl -overwrite-source
 .Op Fl -non-interactive
 .Nm
 .Cm setup
+.Nm
+.Cm workflow list
 .Nm
 .Cm workflow edit
 .Op Ar workflow-name
@@ -40,6 +43,19 @@
 .Cm workflow remove-plugin
 .Ar workflow plugin stage
 .Nm
+.Cm workflow config
+.Ar workflow plugin
+.Op Fl -set Ar key=value
+.Op Fl -set-secret Ar KEY=alias
+.Nm
+.Cm workflow rules
+.Op Ar workflow-name
+.Ar plugin-id
+.Nm
+.Cm workflow command
+.Op Ar workflow-name
+.Ar plugin-id
+.Nm
 .Cm clear-cache
 .Op Fl -plugin Ar name
 .Nm
@@ -49,22 +65,38 @@
 .Cm secret delete
 .Ar plugin key
 .Nm
+.Cm secret prune
+.Nm
+.Cm plugin list
+.Nm
 .Cm plugin setup
 .Op Ar plugin-name
 .Op Fl -force
 .Nm
 .Cm plugin init
-.Op Ar plugin-name
+.Op Ar identifier
+.Op Ar display-name
+.Op Fl -description Ar text
 .Op Fl -no-examples
 .Op Fl -non-interactive
 .Nm
-.Cm workflow rules
-.Op Ar workflow-name
-.Ar plugin-id
+.Cm plugin create
+.Ar target-directory
+.Fl -identifier Ar id
+.Op Fl -language Ar lang
+.Op Fl -name Ar name
+.Op Fl -sdk-repo-url Ar url
 .Nm
-.Cm workflow command
-.Op Ar workflow-name
-.Ar plugin-id
+.Cm plugin install
+.Ar plugin-file
+.Op Fl -force
+.Nm
+.Cm plugin update
+.Ar plugin-file
+.Nm
+.Cm plugin uninstall
+.Ar identifier
+.Op Fl -force
 .Nm
 .Cm uninstall
 .Op Fl -force
@@ -84,21 +116,21 @@ finishes.
 .Pp
 The plugin pipeline is defined in named workflow files stored in
 .Pa ~/.config/piqley/workflows/
-and consists of named hooks that plugins can subscribe to.
-Each plugin declares its hooks in a
+and consists of named stages that plugins can subscribe to.
+Each plugin declares its stages in a
 .Pa manifest.json
 and may provide executable commands, declarative metadata-matching rules
-in
-.Pa config.json ,
-or both.
+in per-stage files, or both.
 .Pp
-Plugins are discovered automatically from
+Plugins are installed under
 .Pa ~/.config/piqley/plugins/ .
-Each plugin lives in its own subdirectory and contains a
+Each plugin lives in its own subdirectory (named by its reverse-TLD
+identifier) and contains a
 .Pa manifest.json
-(identity, hooks, config schema) and an optional
+(identity, stages, config schema) and an optional
 .Pa config.json
-(runtime values and declarative rules).
+(runtime values).
+Plugins must be explicitly listed in a workflow's pipeline to run.
 .Pp
 Only one instance of
 .Nm
@@ -110,11 +142,17 @@ exits immediately with an error.
 Scan
 .Ar folder-path
 for exported JPEG images and run them through the plugin pipeline.
+When multiple workflows exist,
+.Ar workflow-name
+must be provided before the folder path.
+With a single workflow, only the folder path is needed.
 .Pp
 Available flags:
 .Bl -tag -width Ds
 .It Fl -dry-run
 Preview all actions without uploading or sending anything.
+.It Fl -debug
+Enable debug output from plugins.
 .It Fl -delete-source-contents
 Delete the contents of the source folder after a successful run.
 The folder itself is preserved but all files and subdirectories inside it
@@ -135,11 +173,13 @@ Interactive configuration wizard.
 Creates the workflows directory, seeds a default workflow, and installs
 bundled plugins from the distribution into the plugins directory.
 If plugins are found, prompts for a workflow name and opens the workflow
-editor.
+editor, then runs plugin setup scanners.
 .Pp
 Run this command before using
 .Cm process
 for the first time, or to update an existing configuration.
+.Ss workflow list
+List all workflows by name.
 .Ss workflow edit Op workflow-name
 Open the workflow list wizard when no name is given, or edit a specific
 workflow directly.
@@ -179,68 +219,20 @@ When omitted, the plugin is appended to the end.
 .El
 .Ss workflow remove-plugin workflow plugin stage
 Remove a plugin from a workflow's pipeline stage.
-.Ss clear-cache
-Delete plugin execution logs.
+.Ss workflow config workflow plugin
+Set per-plugin configuration overrides for a specific workflow.
+When called with no options, runs an interactive prompt walking through
+each config value and secret alias defined in the plugin's manifest.
 .Pp
 Available options:
 .Bl -tag -width Ds
-.It Fl -plugin Ar name
-Clear only the specified plugin's execution log.
+.It Fl -set Ar key=value
+Set a config value override.
+May be specified multiple times to set several values at once.
+.It Fl -set-secret Ar KEY=alias
+Set a secret alias override.
+May be specified multiple times.
 .El
-.Pp
-When
-.Fl -plugin
-is not specified, execution logs for all plugins are deleted.
-.Ss secret set plugin key
-Store a plugin secret.
-Prompts for the value on standard input.
-.Pp
-On macOS, secrets are stored in the system Keychain.
-On Linux, secrets are written to
-.Pa ~/.config/piqley/secrets.json .
-.Ss secret delete plugin key
-Remove a previously stored plugin secret.
-.Ss plugin setup Op plugin-name
-Run interactive setup for one or all plugins.
-Each plugin's manifest declares its configuration schema (plain values
-and secrets); the setup scanner walks through each entry and prompts for
-a value.
-.Pp
-Available flags:
-.Bl -tag -width Ds
-.It Fl -force
-Force re-setup by clearing existing config values and the
-.Li isSetUp
-flag before prompting.
-.El
-.Pp
-When
-.Ar plugin-name
-is omitted, setup runs for all discovered plugins.
-.Ss plugin init Op plugin-name
-Create a new declarative-only plugin.
-Generates a skeleton plugin directory under
-.Pa ~/.config/piqley/plugins/
-with a
-.Pa manifest.json
-and
-.Pa config.json
-pre-populated with example hooks and rules.
-.Pp
-Available flags:
-.Bl -tag -width Ds
-.It Fl -no-examples
-Skip example rules and values in the generated config files.
-.It Fl -non-interactive
-Non-interactive mode.
-Requires the
-.Ar plugin-name
-argument.
-.El
-.Pp
-When
-.Ar plugin-name
-is omitted in interactive mode, the command prompts for a name.
 .Ss workflow rules [workflow-name] plugin-id
 Open the interactive rule editor for the specified plugin within a workflow.
 If
@@ -282,6 +274,155 @@ If
 .Ar workflow-name
 is omitted, a list of available workflows is presented for selection.
 Only mutable plugins may be edited with this command.
+.Ss clear-cache
+Delete plugin execution logs.
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl -plugin Ar name
+Clear only the specified plugin's execution log.
+.El
+.Pp
+When
+.Fl -plugin
+is not specified, execution logs for all plugins are deleted.
+.Ss secret set plugin key
+Store a plugin secret.
+Prompts for the value on standard input.
+.Pp
+On macOS, secrets are stored in the system Keychain.
+On Linux, secrets are written to
+.Pa ~/.config/piqley/secrets.json .
+.Ss secret delete plugin key
+Remove a previously stored plugin secret.
+.Ss secret prune
+Remove orphaned secrets that are not referenced by any installed plugin's
+configuration or workflow.
+Prints each pruned secret alias and a summary count.
+.Ss plugin list
+List all installed plugins.
+Shows each plugin's identifier, name, version, description, and the
+workflows it belongs to.
+.Ss plugin setup Op plugin-name
+Run interactive setup for one or all plugins.
+Each plugin's manifest declares its configuration schema (plain values
+and secrets); the setup scanner walks through each entry and prompts for
+a value.
+.Pp
+Available flags:
+.Bl -tag -width Ds
+.It Fl -force
+Force re-setup by clearing existing config values and the
+.Li isSetUp
+flag before prompting.
+.El
+.Pp
+When
+.Ar plugin-name
+is omitted, setup runs for all discovered plugins.
+.Ss plugin init Op identifier Op display-name
+Create a new declarative-only plugin.
+Generates a skeleton plugin directory under
+.Pa ~/.config/piqley/plugins/
+with a
+.Pa manifest.json ,
+.Pa config.json ,
+and example stage files pre-populated with sample rules.
+.Pp
+The
+.Ar identifier
+argument is a reverse-TLD string (e.g.,
+.Li com.example.myplugin ) .
+When omitted in interactive mode, the command prompts for one.
+The optional
+.Ar display-name
+argument sets a human-readable name; if omitted it is derived from
+the identifier.
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl -description Ar text
+Plugin description.
+In interactive mode, the command opens
+.Ev EDITOR
+to compose a description instead.
+.It Fl -no-examples
+Skip example rules and values in the generated config files.
+.It Fl -non-interactive
+Non-interactive mode.
+Requires the
+.Ar identifier
+argument.
+.El
+.Ss plugin create target-directory
+Scaffold a new plugin project from an SDK template.
+Downloads the appropriate SDK template from the plugin SDK repository,
+applies substitutions, and writes the project to
+.Ar target-directory .
+.Pp
+Required options:
+.Bl -tag -width Ds
+.It Fl -identifier Ar id
+Reverse-TLD plugin identifier (e.g.,
+.Li com.example.my-plugin ) .
+.El
+.Pp
+Optional:
+.Bl -tag -width Ds
+.It Fl -language Ar lang
+Programming language for the template.
+Default:
+.Li swift .
+.It Fl -name Ar name
+Plugin name.
+Derived from the target directory name if omitted.
+.It Fl -sdk-repo-url Ar url
+SDK repository URL.
+.El
+.Ss plugin install plugin-file
+Install a
+.Pa .piqleyplugin
+package.
+Extracts the archive, validates the manifest, flattens platform-specific
+directories, and copies the plugin into the plugins directory.
+Runs the plugin setup scanner automatically if the manifest declares
+configuration entries.
+.Pp
+Available flags:
+.Bl -tag -width Ds
+.It Fl -force
+Overwrite an existing plugin if already installed.
+.El
+.Ss plugin update plugin-file
+Update an installed plugin from a
+.Pa .piqleyplugin
+package.
+Replaces the existing plugin directory, merges configuration (preserving
+values whose keys and types have not changed), and re-runs the setup
+scanner for new or changed entries.
+Orphaned secrets are pruned automatically after the update.
+.Pp
+Errors if the plugin is not already installed.
+Use
+.Cm plugin install
+for first-time installation.
+.Ss plugin uninstall identifier
+Uninstall a plugin by its reverse-TLD identifier.
+Removes the plugin directory, strips the plugin from all workflow
+pipelines, deletes associated workflow rule directories, removes the
+base config file, and prunes orphaned secrets.
+.Pp
+If other plugins depend on the target plugin, the command errors unless
+.Fl -force
+is passed.
+If the plugin is referenced by one or more workflows, a confirmation
+prompt is shown.
+.Pp
+Available flags:
+.Bl -tag -width Ds
+.It Fl -force
+Force uninstall even if other plugins depend on this one.
+.El
 .Ss uninstall
 Remove all piqley configuration, plugins, and stored secrets.
 Deletes the
@@ -323,8 +464,8 @@ Short description of the workflow's purpose.
 Schema version for forward compatibility.
 .It pipeline
 .Pq object, default: {}
-Maps hook names to ordered arrays of plugin identifiers.
-Controls which plugins execute for each hook stage and in what order.
+Maps stage names to ordered arrays of plugin identifiers.
+Controls which plugins execute for each stage and in what order.
 A plugin not listed in any stage simply does not run.
 .El
 .Ss Plugin configuration
@@ -336,26 +477,25 @@ This file contains:
 .It values
 Key-value settings the plugin reads at runtime (e.g., output quality,
 tag prefixes).
-.It rules
-Declarative metadata-matching rules.
-Each rule matches a field from the original image metadata or a
-dependency plugin's output using exact, glob, or regex patterns, and
-emits tags or keywords.
-Rules can be scoped to specific hook stages.
 .It isSetUp
 Boolean flag set by
 .Cm plugin setup
 to indicate the plugin has been configured.
 .El
+.Pp
+Per-workflow overrides can be applied with
+.Cm workflow config
+to set different values or secret aliases per workflow without modifying
+the plugin's base configuration.
 .Sh PLUGIN ARCHITECTURE
 Plugins live under
-.Pa ~/.config/piqley/plugins/<name>/ .
+.Pa ~/.config/piqley/plugins/<identifier>/ .
 Each plugin directory contains:
 .Bl -tag -width Ds
 .It Pa manifest.json
-Declares the plugin's name, protocol version, version, config schema,
-dependencies, and hook entries.
-Each hook entry may specify an executable command with arguments and a
+Declares the plugin's identifier, name, protocol version, version,
+config schema, dependencies, and stage entries.
+Each stage entry may specify an executable command with arguments and a
 timeout.
 .It Pa config.json
 Runtime configuration: key-value settings.
@@ -369,7 +509,7 @@ Per-stage rule files (e.g.,
 Each contains pre-rules, an optional binary configuration, and
 post-rules.
 Edit interactively with
-.Cm plugin rules edit
+.Cm workflow rules
 or by hand.
 .It Pa logs/execution.jsonl
 Append-only execution log written by the pipeline orchestrator.
@@ -378,22 +518,34 @@ Cleared by
 .It Pa data/
 Plugin-managed persistent data directory.
 .El
-.Ss Hooks
-Plugins subscribe to named hooks declared in their manifest.
-Hooks run in the order defined by the pipeline configuration.
-A hook entry without a command is declarative-only and relies on the
-rules in the plugin's
-.Pa config.json .
+.Ss Stages
+Plugins subscribe to named stages declared in their manifest.
+Stages run in the order defined by the pipeline configuration.
+A stage entry without a command is declarative-only and relies on the
+rules in the plugin's stage files.
 .Ss Secrets
 Plugin secrets are managed with
-.Cm secret set
+.Cm secret set ,
+.Cm secret delete ,
 and
-.Cm secret delete .
+.Cm secret prune .
 On macOS, secrets are stored in the Keychain under the
 .Nm
 service name.
 On Linux, they are stored in
 .Pa ~/.config/piqley/secrets.json .
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev EDITOR
+Editor used by
+.Cm workflow open
+and
+.Cm plugin init
+to open files.
+Falls back to
+.Xr open 1
+on macOS when unset.
+.El
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.config/piqley/workflows/
@@ -414,18 +566,6 @@ Secret store for Linux.
 On macOS, secrets are stored in the Keychain instead.
 .It Pa ~/.config/piqley/piqley.lock
 Advisory lock file to prevent concurrent execution.
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width Ds
-.It Ev EDITOR
-Editor used by
-.Cm workflow open
-and
-.Cm plugin config
-to open JSON files.
-Falls back to
-.Xr open 1
-on macOS when unset.
 .El
 .Sh EXIT STATUS
 .Bl -tag -width Ds
@@ -449,6 +589,16 @@ Preview what would happen without uploading:
 piqley process ~/Photos/export --dry-run
 .Ed
 .Pp
+Process with debug output:
+.Bd -literal -offset indent
+piqley process ~/Photos/export --debug
+.Ed
+.Pp
+List all workflows:
+.Bd -literal -offset indent
+piqley workflow list
+.Ed
+.Pp
 Edit a workflow interactively:
 .Bd -literal -offset indent
 piqley workflow edit
@@ -459,34 +609,64 @@ Open a workflow file in your editor:
 piqley workflow open default
 .Ed
 .Pp
-Open a plugin's config file:
+Set per-workflow config overrides for a plugin:
 .Bd -literal -offset indent
-piqley plugin config my-tagger
-.Ed
-.Pp
-Create a new plugin with example rules:
-.Bd -literal -offset indent
-piqley plugin init my-tagger
+piqley workflow config default com.example.tagger --set tagPrefix=auto
 .Ed
 .Pp
 Edit rules for a plugin interactively:
 .Bd -literal -offset indent
-piqley plugin rules edit my-tagger
+piqley workflow rules com.example.tagger
+.Ed
+.Pp
+List all installed plugins:
+.Bd -literal -offset indent
+piqley plugin list
+.Ed
+.Pp
+Create a new declarative plugin:
+.Bd -literal -offset indent
+piqley plugin init com.example.tagger "My Tagger"
+.Ed
+.Pp
+Scaffold a plugin project from an SDK template:
+.Bd -literal -offset indent
+piqley plugin create ~/Projects/my-plugin --identifier com.example.myplugin
+.Ed
+.Pp
+Install a plugin package:
+.Bd -literal -offset indent
+piqley plugin install ~/Downloads/com.example.uploader.piqleyplugin
+.Ed
+.Pp
+Update an installed plugin:
+.Bd -literal -offset indent
+piqley plugin update ~/Downloads/com.example.uploader.piqleyplugin
+.Ed
+.Pp
+Uninstall a plugin:
+.Bd -literal -offset indent
+piqley plugin uninstall com.example.uploader
 .Ed
 .Pp
 Store a secret for a plugin:
 .Bd -literal -offset indent
-piqley secret set my-uploader api-key
+piqley secret set com.example.uploader api-key
+.Ed
+.Pp
+Remove orphaned secrets:
+.Bd -literal -offset indent
+piqley secret prune
 .Ed
 .Pp
 Run setup for a specific plugin:
 .Bd -literal -offset indent
-piqley plugin setup my-uploader
+piqley plugin setup com.example.uploader
 .Ed
 .Pp
 Clear execution logs for a specific plugin:
 .Bd -literal -offset indent
-piqley clear-cache --plugin my-uploader
+piqley clear-cache --plugin com.example.uploader
 .Ed
 .Pp
 Remove all piqley data without confirmation:
