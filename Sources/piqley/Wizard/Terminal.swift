@@ -204,17 +204,23 @@ extension RawTerminal {
     }
 
     /// Show a selectable list with a non-selectable divider row.
-    /// Returns the chosen index, or nil if cancelled. The divider row cannot be selected.
+    /// Returns the chosen index, or nil if cancelled.
+    /// Items before the divider are selected with Enter; items after require 'a' to activate.
     func selectFromListWithDivider(
         title: String, items: [String], dividerIndex: Int?
     ) -> Int? {
         var cursor = 0
         while true {
+            let isOnInactive = dividerIndex.map { cursor > $0 } ?? false
+            let footer = isOnInactive
+                ? "\u{2191}\u{2193} navigate  a activate  Esc cancel"
+                : "\u{2191}\u{2193} navigate  \u{23CE} select  Esc cancel"
+
             drawScreen(
                 title: title,
                 items: items,
                 cursor: cursor,
-                footer: "\u{2191}\u{2193} navigate  \u{23CE} select  Esc cancel"
+                footer: footer
             )
 
             let key = readKey()
@@ -223,10 +229,10 @@ extension RawTerminal {
                 cursor = Self.navigateWithDivider(
                     key: key, cursor: cursor, itemCount: items.count, dividerIndex: dividerIndex
                 )
-            case .enter:
-                if cursor != dividerIndex {
-                    return cursor
-                }
+            case .enter where !isOnInactive && cursor != dividerIndex:
+                return cursor
+            case .char("a") where isOnInactive:
+                return cursor
             case .escape, .ctrlC: return nil
             default: break
             }

@@ -55,7 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- `workflow rules` now shows installed-but-inactive plugins in the plugin selection list; selecting one adds it to the workflow after choosing a stage
+- `workflow rules` now shows installed-but-inactive plugins in the plugin selection list; pressing `a` on an inactive plugin adds it to the workflow after choosing a stage
 - `workflow edit` now allows editing rules by pressing Enter on a plugin in the stage view, launching a nested rules editor scoped to that stage
 - Mutation guard: `piqley plugin rules` and `piqley plugin command` reject edits on static plugins with a clear error message
 - `piqley plugin init` sets `type: .mutable` on newly created plugin manifests
