@@ -340,7 +340,8 @@ extension RawTerminal {
         title: String, hint: String, completions: [String],
         browsableList: [String]? = nil, defaultValue: String? = nil,
         allowEmpty: Bool = false, insertCompletions: [String]? = nil,
-        noMatchHint: String? = nil, subtitleNote: String? = nil
+        noMatchHint: String? = nil, subtitleNote: String? = nil,
+        triggerPrefix: String? = nil
     ) -> String? {
         var input = defaultValue ?? ""
         var cursorPos = input.count
@@ -353,8 +354,12 @@ extension RawTerminal {
         var scrollOffset = 0
 
         while true {
-            let query = input.lowercased()
-            let matchedIndices: [Int] = query.isEmpty
+            let (query, templateInsertRange) = resolveAutocompleteQuery(
+                input: input, cursorPos: cursorPos, triggerPrefix: triggerPrefix
+            )
+            let matchedIndices: [Int] = query.isEmpty && triggerPrefix != nil
+                ? []
+                : query.isEmpty
                 ? Array(completions.indices)
                 : completions.enumerated().compactMap { idx, item in
                     item.lowercased().contains(query) ? idx : nil
@@ -436,21 +441,26 @@ extension RawTerminal {
                 if arrowIndex! < scrollOffset { scrollOffset = arrowIndex! }
             case .tab:
                 guard !matchedIndices.isEmpty else { continue }
+                let selectedIdx: Int
                 if let arrow = arrowIndex {
-                    let idx = matchedIndices[arrow]
-                    input = insertCompletions?[idx] ?? completions[idx]
-                    cursorPos = input.count
+                    selectedIdx = matchedIndices[arrow]
                     tabCycleIndex = arrow + 1
                     lastTabQuery = query
                     arrowIndex = nil
                     scrollOffset = 0
                 } else {
                     if query != lastTabQuery { tabCycleIndex = 0; lastTabQuery = query }
-                    let idx = matchedIndices[tabCycleIndex % matchedIndices.count]
-                    input = insertCompletions?[idx] ?? completions[idx]
-                    cursorPos = input.count
+                    selectedIdx = matchedIndices[tabCycleIndex % matchedIndices.count]
                     tabCycleIndex += 1
                 }
+                let completionValue = insertCompletions?[selectedIdx] ?? completions[selectedIdx]
+                applyTabCompletion(
+                    completionValue: completionValue,
+                    triggerPrefix: triggerPrefix,
+                    templateInsertRange: templateInsertRange,
+                    input: &input,
+                    cursorPos: &cursorPos
+                )
             case .enter:
                 if !input.isEmpty || allowEmpty { return input }
             case .escape, .ctrlC:
