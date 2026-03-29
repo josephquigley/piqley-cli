@@ -237,9 +237,17 @@ struct PluginRunner: Sendable {
                     logger.debug(
                         "[\(plugin.name)] imageResult: \(obj.filename ?? "") status=\(obj.status?.rawValue ?? "unknown")"
                     )
-                    if obj.status == .skip, let filename = obj.filename {
-                        skippedFilenames.append(filename)
-                        logger.info("[\(plugin.name)] Skipping: \(filename)")
+                    if let filename = obj.filename {
+                        switch obj.status {
+                        case .skip:
+                            skippedFilenames.append(filename)
+                            logger.info("[\(plugin.name)] Skipping: \(filename)")
+                        case .warning:
+                            let detail = obj.message ?? obj.error ?? ""
+                            logger.warning("[\(plugin.name)] Warning: \(filename)\(detail.isEmpty ? "" : " \(detail)")")
+                        default:
+                            break
+                        }
                     }
                 case "result":
                     gotResult = true
