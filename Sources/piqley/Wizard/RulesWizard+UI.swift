@@ -224,10 +224,12 @@ extension RulesWizard {
     // MARK: - Formatting
 
     func formatRule(_ rule: Rule, index: Int) -> String {
-        let matchDesc = if let match = rule.match {
-            "\(match.field) ~ \(match.pattern)"
+        let matchDesc: String
+        if let match = rule.match {
+            let matchOp = match.not == true ? "!~" : "~"
+            matchDesc = "\(match.field) \(matchOp) \(match.pattern)"
         } else {
-            "(always)"
+            matchDesc = "(always)"
         }
         let emitSummary = rule.emit.map { emit in
             let action = emit.action ?? "add"
@@ -300,7 +302,8 @@ extension RulesWizard {
             var row = 3
             if let match = rule.match {
                 let displayName = resolveFieldDisplayName(match.field)
-                buf += "\(ANSI.bold)Rule \(index + 1): \(displayName) ~ \(match.pattern)\(ANSI.reset)"
+                let matchOp = match.not == true ? "!~" : "~"
+                buf += "\(ANSI.bold)Rule \(index + 1): \(displayName) \(matchOp) \(match.pattern)\(ANSI.reset)"
 
                 // Match section
                 buf += ANSI.moveTo(row: row, col: 1)

@@ -64,6 +64,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Negated match rules now display `!~` instead of `~` in rule summaries, detail views, and edit menus
 - Rule `add` action values now support `{{namespace:field}}` template syntax, resolving referenced fields from state, file metadata (`read:`), or plugin namespace at evaluation time
 - Rule value editor now offers field autocomplete when typing `{{` in an `add` action value, inserting the full `{{namespace:field}}` expression on Tab; autocomplete is active in all three value-entry sites: initial build, add-value, and edit-existing-value
 - `promptWithAutocomplete` now accepts an optional `triggerPrefix` parameter for context-sensitive completions that activate only inside a template expression

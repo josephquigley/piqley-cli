@@ -17,10 +17,12 @@ extension RulesWizard {
         while true {
             let items = buildEditRuleMenuItems(state: state)
             cursor = min(cursor, items.labels.count - 1)
-            let matchDesc = if let matchField = state.matchField, let matchPattern = state.matchPattern {
-                "\(resolveFieldDisplayName(matchField)) ~ \(matchPattern)"
+            let matchDesc: String
+            if let matchField = state.matchField, let matchPattern = state.matchPattern {
+                let matchOp = state.matchNot == true ? "!~" : "~"
+                matchDesc = "\(resolveFieldDisplayName(matchField)) \(matchOp) \(matchPattern)"
             } else {
-                "add (constant)"
+                matchDesc = "add (constant)"
             }
 
             terminal.drawScreen(
