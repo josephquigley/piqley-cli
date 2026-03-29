@@ -340,7 +340,7 @@ extension RawTerminal {
         title: String, hint: String, completions: [String],
         browsableList: [String]? = nil, defaultValue: String? = nil,
         allowEmpty: Bool = false, insertCompletions: [String]? = nil,
-        noMatchHint: String? = nil
+        noMatchHint: String? = nil, subtitleNote: String? = nil
     ) -> String? {
         var input = defaultValue ?? ""
         var cursorPos = input.count
@@ -381,15 +381,24 @@ extension RawTerminal {
             buf += "\(ANSI.dim)\(hint)\(ANSI.reset)"
             buf += ANSI.moveTo(row: inputRow, col: 1)
             buf += "\u{25B8} \(before)\u{2588}\(after)"
+            var nextRow = suggestionsRow
             if !matches.isEmpty {
                 buf += renderSuggestions(
                     matches: matches, scrollOffset: scrollOffset,
                     maxSuggestions: maxSuggestions, highlightIndex: highlightIndex,
                     startRow: suggestionsRow
                 )
+                let visibleCount = min(maxSuggestions, matches.count - scrollOffset)
+                let hasMoreLine = matches.count > scrollOffset + maxSuggestions ? 1 : 0
+                nextRow = suggestionsRow + visibleCount + hasMoreLine
             } else if !input.isEmpty, let noMatchHint {
                 buf += ANSI.moveTo(row: suggestionsRow, col: 3)
                 buf += "\(ANSI.dim)\(noMatchHint)\(ANSI.reset)"
+                nextRow = suggestionsRow + 1
+            }
+            if let subtitleNote {
+                buf += ANSI.moveTo(row: nextRow + 1, col: 3)
+                buf += "\(ANSI.dim)\(subtitleNote)\(ANSI.reset)"
             }
             let listHint = hasList ? "  Ctrl+L browse list" : ""
             buf += ANSI.moveTo(row: size.rows, col: 1)

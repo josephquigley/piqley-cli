@@ -148,9 +148,9 @@ extension RulesWizard {
     func promptForEmitConfig(action: String) -> EmitConfig? {
         let (uniqueFields, readOnlyCount) = buildWritableFieldCompletions()
 
-        if readOnlyCount > 0 {
-            terminal.showMessage("\(ANSI.dim)\(readOnlyCount) read-only field\(readOnlyCount == 1 ? "" : "s") not shown\(ANSI.reset)")
-        }
+        let readOnlyNote: String? = readOnlyCount > 0
+            ? "\(readOnlyCount) read-only field\(readOnlyCount == 1 ? "" : "s") not shown"
+            : nil
 
         var field: String
         while true {
@@ -160,7 +160,8 @@ extension RulesWizard {
                 hint: "The field to \(verb) (e.g. keywords, original:IPTC:Keywords)",
                 completions: uniqueFields,
                 browsableList: uniqueFields,
-                noMatchHint: "Enter will create a new field with this name"
+                noMatchHint: "Enter will create a new field with this name",
+                subtitleNote: readOnlyNote
             ) else { return nil }
 
             if uniqueFields.contains(input) || terminal.confirm("'\(input)' is a new field name. Use it anyway?") {
