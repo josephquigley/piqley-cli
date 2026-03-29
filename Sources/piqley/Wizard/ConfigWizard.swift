@@ -125,7 +125,7 @@ final class ConfigWizard {
             let inactivePlugins = inactivePluginIdentifiers(for: stageName, excluding: Set(plugins))
             let (displayItems, dividerIndex) = buildDisplayItems(active: activeItems, inactive: inactivePlugins)
 
-            let inactiveStartIndex = (dividerIndex ?? Int.max) + 1
+            let inactiveStartIndex = dividerIndex.map { $0 + 1 } ?? Int.max
             let isOnInactive = cursor >= inactiveStartIndex && cursor < displayItems.count
 
             let isCurrentRemoved = !plugins.isEmpty && cursor < plugins.count
