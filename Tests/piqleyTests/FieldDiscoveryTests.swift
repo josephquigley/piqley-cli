@@ -32,7 +32,7 @@ struct FieldDiscoveryTests {
     func dependencyFieldsKeyedByIdentifier() {
         let dep = FieldDiscovery.DependencyInfo(
             identifier: "com.example.myplugin",
-            fields: ["AlbumName", "CameraSerial"]
+            fields: [ConsumedField(name: "AlbumName", readOnly: false), ConsumedField(name: "CameraSerial", readOnly: false)]
         )
         let result = FieldDiscovery.buildAvailableFields(dependencies: [dep])
         let depFields = result["com.example.myplugin"]
@@ -44,7 +44,7 @@ struct FieldDiscoveryTests {
     func dependencyFieldsAreCustomCategory() {
         let dep = FieldDiscovery.DependencyInfo(
             identifier: "exif-tagger",
-            fields: ["scene"]
+            fields: [ConsumedField(name: "scene", readOnly: false)]
         )
         let result = FieldDiscovery.buildAvailableFields(dependencies: [dep])
         let field = result["exif-tagger"]?.first
@@ -56,7 +56,7 @@ struct FieldDiscoveryTests {
     func dependencyFieldsSortedAlphabetically() {
         let dep = FieldDiscovery.DependencyInfo(
             identifier: "com.example.plugin",
-            fields: ["Zebra", "Alpha", "Middle"]
+            fields: [ConsumedField(name: "Zebra", readOnly: false), ConsumedField(name: "Alpha", readOnly: false), ConsumedField(name: "Middle", readOnly: false)]
         )
         let result = FieldDiscovery.buildAvailableFields(dependencies: [dep])
         let names = result["com.example.plugin"]?.map(\.name) ?? []
@@ -65,8 +65,8 @@ struct FieldDiscoveryTests {
 
     @Test("multiple dependencies each get their own key")
     func multipleDependenciesEachGetOwnKey() {
-        let dep1 = FieldDiscovery.DependencyInfo(identifier: "plugin.a", fields: ["FieldA"])
-        let dep2 = FieldDiscovery.DependencyInfo(identifier: "plugin.b", fields: ["FieldB"])
+        let dep1 = FieldDiscovery.DependencyInfo(identifier: "plugin.a", fields: [ConsumedField(name: "FieldA", readOnly: false)])
+        let dep2 = FieldDiscovery.DependencyInfo(identifier: "plugin.b", fields: [ConsumedField(name: "FieldB", readOnly: false)])
         let result = FieldDiscovery.buildAvailableFields(dependencies: [dep1, dep2])
         #expect(result["plugin.a"] != nil)
         #expect(result["plugin.b"] != nil)
@@ -134,7 +134,8 @@ struct FieldDiscoveryTests {
 
         let upstream = deps.first { $0.identifier == "plugin.upstream" }
         #expect(upstream != nil)
-        #expect(Set(upstream?.fields ?? []) == Set(["IPTC:Keywords", "score"]))
+        let fieldNames = Set(upstream?.fields.map(\.name) ?? [])
+        #expect(fieldNames == Set(["IPTC:Keywords", "score"]))
     }
 
     @Test("includes self-emitted fields")
@@ -162,7 +163,7 @@ struct FieldDiscoveryTests {
 
         let selfDep = deps.first { $0.identifier == "plugin.target" }
         #expect(selfDep != nil)
-        #expect(selfDep?.fields == ["tags"])
+        #expect(selfDep?.fields.map(\.name) == ["tags"])
     }
 
     @Test("same-stage plugin earlier in array is upstream")
@@ -190,7 +191,7 @@ struct FieldDiscoveryTests {
 
         let first = deps.first { $0.identifier == "plugin.first" }
         #expect(first != nil)
-        #expect(first?.fields == ["title"])
+        #expect(first?.fields.map(\.name) == ["title"])
     }
 
     @Test("only harvests from upstream stages, not later stages")
@@ -225,7 +226,7 @@ struct FieldDiscoveryTests {
 
         let multi = deps.first { $0.identifier == "plugin.multi" }
         #expect(multi != nil)
-        #expect(multi?.fields == ["upstream-field"])
+        #expect(multi?.fields.map(\.name) == ["upstream-field"])
         // downstream-field should NOT appear
     }
 
@@ -268,7 +269,7 @@ struct FieldDiscoveryTests {
         )
 
         let upstream = deps.first { $0.identifier == "plugin.upstream" }
-        #expect(upstream?.fields == ["good-field"])
+        #expect(upstream?.fields.map(\.name) == ["good-field"])
     }
 
     @Test("missing rules directory produces no dependency")
@@ -328,6 +329,36 @@ struct FieldDiscoveryTests {
         )
 
         let upstream = deps.first { $0.identifier == "plugin.upstream" }
-        #expect(upstream?.fields == ["post-field"])
+        #expect(upstream?.fields.map(\.name) == ["post-field"])
+    }
+
+    // MARK: - readOnly propagation
+
+    @Test("readOnly flag propagates from DependencyInfo to FieldInfo")
+    func readOnlyPropagates() {
+        let dep = FieldDiscovery.DependencyInfo(
+            identifier: "plugin.test",
+            fields: [
+                ConsumedField(name: "writable", readOnly: false),
+                ConsumedField(name: "computed", readOnly: true),
+            ]
+        )
+        let result = FieldDiscovery.buildAvailableFields(dependencies: [dep])
+        let fields = result["plugin.test"] ?? []
+        let writable = fields.first { $0.name == "writable" }
+        let computed = fields.first { $0.name == "computed" }
+        #expect(writable?.readOnly == false)
+        #expect(computed?.readOnly == true)
+    }
+
+    @Test("original and read fields are all readOnly")
+    func originalAndReadFieldsAreReadOnly() {
+        let result = FieldDiscovery.buildAvailableFields(dependencies: [])
+        for source in ["original", "read"] {
+            let fields = result[source] ?? []
+            for field in fields {
+                #expect(field.readOnly == true, "Expected \(source):\(field.name) to be readOnly")
+            }
+        }
     }
 }

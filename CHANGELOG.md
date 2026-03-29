@@ -55,6 +55,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- FieldDiscovery now propagates `readOnly` flag from plugin manifests and metadata catalog through to FieldInfo entries
+- Read-only fields are filtered from emit/write target prompts in the rules editor, with a hint showing excluded count
 - `workflow rules` now shows installed-but-inactive plugins in the plugin selection list; pressing `a` on an inactive plugin adds it to the workflow after choosing a stage
 - `workflow edit` now allows editing rules by pressing Enter on a plugin in the stage view, launching a nested rules editor scoped to that stage
 - Mutation guard: `piqley plugin rules` and `piqley plugin command` reject edits on static plugins with a clear error message
@@ -184,6 +186,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- CLI commands use `manifest.fields` instead of `manifest.consumedFields` (follows PiqleyCore rename)
 - Stage plugin list now shows inactive plugins below a divider, allowing direct activation via Enter or 'a'
 - `piqley plugin rules` moved to `piqley workflow rules` (operates on workflow-scoped rule files)
 - `piqley plugin command` moved to `piqley workflow command` (operates on workflow-scoped rule files)

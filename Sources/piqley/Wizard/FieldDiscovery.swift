@@ -15,8 +15,8 @@ enum FieldDiscovery {
     struct DependencyInfo {
         /// The plugin's unique identifier, used as the dictionary key.
         let identifier: String
-        /// The bare field names exposed by this plugin.
-        let fields: [String]
+        /// The fields exposed by this plugin, with readOnly metadata.
+        let fields: [ConsumedField]
     }
 
     // MARK: - buildAvailableFields
@@ -39,7 +39,8 @@ enum FieldDiscovery {
                     name: field.qualifiedName,
                     source: sourceName,
                     qualifiedName: "\(sourceName):\(field.qualifiedName)",
-                    category: field.category
+                    category: field.category,
+                    readOnly: true
                 )
             }
         }.sorted { lhs, rhs in
@@ -54,8 +55,8 @@ enum FieldDiscovery {
         result["read"] = catalogFields(forSource: "read")
 
         for dep in dependencies {
-            result[dep.identifier] = dep.fields.sorted().map { name in
-                FieldInfo(name: name, source: dep.identifier, category: .custom)
+            result[dep.identifier] = dep.fields.sorted(by: { $0.name < $1.name }).map { field in
+                FieldInfo(name: field.name, source: dep.identifier, category: .custom, readOnly: field.readOnly)
             }
         }
 
@@ -118,12 +119,12 @@ enum FieldDiscovery {
             }
         }
 
-        // 3. Harvest fields from each upstream plugin's rules files and manifest consumedFields
+        // 3. Harvest fields from each upstream plugin's rules files and manifest fields
         var result: [DependencyInfo] = []
         for entry in upstreamStages {
-            var fields: Set<String> = []
+            var fieldsByName: [String: ConsumedField] = [:]
 
-            // Scan rules files for emitted fields
+            // Scan rules files for emitted fields (writable)
             for stage in entry.stages {
                 let filename = "\(PluginFile.stagePrefix)\(stage)\(PluginFile.stageSuffix)"
                 let fileURL = rulesBaseDir
@@ -138,28 +139,29 @@ enum FieldDiscovery {
                 for rule in allRules {
                     for emit in rule.emit {
                         if let field = emit.field, field != "*" {
-                            fields.insert(field)
+                            fieldsByName[field] = ConsumedField(name: field, readOnly: false)
                         }
                     }
                 }
             }
 
-            // Merge manifest consumedFields
+            // Merge manifest fields (preserves readOnly from manifest)
             let manifestURL = pluginsDir
                 .appendingPathComponent(entry.identifier)
                 .appendingPathComponent(PluginFile.manifest)
             if let data = try? Data(contentsOf: manifestURL),
                let manifest = try? JSONDecoder.piqley.decode(PluginManifest.self, from: data)
             {
-                for consumed in manifest.consumedFields {
-                    fields.insert(consumed.name)
+                for field in manifest.fields {
+                    // Manifest declaration takes precedence over rules discovery
+                    fieldsByName[field.name] = field
                 }
             }
 
-            if !fields.isEmpty {
+            if !fieldsByName.isEmpty {
                 result.append(DependencyInfo(
                     identifier: entry.identifier,
-                    fields: Array(fields)
+                    fields: Array(fieldsByName.values)
                 ))
             }
         }
