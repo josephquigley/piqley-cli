@@ -28,14 +28,14 @@ It works with any photo editor that exports to a folder (Lightroom, Capture One,
 ## Installation
 
 ```bash
-brew tap quigs/tools https://github.com/josephquigley/piqley-cli.git
-brew install quigs/tools/piqley
+swift build -c release
+cp .build/release/piqley /usr/local/bin/piqley
 ```
 
 ## Quick Start
 
 ```bash
-# Interactive setup - installs bundled plugins and configures secrets
+# Interactive setup: installs bundled plugins and configures secrets
 piqley setup
 
 # Process a folder of exported photos
@@ -51,25 +51,30 @@ piqley process /path/to/exported/photos
 | `piqley plugin list` | List all installed plugins with active/inactive status |
 | `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
 | `piqley plugin init [id] [name]` | Create a new declarative-only plugin interactively |
-| `piqley plugin create <dir>` | Scaffold a new plugin project from an SDK skeleton |
+| `piqley plugin create <dir>` | Scaffold a new plugin project from an SDK template |
 | `piqley plugin install <file>` | Install a `.piqleyplugin` package (`--force` to overwrite) |
-| `piqley workflow rules [workflow] <plugin>` | Interactive rule editor for a plugin's declarative metadata rules |
-| `piqley workflow command [workflow] <plugin>` | Edit binary command configuration for a plugin's stages |
-| `piqley secret set <key>` | Store a secret in the macOS Keychain |
-| `piqley secret delete <key>` | Remove a secret from the Keychain |
-| `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
+| `piqley plugin update <file>` | Update an installed plugin from a `.piqleyplugin` package |
+| `piqley plugin uninstall <id>` | Uninstall a plugin by identifier |
+| `piqley workflow list` | List all workflows |
 | `piqley workflow edit [name]` | Edit a workflow interactively (lists all workflows if name omitted) |
 | `piqley workflow create [name]` | Create a new workflow |
 | `piqley workflow clone <src> <dst>` | Clone an existing workflow |
 | `piqley workflow delete <name>` | Delete a workflow (`--force` to skip prompt) |
 | `piqley workflow open <name>` | Open a workflow file in your editor |
+| `piqley workflow config [workflow] <plugin>` | Set per-plugin config overrides for a workflow |
 | `piqley workflow add-plugin <workflow> <plugin> <stage>` | Add a plugin to a workflow stage |
 | `piqley workflow remove-plugin <workflow> <plugin> <stage>` | Remove a plugin from a workflow stage |
+| `piqley workflow rules [workflow] <plugin>` | Interactive rule editor for a plugin's declarative metadata rules |
+| `piqley workflow command [workflow] <plugin>` | Edit binary command configuration for a plugin's stages |
+| `piqley secret set <key>` | Store a secret in the macOS Keychain |
+| `piqley secret delete <key>` | Remove a secret from the Keychain |
+| `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
 | `piqley uninstall` | Remove all piqley configuration and plugins (`--force` to skip prompt) |
 
 ### Process Options
 
 - `--dry-run` - Preview actions without uploading
+- `--debug` - Enable debug output from plugins
 - `--delete-source-contents` - Delete the contents of the source folder after a successful run
 - `--delete-source-folder` - Delete the source folder and its contents after a successful run
 - `--overwrite-source` - Overwrite source images with processed versions after a successful run
@@ -135,56 +140,44 @@ Plugins communicate over stdin/stdout using one of two protocols:
 
 **Pipe protocol.** Context is passed via environment variables and stdout/stderr are forwarded directly. Exit code determines success.
 
+| Variable | Description |
+|----------|-------------|
+| `PIQLEY_IMAGE_FOLDER_PATH` | Directory containing images to process |
+| `PIQLEY_HOOK` | Current pipeline stage name |
+| `PIQLEY_DRY_RUN` | `"1"` when dry run is active, `"0"` otherwise |
+| `PIQLEY_IMAGE_PATH` | Path to the current image (single-image mode) |
+| `PIQLEY_PIPELINE_RUN_ID` | Unique identifier for this pipeline run |
+| `PIQLEY_SECRET_*` | Secret values (e.g. `PIQLEY_SECRET_API_KEY`) |
+| `PIQLEY_CONFIG_*` | Config values (e.g. `PIQLEY_CONFIG_BASE_URL`) |
+
+Example plugin using the pipe protocol:
+
+```bash
+#!/bin/bash
+# Resize images using ImageMagick
+for img in "$PIQLEY_IMAGE_FOLDER_PATH"/*.jpg; do
+    [ "$PIQLEY_DRY_RUN" = "1" ] && echo "Would resize: $img" && continue
+    magick "$img" -resize 2048x2048\> "$img"
+    echo "Resized: $(basename "$img")"
+done
+```
+
 ### Building Plugins
 
-The [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides libraries for Swift, Python, Node.js, and Go. You can also skip the SDK entirely and write a plain executable. See the SDK README for the full manifest schema and protocol details.
+The [piqley plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides a Swift library for building plugins. You can also skip the SDK entirely and write a plain executable in any language. See the SDK README for the full manifest schema and protocol details.
 
 ## Development
 
 ### Prerequisites
 
-- macOS 13+
-- Xcode 16+ or Swift 6.0+ toolchain
+- macOS 15+ or Linux
+- Swift 6.0+ toolchain
 
 ### Build and test
 
 ```bash
 swift build
 swift test
-```
-
-### Install locally via Homebrew
-
-```bash
-brew tap quigs/tools /path/to/quigsphoto-uploader
-brew install --HEAD quigs/tools/piqley
-```
-
-After making changes, rebuild and reinstall:
-
-```bash
-cd /opt/homebrew/Library/Taps/quigs/homebrew-tools && git pull origin main
-brew reinstall --HEAD quigs/tools/piqley
-```
-
-### Creating a release with bottles
-
-Bottles are prebuilt binaries so users don't need Xcode to install.
-
-**Automated (GitHub Actions):** Push a tag and create a GitHub release. The `bottle.yml` workflow builds and uploads a bottle automatically.
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-gh release create v1.0.0 --generate-notes
-```
-
-**Manual (local):**
-
-```bash
-./scripts/create-bottle.sh 1.0.0
-# Upload the .tar.gz to the GitHub release
-# Paste the bottle block into Formula/piqley.rb
 ```
 
 ## License
