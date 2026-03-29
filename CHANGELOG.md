@@ -194,6 +194,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Switched piqley-plugin-sdk dependency from local path to remote 0.14.0
 - Updated man page to match current CLI: added missing commands, flags, and corrected inaccurate references
 - CLI commands use `manifest.fields` instead of `manifest.consumedFields` (follows PiqleyCore 0.16.0 rename)
 - Stage plugin list now shows inactive plugins below a divider, allowing direct activation via Enter or 'a'
