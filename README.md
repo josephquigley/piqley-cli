@@ -17,7 +17,6 @@
 <p align="center">
   <a href="https://ko-fi.com/I3I2LL7Y1"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"/></a>
 </p>
----
 
 Piqley processes exported photos and publishes them to any service with an API or CLI: Ghost, WordPress, Squarespace, social media, or your own custom workflow.
 
