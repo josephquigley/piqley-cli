@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Target field hints and autocomplete no longer suggest read-only namespaces (e.g. `original`, `read`) for write actions
 - Read-only field count note now appears below the autocomplete suggestions in the field selection prompt, instead of as a separate screen beforehand
 - Clone rule type now supports unconditional mode (always runs), matching the add/add (when matching) pattern
 - Plugin detail action menu now uses arrow keys and Enter, consistent with other TUI screens

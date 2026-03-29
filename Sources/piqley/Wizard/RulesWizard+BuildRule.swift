@@ -162,7 +162,7 @@ extension RulesWizard {
             let verb = actionFieldVerb(action)
             guard let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(action)",
-                hint: "The field to \(verb) (e.g. keywords, original:IPTC:Keywords)",
+                hint: "The field to \(verb) (e.g. keywords)",
                 completions: uniqueFields,
                 browsableList: uniqueFields,
                 noMatchHint: "Enter will create a new field with this name",

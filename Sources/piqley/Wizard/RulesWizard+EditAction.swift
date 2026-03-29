@@ -87,15 +87,19 @@ extension RulesWizard {
             handleActionTypeSelection(state: &state)
 
         case .field:
-            let completions = buildFieldCompletions()
+            let (completions, readOnlyCount) = buildWritableFieldCompletions()
+            let readOnlyNote: String? = readOnlyCount > 0
+                ? "\(readOnlyCount) read-only field\(readOnlyCount == 1 ? "" : "s") not shown"
+                : nil
             let verb = actionFieldVerb(state.action)
             if let input = terminal.promptWithAutocomplete(
                 title: "Target field for \(state.action)",
-                hint: "The field to \(verb) (e.g. keywords, original:IPTC:Keywords)",
+                hint: "The field to \(verb) (e.g. keywords)",
                 completions: completions,
                 browsableList: completions,
                 defaultValue: state.field,
-                noMatchHint: "Enter will create a new field with this name"
+                noMatchHint: "Enter will create a new field with this name",
+                subtitleNote: readOnlyNote
             ) {
                 state.field = input
             }
