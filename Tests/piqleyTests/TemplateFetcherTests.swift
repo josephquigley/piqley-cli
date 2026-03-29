@@ -20,7 +20,8 @@ struct TemplateFetcherTests {
         try "name: __PLUGIN_NAME__, version: __SDK_VERSION__".write(to: file, atomically: true, encoding: .utf8)
 
         try TemplateFetcher.applyTemplateSubstitutions(
-            in: dir, pluginName: "my-plugin", sdkVersion: "0.1.0"
+            in: dir, pluginName: "my-plugin", identifier: "com.example.my-plugin",
+            sdkVersion: "0.1.0"
         )
 
         let result = try String(contentsOf: file, encoding: .utf8)
@@ -38,7 +39,8 @@ struct TemplateFetcherTests {
         try "__PLUGIN_NAME__".write(to: file, atomically: true, encoding: .utf8)
 
         try TemplateFetcher.applyTemplateSubstitutions(
-            in: dir, pluginName: "test-plug", sdkVersion: "1.0.0"
+            in: dir, pluginName: "test-plug", identifier: "com.example.test-plug",
+            sdkVersion: "1.0.0"
         )
 
         let result = try String(contentsOf: file, encoding: .utf8)
@@ -88,7 +90,8 @@ struct TemplateFetcherTests {
         try "name: \"__PLUGIN_PACKAGE_NAME__\"".write(to: file, atomically: true, encoding: .utf8)
 
         try TemplateFetcher.applyTemplateSubstitutions(
-            in: dir, pluginName: "Ghost & 365 Project Publisher", sdkVersion: "0.1.0"
+            in: dir, pluginName: "Ghost & 365 Project Publisher",
+            identifier: "com.example.ghost", sdkVersion: "0.1.0"
         )
 
         let result = try String(contentsOf: file, encoding: .utf8)
@@ -106,7 +109,8 @@ struct TemplateFetcherTests {
         try "__PLUGIN_NAME__".write(to: file, atomically: true, encoding: .utf8)
 
         try TemplateFetcher.applyTemplateSubstitutions(
-            in: dir, pluginName: "Date Tools", sdkVersion: "0.1.0"
+            in: dir, pluginName: "Date Tools", identifier: "com.example.date-tools",
+            sdkVersion: "0.1.0"
         )
 
         let renamedDir = dir.appendingPathComponent("Sources/date-tools")
@@ -115,6 +119,44 @@ struct TemplateFetcherTests {
         #expect(FileManager.default.fileExists(atPath: renamedFile.path))
         let result = try String(contentsOf: renamedFile, encoding: .utf8)
         #expect(result == "Date Tools")
+    }
+
+    @Test("substitution replaces identifier placeholder")
+    func testIdentifierSubstitution() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let file = dir.appendingPathComponent("piqley-build-manifest.json")
+        try """
+        {"identifier": "__PLUGIN_IDENTIFIER__", "pluginName": "__PLUGIN_NAME__"}
+        """.write(to: file, atomically: true, encoding: .utf8)
+
+        try TemplateFetcher.applyTemplateSubstitutions(
+            in: dir, pluginName: "ghost", identifier: "com.piqley.ghost",
+            sdkVersion: "0.1.0"
+        )
+
+        let result = try String(contentsOf: file, encoding: .utf8)
+        #expect(result.contains("\"com.piqley.ghost\""))
+        #expect(result.contains("\"ghost\""))
+    }
+
+    @Test("validates reverse-TLD identifier format")
+    func testValidateIdentifier() {
+        // Valid identifiers
+        #expect(throws: Never.self) { try TemplateFetcher.validateIdentifier("com.example.plugin") }
+        #expect(throws: Never.self) { try TemplateFetcher.validateIdentifier("com.piqley.ghost") }
+        #expect(throws: Never.self) { try TemplateFetcher.validateIdentifier("io.github.my-plugin") }
+        #expect(throws: Never.self) { try TemplateFetcher.validateIdentifier("com.example") }
+
+        // Invalid identifiers
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier("nope") }
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier("") }
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier("com.") }
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier(".com.example") }
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier("com..example") }
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier("com.exam ple.test") }
+        #expect(throws: CreateError.self) { try TemplateFetcher.validateIdentifier("com.-bad.test") }
     }
 
     @Test("accepts non-existent target directory")

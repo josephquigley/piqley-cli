@@ -17,6 +17,9 @@ extension PluginCommand {
         @Option(name: .long, help: "Plugin name (derived from target directory if omitted)")
         var name: String?
 
+        @Option(name: .long, help: "Reverse-TLD plugin identifier (e.g. com.example.my-plugin)")
+        var identifier: String
+
         @Option(name: .long, help: "SDK repository URL")
         var sdkRepoURL: String = "https://github.com/josephquigley/piqley-plugin-sdk"
 
@@ -35,6 +38,7 @@ extension PluginCommand {
         func run() async throws {
             let pluginName = resolvedPluginName
             try InitSubcommand.validatePluginName(pluginName)
+            try TemplateFetcher.validateIdentifier(identifier)
 
             let targetURL = URL(fileURLWithPath: targetDirectory)
             try TemplateFetcher.validateTargetDirectory(targetURL)
@@ -55,7 +59,8 @@ extension PluginCommand {
 
             try TemplateFetcher.copyTemplate(from: templateDir, to: targetURL)
             try TemplateFetcher.applyTemplateSubstitutions(
-                in: targetURL, pluginName: pluginName, sdkVersion: sdkVersion.versionString
+                in: targetURL, pluginName: pluginName, identifier: identifier,
+                sdkVersion: sdkVersion.versionString
             )
 
             print("Created plugin '\(pluginName)' at \(targetURL.path)")

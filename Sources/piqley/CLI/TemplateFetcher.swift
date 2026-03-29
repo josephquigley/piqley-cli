@@ -120,9 +120,19 @@ enum TemplateFetcher {
         return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 
+    /// Validate that an identifier is in reverse-TLD format (e.g. "com.example.my-plugin").
+    /// Must have at least two dot-separated segments, each containing only alphanumerics or hyphens.
+    static func validateIdentifier(_ identifier: String) throws {
+        let segments = identifier.split(separator: ".", omittingEmptySubsequences: false)
+        let validSegment = /^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?$/
+        guard segments.count >= 2, segments.allSatisfy({ $0.wholeMatch(of: validSegment) != nil }) else {
+            throw CreateError.invalidIdentifier(identifier)
+        }
+    }
+
     /// Replace template placeholders in all files under a directory.
     static func applyTemplateSubstitutions(
-        in directory: URL, pluginName: String, sdkVersion: String
+        in directory: URL, pluginName: String, identifier: String, sdkVersion: String
     ) throws {
         let packageName = sanitizePackageName(pluginName)
         let fileManager = FileManager.default
@@ -148,6 +158,7 @@ enum TemplateFetcher {
             let replaced = content
                 .replacingOccurrences(of: "__PLUGIN_PACKAGE_NAME__", with: packageName)
                 .replacingOccurrences(of: "__PLUGIN_NAME__", with: pluginName)
+                .replacingOccurrences(of: "__PLUGIN_IDENTIFIER__", with: identifier)
                 .replacingOccurrences(of: "__SDK_VERSION__", with: sdkVersion)
 
             if replaced != content {

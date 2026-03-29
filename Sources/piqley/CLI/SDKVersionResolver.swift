@@ -51,6 +51,7 @@ enum CreateError: Error, LocalizedError {
     case extractionFailed(String)
     case templateNotFound(String, String)
     case targetNotEmpty(String)
+    case invalidIdentifier(String)
 
     var errorDescription: String? {
         switch self {
@@ -66,6 +67,8 @@ enum CreateError: Error, LocalizedError {
             "Template for language '\(language)' not found in SDK release \(version)"
         case let .targetNotEmpty(path):
             "Target directory '\(path)' already exists and is not empty"
+        case let .invalidIdentifier(id):
+            "Invalid identifier '\(id)': must be reverse-TLD format (e.g. com.example.my-plugin)"
         }
     }
 }

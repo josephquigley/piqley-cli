@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- `plugin create` now replaces `__PLUGIN_IDENTIFIER__` in template files via a required `--identifier` option (reverse-TLD format)
 - `plugin create` now uses plain semver tags and fails early when the template download returns a non-200 response
 - SDK version compatibility now matches on major version only, allowing `plugin create` to find the latest SDK release
 - `plugin create` now renames directories containing template placeholders (e.g. `__PLUGIN_PACKAGE_NAME__`)
