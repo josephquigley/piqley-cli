@@ -62,6 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Rule `add` action values now support `{{namespace:field}}` template syntax, resolving referenced fields from state, file metadata (`read:`), or plugin namespace at evaluation time
 - Plugin runtime skip: plugins can now report `status: "skip"` for individual images, creating `SkipRecord`s that propagate to downstream plugins
 - Plugin runtime warning: plugins can report `status: "warning"` for individual images without affecting pipeline flow
 - Stale "consumed fields" comments updated to match `manifest.fields` rename

@@ -1233,4 +1233,107 @@ struct RuleEvaluatorTests {
         let result = await evaluator.evaluate(state: [:])
         #expect(result.namespace["isFeatureImage"] == .array([.string("true")]))
     }
+
+    // MARK: - Template resolution in add values
+
+    @Test("add value with template resolves from state")
+    func addWithTemplate() async throws {
+        let rule = Rule(
+            match: MatchConfig(field: "original:TIFF:Model", pattern: "glob:Sony*"),
+            emit: [EmitConfig(
+                action: "add", field: "title",
+                values: ["Shot on {{original:TIFF:Model}}"],
+                replacements: nil, source: nil
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let result = await evaluator.evaluate(
+            state: ["original": ["TIFF:Model": .string("Sony A7R IV")]]
+        )
+        #expect(result.namespace["title"] == .array([.string("Shot on Sony A7R IV")]))
+    }
+
+    @Test("add value with template referencing another plugin namespace")
+    func addWithCrossNamespaceTemplate() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(
+                action: "add", field: "title",
+                values: ["365 Project #{{photo.quigs.datetools:365_offset}}"],
+                replacements: nil, source: nil
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let result = await evaluator.evaluate(
+            state: ["photo.quigs.datetools": ["365_offset": .string("42")]]
+        )
+        #expect(result.namespace["title"] == .array([.string("365 Project #42")]))
+    }
+
+    @Test("add value with missing template field resolves to empty")
+    func addWithMissingTemplateField() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(
+                action: "add", field: "title",
+                values: ["Project #{{photo.quigs.datetools:365_offset}}"],
+                replacements: nil, source: nil
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let result = await evaluator.evaluate(state: [:])
+        #expect(result.namespace["title"] == .array([.string("Project #")]))
+    }
+
+    @Test("add value without templates is unchanged")
+    func addWithoutTemplate() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(
+                action: "add", field: "keywords",
+                values: ["landscape"],
+                replacements: nil, source: nil
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let result = await evaluator.evaluate(state: [:])
+        #expect(result.namespace["keywords"] == .array([.string("landscape")]))
+    }
+
+    @Test("add value with template resolving array joins with commas")
+    func addWithArrayTemplate() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(
+                action: "add", field: "summary",
+                values: ["Tags: {{original:IPTC:Keywords}}"],
+                replacements: nil, source: nil
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let result = await evaluator.evaluate(
+            state: ["original": ["IPTC:Keywords": .array([.string("landscape"), .string("sunset")])]]
+        )
+        #expect(result.namespace["summary"] == .array([.string("Tags: landscape,sunset")]))
+    }
+
+    @Test("add value with read namespace template")
+    func addWithReadNamespaceTemplate() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [EmitConfig(
+                action: "add", field: "camera",
+                values: ["{{read:EXIF:Make}}"],
+                replacements: nil, source: nil
+            )]
+        )
+        let buffer = MetadataBuffer(preloaded: [
+            "test.jpg": ["EXIF:Make": .string("Nikon")]
+        ])
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let result = await evaluator.evaluate(
+            state: [:], metadataBuffer: buffer, imageName: "test.jpg"
+        )
+        #expect(result.namespace["camera"] == .array([.string("Nikon")]))
+    }
 }

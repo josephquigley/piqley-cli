@@ -47,10 +47,13 @@ struct RuleEvaluationResult: Sendable {
 struct RuleEvaluator: Sendable {
     let compiledRules: [CompiledRule]
     let referencedNamespaces: Set<String>
+    private static let templateResolver = TemplateResolver()
+    private let logger: Logger
 
     /// Compiles rules. If nonInteractive, invalid rules are skipped with warnings logged.
     /// Otherwise, errors are thrown.
     init(rules: [Rule], pluginId: String? = nil, nonInteractive: Bool = false, logger: Logger) throws {
+        self.logger = logger
         var compiled: [CompiledRule] = []
         for (index, rule) in rules.enumerated() {
             let isUnconditional = rule.match == nil
@@ -307,8 +310,16 @@ struct RuleEvaluator: Sendable {
                         }
                         continue
                     }
-                    Self.autoCloneIfNeeded(action: action, working: &working, state: state, namespace: rule.namespace)
-                    Self.applyAction(action, to: &working)
+
+                    let resolvedAction = await resolveTemplates(
+                        in: action,
+                        state: state,
+                        metadataBuffer: metadataBuffer,
+                        imageName: imageName,
+                        pluginId: pluginId
+                    )
+                    Self.autoCloneIfNeeded(action: resolvedAction, working: &working, state: state, namespace: rule.namespace)
+                    Self.applyAction(resolvedAction, to: &working)
                 }
 
                 if didSkip {
@@ -355,113 +366,6 @@ struct RuleEvaluator: Sendable {
         return rule.not ? !matched : matched
     }
 
-    /// If a remove or replace action targets a field not yet in working,
-    /// seed it from the match rule's source namespace so the action has data to operate on.
-    static func autoCloneIfNeeded(
-        action: EmitAction,
-        working: inout [String: JSONValue],
-        state: [String: [String: JSONValue]],
-        namespace: String
-    ) {
-        switch action {
-        case let .remove(field, _, _), let .replace(field, _):
-            if working[field] == nil,
-               let source = state[namespace]?[field]
-            {
-                working[field] = source
-            }
-        default:
-            break
-        }
-    }
-
-    static func applyAction(_ action: EmitAction, to working: inout [String: JSONValue]) {
-        switch action {
-        case .skip:
-            break
-
-        case let .add(field, values):
-            var existing = extractStrings(from: working[field])
-            for val in values where !existing.contains(val) {
-                existing.append(val)
-            }
-            working[field] = .array(existing.map { .string($0) })
-
-        case let .remove(field, matchers, not):
-            var existing = extractStrings(from: working[field])
-            if not {
-                existing = existing.filter { value in
-                    matchers.contains { $0.matches(value) }
-                }
-            } else {
-                existing.removeAll { value in
-                    matchers.contains { $0.matches(value) }
-                }
-            }
-            if existing.isEmpty {
-                working.removeValue(forKey: field)
-            } else {
-                working[field] = .array(existing.map { .string($0) })
-            }
-
-        case let .replace(field, replacements):
-            var existing = extractStrings(from: working[field])
-            existing = existing.map { value in
-                for (matcher, replacement) in replacements {
-                    let result = matcher.replacing(value, with: replacement)
-                    if result != value {
-                        return result
-                    }
-                }
-                return value
-            }
-            working[field] = .array(existing.map { .string($0) })
-
-        case let .removeField(field, not):
-            if not {
-                let kept = working[field]
-                working.removeAll()
-                if let kept { working[field] = kept }
-            } else if field == "*" {
-                working.removeAll()
-            } else {
-                working.removeValue(forKey: field)
-            }
-
-        case .clone, .writeBack:
-            break
-        }
-    }
-
-    private static func extractStrings(from value: JSONValue?) -> [String] {
-        guard let value else { return [] }
-        switch value {
-        case let .string(str):
-            return [str]
-        case let .array(arr):
-            return arr.compactMap { element in
-                if case let .string(str) = element { return str }
-                return nil
-            }
-        default:
-            return []
-        }
-    }
-
-    /// Merges `source` into `working[key]`, appending unique array values. Non-array values are replaced.
-    private static func mergeClonedValue(_ source: JSONValue, into working: inout [String: JSONValue], forKey key: String) {
-        let incoming = extractStrings(from: source)
-        if !incoming.isEmpty, working[key] != nil {
-            var existing = extractStrings(from: working[key])
-            for val in incoming where !existing.contains(val) {
-                existing.append(val)
-            }
-            working[key] = .array(existing.map { .string($0) })
-        } else {
-            working[key] = source
-        }
-    }
-
     /// Returns the image name as a `.string` value if it is present in the skip records, otherwise nil.
     private static func resolveSkipField(image: String, state: [String: [String: JSONValue]]) -> JSONValue? {
         guard case let .array(records) = state[ReservedName.skip]?[ReservedName.skipRecords] else {
@@ -496,5 +400,33 @@ struct RuleEvaluator: Sendable {
             return ("self", fieldName)
         }
         return (namespace, fieldName)
+    }
+
+    private func resolveTemplates(
+        in action: EmitAction,
+        state: [String: [String: JSONValue]],
+        metadataBuffer: MetadataBuffer?,
+        imageName: String?,
+        pluginId: String?
+    ) async -> EmitAction {
+        guard case let .add(field, values) = action,
+              values.contains(where: { $0.contains("{{") })
+        else { return action }
+        let ctx = TemplateResolver.Context(
+            state: state,
+            metadataBuffer: metadataBuffer,
+            imageName: imageName,
+            pluginId: pluginId,
+            logger: logger
+        )
+        var resolved: [String] = []
+        for value in values {
+            if value.contains("{{") {
+                await resolved.append(Self.templateResolver.resolve(value, context: ctx))
+            } else {
+                resolved.append(value)
+            }
+        }
+        return .add(field: field, values: resolved)
     }
 }
