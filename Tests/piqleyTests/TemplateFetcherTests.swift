@@ -95,6 +95,28 @@ struct TemplateFetcherTests {
         #expect(result == "name: \"ghost-365-project-publisher\"")
     }
 
+    @Test("renames directories containing placeholders")
+    func testDirectoryRename() throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let sources = dir.appendingPathComponent("Sources/__PLUGIN_PACKAGE_NAME__")
+        try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
+        let file = sources.appendingPathComponent("Plugin.swift")
+        try "__PLUGIN_NAME__".write(to: file, atomically: true, encoding: .utf8)
+
+        try TemplateFetcher.applyTemplateSubstitutions(
+            in: dir, pluginName: "Date Tools", sdkVersion: "0.1.0"
+        )
+
+        let renamedDir = dir.appendingPathComponent("Sources/date-tools")
+        let renamedFile = renamedDir.appendingPathComponent("Plugin.swift")
+        #expect(FileManager.default.fileExists(atPath: renamedDir.path))
+        #expect(FileManager.default.fileExists(atPath: renamedFile.path))
+        let result = try String(contentsOf: renamedFile, encoding: .utf8)
+        #expect(result == "Date Tools")
+    }
+
     @Test("accepts non-existent target directory")
     func testAcceptsNonExistentTarget() throws {
         let dir = FileManager.default.temporaryDirectory

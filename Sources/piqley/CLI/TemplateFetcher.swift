@@ -126,7 +126,17 @@ enum TemplateFetcher {
     ) throws {
         let packageName = sanitizePackageName(pluginName)
         let fileManager = FileManager.default
-        guard let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey]) else {
+
+        // Rename directories and files whose names contain placeholders.
+        // Process deepest paths first so child renames don't invalidate parent paths.
+        try renamePathsContainingPlaceholders(
+            in: directory, packageName: packageName, pluginName: pluginName
+        )
+
+        // Replace placeholders inside file contents.
+        guard let enumerator = fileManager.enumerator(
+            at: directory, includingPropertiesForKeys: [.isRegularFileKey]
+        ) else {
             return
         }
 
@@ -142,6 +152,36 @@ enum TemplateFetcher {
 
             if replaced != content {
                 try replaced.write(to: fileURL, atomically: true, encoding: .utf8)
+            }
+        }
+    }
+
+    /// Rename any directories or files whose names contain template placeholders.
+    private static func renamePathsContainingPlaceholders(
+        in directory: URL, packageName: String, pluginName: String
+    ) throws {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: directory, includingPropertiesForKeys: nil
+        ) else {
+            return
+        }
+
+        // Collect all paths, then sort deepest-first so renames are safe.
+        var paths: [URL] = []
+        for case let url as URL in enumerator {
+            paths.append(url)
+        }
+        paths.sort { $0.pathComponents.count > $1.pathComponents.count }
+
+        for url in paths {
+            let name = url.lastPathComponent
+            let renamed = name
+                .replacingOccurrences(of: "__PLUGIN_PACKAGE_NAME__", with: packageName)
+                .replacingOccurrences(of: "__PLUGIN_NAME__", with: pluginName)
+            if renamed != name {
+                let dest = url.deletingLastPathComponent().appendingPathComponent(renamed)
+                try fileManager.moveItem(at: url, to: dest)
             }
         }
     }

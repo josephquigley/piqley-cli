@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - `plugin create` now uses plain semver tags and fails early when the template download returns a non-200 response
 - SDK version compatibility now matches on major version only, allowing `plugin create` to find the latest SDK release
+- `plugin create` now renames directories containing template placeholders (e.g. `__PLUGIN_PACKAGE_NAME__`)
 - Clone emit action now merges with existing array values instead of replacing them, preserving tags accumulated in earlier stages
 - Rules editor now prompts to add the plugin to a stage's pipeline when saving rules for a stage the plugin isn't assigned to
 - `piqley plugin update` now shows raw config values (e.g. `quigs.photo`) instead of type-wrapped values (e.g. `string("quigs.photo")`)
