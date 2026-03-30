@@ -64,8 +64,8 @@ The `plugin` group manages the installed plugin catalog.
 | `plugin setup [plugin]` | Run interactive setup for one or all plugins (use `--force` to re-setup) |
 | `plugin init [identifier]` | Create a new user-editable plugin with declarative rules (no binary); type is set to `.mutable` |
 | `plugin create` | Create a new executable plugin from a template |
-| `plugin install <path-or-url>` | Install a plugin from a local path or remote URL |
-| `plugin update <plugin> <path-or-url>` | Update an installed plugin from a new path or URL |
+| `plugin install <source>` | Install a plugin from a local path, download URL, or git repo (SSH/HTTPS) |
+| `plugin update <source>` | Update an installed plugin from a local path, download URL, or git repo |
 | `plugin uninstall <plugin>` | Remove a plugin from the plugins directory |
 | `plugin edit [plugin]` | Edit mutable plugin rules directly (outside any workflow) |
 

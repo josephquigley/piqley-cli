@@ -59,7 +59,7 @@ There are two kinds of plugins:
 
 **Declarative plugins** use rules to match metadata patterns and take actions (add tags, remove fields, copy values between plugins, skip images from the pipeline). No code needed. You configure everything through the interactive rule editor.
 
-**Binary plugins** are executables that receive image paths and metadata, do their work (API calls, resizing, complex logic), and stream results back. Write them in any language. The [plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides helpers for Swift, Python, Node.js, and Go.
+**Binary plugins** are executables that receive image paths and metadata, do their work (API calls, resizing, complex logic), and stream results back. Write them in any language. The [plugin SDK](https://github.com/josephquigley/piqley-plugin-sdk) provides a Swift library and the [JSON Plugin Reference](https://github.com/josephquigley/piqley-plugin-sdk/blob/main/docs/json-plugin-reference.md) documents the protocol for other languages.
 
 Most real plugins combine both: declarative rules handle metadata before and after the binary runs.
 
@@ -76,7 +76,7 @@ This walks you through naming and generates a plugin directory with example rule
 To scaffold a full plugin project with an SDK skeleton:
 
 ```bash
-piqley plugin create ~/Developer/my-piqley-plugin --language swift
+piqley plugin create ~/Developer/my-piqley-plugin --identifier com.example.my-plugin --language swift
 ```
 
 ## Editing Rules
@@ -116,10 +116,18 @@ piqley plugin list
 # Re-run setup for a specific plugin
 piqley plugin setup my-plugin --force
 
-# Install a packaged plugin
+# Install a packaged plugin from a local file
 piqley plugin install path/to/plugin.piqleyplugin
 
+# Install from a URL
+piqley plugin install https://example.com/releases/plugin.piqleyplugin
+
+# Install directly from a git repository (SSH or HTTPS)
+piqley plugin install git@github.com:user/my-plugin.git
+piqley plugin install https://github.com/user/my-plugin.git
+
 # Update an installed plugin (preserves existing config values and secrets)
+# Accepts the same sources: file path, URL, or git repo
 piqley plugin update path/to/plugin.piqleyplugin
 
 # Set per-workflow config overrides

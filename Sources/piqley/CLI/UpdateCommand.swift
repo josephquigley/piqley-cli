@@ -300,20 +300,43 @@ struct UpdateSubcommand: ParsableCommand {
         abstract: "Update an installed plugin from a .piqleyplugin package"
     )
 
-    @Argument(help: "Path to the .piqleyplugin file")
-    var pluginFile: String
+    @Argument(help: "Path to a .piqleyplugin file, URL to download one, or a git repo URL")
+    var pluginSource: String
 
     func validate() throws {
-        guard FileManager.default.fileExists(atPath: pluginFile) else {
-            throw UpdateError.fileNotFound
-        }
-        guard pluginFile.hasSuffix(".piqleyplugin") else {
-            throw UpdateError.notAPiqleyPlugin
+        switch PluginFetcher.sourceKind(pluginSource) {
+        case .url, .gitRepo:
+            return
+        case .file:
+            guard FileManager.default.fileExists(atPath: pluginSource) else {
+                throw UpdateError.fileNotFound
+            }
+            guard pluginSource.hasSuffix(".piqleyplugin") else {
+                throw UpdateError.notAPiqleyPlugin
+            }
         }
     }
 
     func run() throws {
-        let zipURL = URL(fileURLWithPath: pluginFile)
+        let zipURL: URL
+        var fetchTempDir: URL?
+
+        switch PluginFetcher.sourceKind(pluginSource) {
+        case .url:
+            print("Downloading plugin...")
+            let result = try PluginFetcher.download(from: pluginSource)
+            zipURL = result.fileURL
+            fetchTempDir = result.tempDir
+        case .gitRepo:
+            print("Cloning repository...")
+            let result = try PluginFetcher.cloneAndPackage(from: pluginSource)
+            zipURL = result.fileURL
+            fetchTempDir = result.tempDir
+        case .file:
+            zipURL = URL(fileURLWithPath: pluginSource)
+        }
+        defer { if let dir = fetchTempDir { try? FileManager.default.removeItem(at: dir) } }
+
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
 
         let result = try PluginUpdater.update(from: zipURL, pluginsDirectory: pluginsDir)

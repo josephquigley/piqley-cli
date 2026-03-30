@@ -373,16 +373,28 @@ swift build -c release
 piqley-build
 ```
 
-Users install it with:
+Users can install from a local file, a URL, or a git repository:
 
 ```bash
+# From a local .piqleyplugin file
 piqley plugin install path/to/my-plugin.piqleyplugin
+
+# From a URL
+piqley plugin install https://example.com/releases/my-plugin.piqleyplugin
+
+# From a git repository (HTTPS or SSH)
+piqley plugin install https://github.com/user/my-plugin.git
+piqley plugin install git@github.com:user/my-plugin.git
 ```
+
+When installing from a git repo, piqley clones the repository and treats its contents as an unpacked `.piqleyplugin` archive. The repo should match the directory layout of a plugin (i.e. `manifest.json` at the root).
 
 To update an already-installed plugin to a newer version:
 
 ```bash
+# Accepts the same sources: file path, URL, or git repo
 piqley plugin update path/to/my-plugin.piqleyplugin
+piqley plugin update https://github.com/user/my-plugin.git
 ```
 
 The update command replaces the plugin files but preserves existing config values and secrets. New config entries added by the updated manifest are prompted, and entries removed from the manifest are cleaned up automatically.

@@ -50,9 +50,9 @@ piqley process /path/to/exported/photos
 | `piqley plugin list` | List all installed plugins with active/inactive status |
 | `piqley plugin setup [name]` | Configure a specific plugin (use `--force` to re-run setup) |
 | `piqley plugin init [id] [name]` | Create a new declarative-only plugin interactively |
-| `piqley plugin create <dir>` | Scaffold a new plugin project from an SDK template |
-| `piqley plugin install <file>` | Install a `.piqleyplugin` package (`--force` to overwrite) |
-| `piqley plugin update <file>` | Update an installed plugin from a `.piqleyplugin` package |
+| `piqley plugin create <dir> --identifier <id>` | Scaffold a new plugin project from an SDK template |
+| `piqley plugin install <source>` | Install a `.piqleyplugin` from a file path, URL, or git repo (`--force` to overwrite) |
+| `piqley plugin update <source>` | Update an installed plugin from a file path, URL, or git repo |
 | `piqley plugin uninstall <id>` | Uninstall a plugin by identifier |
 | `piqley workflow list` | List all workflows |
 | `piqley workflow edit [name]` | Edit a workflow interactively (lists all workflows if name omitted) |
@@ -65,8 +65,9 @@ piqley process /path/to/exported/photos
 | `piqley workflow remove-plugin <workflow> <plugin> <stage>` | Remove a plugin from a workflow stage |
 | `piqley workflow rules [workflow] <plugin>` | Interactive rule editor for a plugin's declarative metadata rules |
 | `piqley workflow command [workflow] <plugin>` | Edit binary command configuration for a plugin's stages |
-| `piqley secret set <key>` | Store a secret in the macOS Keychain |
-| `piqley secret delete <key>` | Remove a secret from the Keychain |
+| `piqley secret set <plugin> <key>` | Store a secret in the macOS Keychain |
+| `piqley secret delete <plugin> <key>` | Remove a secret from the Keychain |
+| `piqley secret prune` | Remove orphaned secrets not referenced by any config or workflow |
 | `piqley clear-cache` | Clear plugin execution logs (`--plugin <name>` for a specific plugin) |
 | `piqley uninstall` | Remove all piqley configuration and plugins (`--force` to skip prompt) |
 
@@ -78,6 +79,7 @@ piqley process /path/to/exported/photos
 - `--delete-source-folder` - Delete the source folder and its contents after a successful run
 - `--overwrite-source` - Overwrite source images with processed versions after a successful run
 - `--non-interactive` - Skip interactive prompts; drop invalid rules with warnings
+- `--lock-timeout <seconds>` - Seconds to wait for another instance to finish (default: 600)
 
 ## Plugin System
 
@@ -90,7 +92,6 @@ A plugin is a directory inside `~/.config/piqley/plugins/<plugin-name>/` contain
 ```
 ~/.config/piqley/plugins/my-plugin/
 ├── manifest.json           # Declarative: config schema, dependencies, supported platforms
-├── config.json             # Mutable: resolved values (managed by piqley)
 ├── stage-pre-process.json  # Rules for pre-process hook
 ├── stage-post-process.json # Rules for post-process hook
 ├── data/                   # Plugin working directory
@@ -133,7 +134,7 @@ Plugins communicate over stdin/stdout using one of two protocols:
 
 ```json
 {"type": "progress", "message": "Uploading photo.jpg..."}
-{"type": "imageResult", "filename": "photo.jpg", "success": true}
+{"type": "imageResult", "filename": "photo.jpg", "status": "success"}
 {"type": "result", "success": true, "error": null}
 ```
 
@@ -144,6 +145,7 @@ Plugins communicate over stdin/stdout using one of two protocols:
 | `PIQLEY_IMAGE_FOLDER_PATH` | Directory containing images to process |
 | `PIQLEY_HOOK` | Current pipeline stage name |
 | `PIQLEY_DRY_RUN` | `"1"` when dry run is active, `"0"` otherwise |
+| `PIQLEY_DEBUG` | `"1"` when debug mode is active, `"0"` otherwise |
 | `PIQLEY_IMAGE_PATH` | Path to the current image (single-image mode) |
 | `PIQLEY_PIPELINE_RUN_ID` | Unique identifier for this pipeline run |
 | `PIQLEY_SECRET_*` | Secret values (e.g. `PIQLEY_SECRET_API_KEY`) |
