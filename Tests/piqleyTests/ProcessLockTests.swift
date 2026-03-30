@@ -22,4 +22,24 @@ final class ProcessLockTests: XCTestCase {
         XCTAssertThrowsError(try ProcessLock(path: lockPath))
         lock1.release()
     }
+
+    func testFormatDurationMinutesOnly() {
+        XCTAssertEqual(ProcessLock.formatDuration(seconds: 600), "10 minutes")
+    }
+
+    func testFormatDurationMinutesAndSeconds() {
+        XCTAssertEqual(ProcessLock.formatDuration(seconds: 150), "2 minutes 30 seconds")
+    }
+
+    func testFormatDurationSecondsOnly() {
+        XCTAssertEqual(ProcessLock.formatDuration(seconds: 30), "30 seconds")
+    }
+
+    func testFormatDurationOneMinute() {
+        XCTAssertEqual(ProcessLock.formatDuration(seconds: 60), "1 minute")
+    }
+
+    func testFormatDurationOneSecond() {
+        XCTAssertEqual(ProcessLock.formatDuration(seconds: 1), "1 second")
+    }
 }
