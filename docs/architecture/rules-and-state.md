@@ -8,7 +8,7 @@ This document covers the state store that holds per-image metadata, the rule str
 
 The state store is a three-level hierarchy: image filename, then namespace, then key/value pairs. Each image gets its own isolated set of namespaces, and each namespace belongs to either the `original` metadata extractor or a specific plugin.
 
-<img src="img/rules-and-state-1.svg" alt="State store diagram" style="max-width: 800px; max-height: 600px;" />
+<a href="img/rules-and-state-1.svg"><img src="img/rules-and-state-1.svg" alt="State store diagram" height="600" /></a>
 
 `MetadataExtractor` reads EXIF, IPTC, TIFF, GPS, and JFIF metadata from each image file and stores it under the `original` namespace. Plugins write their output to their own namespace. Rules can read across any namespace using qualified field names in the form `namespace:field`.
 
@@ -75,7 +75,7 @@ Each `Replacement` contains a `pattern` (with optional `regex:` or `glob:` prefi
 
 When rules run, they are first compiled into `CompiledRule` structs. This precompiles regex patterns into `TagMatcher` instances and resolves namespace references. Then the evaluator walks each image, applying matching rules.
 
-<img src="img/rules-and-state-2.svg" alt="Rule evaluation flowchart" style="max-width: 800px; max-height: 600px;" />
+<a href="img/rules-and-state-2.svg"><img src="img/rules-and-state-2.svg" alt="Rule evaluation flowchart" height="600" /></a>
 
 ### Compilation phase
 

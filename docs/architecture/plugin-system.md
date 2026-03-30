@@ -6,7 +6,7 @@ Plugins are the extensibility mechanism in piqley. They let you add new stages t
 
 The plugin system spans three repositories. PiqleyCore sits at the bottom, providing shared types like `PluginManifest`, `PluginInputPayload`, and `PluginOutputLine`. The SDK depends on PiqleyCore, and the CLI depends on the SDK (getting PiqleyCore as a transitive dependency). Plugins optionally depend on the SDK for convenience, or they can implement the raw JSON protocol directly.
 
-<img src="img/plugin-system-1.svg" alt="Three-repo dependency diagram" style="max-width: 800px; max-height: 600px;" />
+<a href="img/plugin-system-1.svg"><img src="img/plugin-system-1.svg" alt="Three-repo dependency diagram" height="600" /></a>
 
 ## Plugin types
 
@@ -22,7 +22,7 @@ Both types can have binaries, rules, or both. The distinction is purely about ed
 
 When piqley starts, `PluginDiscovery` scans the plugins directory and loads every valid plugin it finds. The directory name must match the manifest's `identifier` field exactly.
 
-<img src="img/plugin-system-2.svg" alt="Plugin discovery flowchart" style="max-width: 800px; max-height: 600px;" />
+<a href="img/plugin-system-2.svg"><img src="img/plugin-system-2.svg" alt="Plugin discovery flowchart" height="600" /></a>
 
 Stage files follow the naming convention `stage-{hookName}.json`. When a stage file references a hook name that the registry does not already know, piqley auto-registers it. This lets plugins introduce entirely new stages without any CLI changes.
 
@@ -34,7 +34,7 @@ Piqley supports two protocols for running plugin hooks: JSON and pipe. The proto
 
 The JSON protocol is the primary communication channel. It provides full access to state, configuration, and per-image results.
 
-<img src="img/plugin-system-3.svg" alt="Plugin communication sequence diagram" style="max-width: 800px; max-height: 600px;" />
+<a href="img/plugin-system-3.svg"><img src="img/plugin-system-3.svg" alt="Plugin communication sequence diagram" height="600" /></a>
 
 ### Pipe protocol
 
