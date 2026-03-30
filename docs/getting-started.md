@@ -140,3 +140,4 @@ The `--non-interactive` flag skips prompts (dropping invalid rules with a warnin
 
 - [Advanced Topics](advanced-topics.md) for real-world workflow examples, rule syntax, plugin composability patterns, and multi-publisher pipelines.
 - [Plugin Development with the SDK](plugin-sdk-guide.md) for building binary plugins that call APIs, resize images, or run custom logic.
+- [Architecture Overview](architecture/overview.md) for system diagrams, pipeline flow, and detailed subsystem documentation.

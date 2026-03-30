@@ -478,3 +478,4 @@ Use `.string()` only when reading values set by other **plugins** via `PluginSta
 
 - [Getting Started](getting-started.md) for piqley basics and CLI commands
 - [Advanced Topics](advanced-topics.md) for declarative rule syntax, composability patterns, and real-world workflow examples
+- [Architecture Overview](architecture/overview.md) for system diagrams, pipeline flow, and detailed subsystem documentation
