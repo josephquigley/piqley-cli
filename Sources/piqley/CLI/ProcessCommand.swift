@@ -33,6 +33,9 @@ struct ProcessCommand: AsyncParsableCommand {
     @Flag(help: "Skip interactive prompts; drop invalid rules with warnings")
     var nonInteractive = false
 
+    @Option(help: "Seconds to wait for another instance to finish (default: 600)")
+    var lockTimeout: Int = 600
+
     private var logger: Logger { Logger(label: "piqley.process") }
 
     func run() async throws {
@@ -45,7 +48,7 @@ struct ProcessCommand: AsyncParsableCommand {
 
         let lockPath = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(PiqleyPath.lock).path
-        let lock = try ProcessLock(path: lockPath)
+        let lock = try await ProcessLock.acquire(path: lockPath, timeout: lockTimeout)
         defer { lock.release() }
 
         let secretStore = makeDefaultSecretStore()
