@@ -4,7 +4,7 @@ piqley uses Swift ArgumentParser for its CLI. Commands are organized into groups
 
 ## Command tree
 
-<img src="img/cli-commands-1.png" alt="Command tree diagram" style="max-width: 800px; max-height: 600px;" />
+<img src="img/cli-commands-1.svg" alt="Command tree diagram" style="max-width: 800px; max-height: 600px;" />
 
 ## Process command
 
@@ -121,7 +121,7 @@ On restore (or deinit), it reverses everything: shows the cursor, exits the alte
 
 The `ConfigWizard` is launched from `workflow edit` and `setup`. It provides a multi-level navigation for managing a workflow's pipeline.
 
-<img src="img/cli-commands-2.png" alt="ConfigWizard navigation diagram" style="max-width: 800px; max-height: 600px;" />
+<img src="img/cli-commands-2.svg" alt="ConfigWizard navigation diagram" style="max-width: 800px; max-height: 600px;" />
 
 The plugin list shows active plugins for the selected stage. Below a divider, it shows inactive plugins (installed but not in this stage's pipeline). You can activate an inactive plugin by pressing Enter or `a` on it.
 
@@ -131,7 +131,7 @@ Plugins marked for removal appear struck-through. Removals are not applied until
 
 The `RulesWizard` is launched from `workflow rules`, `plugin edit`, or by pressing Enter on a plugin in the ConfigWizard. It edits the declarative rules for a specific plugin.
 
-<img src="img/cli-commands-3.png" alt="RulesWizard navigation diagram" style="max-width: 800px; max-height: 600px;" />
+<img src="img/cli-commands-3.svg" alt="RulesWizard navigation diagram" style="max-width: 800px; max-height: 600px;" />
 
 The rule types available when adding a new rule are:
 
