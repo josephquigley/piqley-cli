@@ -16,11 +16,13 @@ graph TD
 
 ## Plugin types
 
-Piqley recognizes two plugin types, declared in the manifest's `type` field.
+Piqley recognizes two plugin types, declared in the manifest's `type` field. The type controls whether users can edit the plugin's built-in rules and commands directly.
 
-**Static plugins** are declarative-only. They consist of a `manifest.json` and one or more `stage-*.json` files. No binary is involved. Static plugins define rules for matching and transforming metadata but cannot run code or modify images directly. This is the default type when `type` is omitted from the manifest.
+**Static plugins** are immutable after install. Their built-in rules and binary commands cannot be edited by the user. This preserves the author's original defaults. When a static plugin is added to a workflow stage, its rules are copied into the workflow's rules directory. Users can then customize those workflow-scoped copies without affecting the plugin itself or other workflows that use the same plugin. This is the default type when `type` is omitted from the manifest.
 
-**Mutable plugins** have a binary component. They can modify images, call external APIs, and manage persistent state. You create mutable plugins with `piqley plugin init`, which scaffolds the directory structure, build manifest, and stage files.
+**Mutable plugins** allow direct editing of the plugin's built-in rules and commands via `piqley plugin edit`. Changes to a mutable plugin affect the defaults that get copied when the plugin is added to new workflows. You create mutable plugins with `piqley plugin init`, which scaffolds the directory structure and stage files.
+
+Both types can have binaries, rules, or both. The distinction is purely about editability of the plugin's own files, not about capability.
 
 ## Plugin discovery
 
