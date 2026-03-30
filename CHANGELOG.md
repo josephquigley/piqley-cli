@@ -68,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Clone actions in write rules now copy fields from source namespaces into file metadata
 - `piqley plugin edit [plugin-identifier]` command for editing mutable plugin rules directly via the TUI wizard
 - Skip action type in rules wizard: "skip (when matching)" rule type, skip in action type menus for editing emit and write actions
 - Pipeline orchestrator resolves stage hook aliases: custom stages with a `hook` field send the aliased hook to the plugin binary while using the stage name for rule files, caching, and logs

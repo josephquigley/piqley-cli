@@ -336,21 +336,49 @@ struct RuleEvaluator: Sendable {
 
                 // Write actions second (modify file metadata via buffer)
                 if let buffer = metadataBuffer, let image = imageName {
-                    for action in rule.writeActions {
-                        let resolvedAction = await resolveTemplates(
-                            in: action,
-                            state: state,
-                            metadataBuffer: metadataBuffer,
-                            imageName: imageName,
-                            pluginId: pluginId
-                        )
-                        await buffer.applyAction(resolvedAction, image: image)
-                    }
+                    await applyWriteActions(
+                        rule.writeActions,
+                        state: state,
+                        buffer: buffer,
+                        image: image,
+                        pluginId: pluginId
+                    )
                 }
             }
         }
 
         return RuleEvaluationResult(namespace: working, skipped: skipped)
+    }
+
+    /// Apply write actions for a matched rule, handling clone actions inline.
+    private func applyWriteActions(
+        _ actions: [EmitAction],
+        state: [String: [String: JSONValue]],
+        buffer: MetadataBuffer,
+        image: String,
+        pluginId: String?
+    ) async {
+        for action in actions {
+            if case let .clone(field, sourceNamespace, sourceField) = action {
+                if sourceNamespace == "read" {
+                    let fileMetadata = await buffer.load(image: image)
+                    if let sourceField, let val = fileMetadata[sourceField] {
+                        await buffer.applyClone(field: field, value: val, image: image)
+                    }
+                } else if let sourceField, let val = state[sourceNamespace]?[sourceField] {
+                    await buffer.applyClone(field: field, value: val, image: image)
+                }
+                continue
+            }
+            let resolvedAction = await resolveTemplates(
+                in: action,
+                state: state,
+                metadataBuffer: buffer,
+                imageName: image,
+                pluginId: pluginId
+            )
+            await buffer.applyAction(resolvedAction, image: image)
+        }
     }
 
     /// Resolve the match field value for a conditional rule and determine

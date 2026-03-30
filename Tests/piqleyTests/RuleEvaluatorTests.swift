@@ -1407,4 +1407,28 @@ struct RuleEvaluatorTests {
         let meta = await buffer.load(image: "img.jpg")
         #expect(meta["EXIF:FNumber"] == .array([.string("old"), .string("f/2.8")]))
     }
+
+    @Test("write clone action copies field from original namespace into file metadata")
+    func writeCloneSingleField() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [],
+            write: [EmitConfig(
+                action: "clone", field: "EXIF:FNumber",
+                values: nil, replacements: nil,
+                source: "original:EXIF:FNumber"
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let buffer = MetadataBuffer(preloaded: [
+            "img.jpg": [:]
+        ])
+        _ = await evaluator.evaluate(
+            state: ["original": ["EXIF:FNumber": .string("f/2.8")]],
+            metadataBuffer: buffer,
+            imageName: "img.jpg"
+        )
+        let meta = await buffer.load(image: "img.jpg")
+        #expect(meta["EXIF:FNumber"] == .string("f/2.8"))
+    }
 }
