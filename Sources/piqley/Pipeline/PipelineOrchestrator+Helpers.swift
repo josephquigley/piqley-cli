@@ -235,6 +235,28 @@ extension PipelineOrchestrator {
         return RulesetResult(didRun: didRun, skippedImages: currentSkipped)
     }
 
+    // MARK: - Skip Records
+
+    func buildSkipRecords(skippedImages: Set<String>, stateStore: StateStore) async -> [SkipRecord] {
+        var skipRecords: [SkipRecord] = []
+        for imageName in skippedImages {
+            let resolved = await stateStore.resolve(
+                image: imageName, dependencies: [ReservedName.skip]
+            )
+            if case let .array(records) = resolved[ReservedName.skip]?[ReservedName.skipRecords] {
+                for record in records {
+                    if case let .object(dict) = record,
+                       case let .string(file) = dict["file"],
+                       case let .string(plugin) = dict["plugin"]
+                    {
+                        skipRecords.append(SkipRecord(file: file, plugin: plugin))
+                    }
+                }
+            }
+        }
+        return skipRecords
+    }
+
     // MARK: - Binary Execution
 
     // swiftlint:disable:next function_parameter_count

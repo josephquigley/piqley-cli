@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - Globally skipped images are now excluded from the state payload sent to plugin binaries, preventing skipped images from appearing in plugin input
-- Skipped image files are now removed from the working folder before plugin binary execution, preventing downstream plugins from seeing or processing them
+- Skipped image files are now removed from the working folder before plugin binary execution, preventing downstream plugin binaries from seeing or processing them
 - Template references in `add` action values (e.g. `{{namespace:field}}`) now include the referenced namespace in rule dependency resolution, fixing cross-stage template fields resolving to empty
 - Inactive plugin index calculation no longer overflows when the divider row is absent
 - Field autocomplete in the rule editor now sees all upstream plugins when a plugin appears in multiple stages (previously only considered the first stage occurrence)

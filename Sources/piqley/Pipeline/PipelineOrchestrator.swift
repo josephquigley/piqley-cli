@@ -278,6 +278,12 @@ struct PipelineOrchestrator: Sendable {
 
         await buffer.flush()
 
+        // Remove skipped images from the image folder so the binary never sees them
+        for imageName in skippedImages {
+            let imageURL = imageFolderURL.appendingPathComponent(imageName)
+            try? FileManager.default.removeItem(at: imageURL)
+        }
+
         // Binary
         var binaryDidRun = false
         if let binaryCommand = stageConfig.binary?.command, binaryCommand.isEmpty {
@@ -289,23 +295,7 @@ struct PipelineOrchestrator: Sendable {
             if allImageNames.isSubset(of: skippedImages) {
                 logger.info("[\(loadedPlugin.name)] stage '\(ctx.stage)': all images skipped, skipping binary")
             } else {
-                // Build skip records from state store for the payload
-                var skipRecords: [SkipRecord] = []
-                for imageName in skippedImages {
-                    let resolved = await ctx.stateStore.resolve(
-                        image: imageName, dependencies: [ReservedName.skip]
-                    )
-                    if case let .array(records) = resolved[ReservedName.skip]?[ReservedName.skipRecords] {
-                        for record in records {
-                            if case let .object(dict) = record,
-                               case let .string(file) = dict["file"],
-                               case let .string(plugin) = dict["plugin"]
-                            {
-                                skipRecords.append(SkipRecord(file: file, plugin: plugin))
-                            }
-                        }
-                    }
-                }
+                let skipRecords = await buildSkipRecords(skippedImages: skippedImages, stateStore: ctx.stateStore)
 
                 let (result, runtimeSkips) = try await runBinary(
                     ctx, loadedPlugin: loadedPlugin,
@@ -313,6 +303,7 @@ struct PipelineOrchestrator: Sendable {
                     hookConfig: stageConfig.binary, manifestDeps: manifestDeps,
                     rulesDidRun: preRulesDidRun, execLogPath: execLogPath,
                     skipped: skipRecords,
+                    skippedImages: skippedImages,
                     imageFolderURL: imageFolderURL,
                     metadataBuffer: buffer,
                     pipelineRunId: ctx.pipelineRunId

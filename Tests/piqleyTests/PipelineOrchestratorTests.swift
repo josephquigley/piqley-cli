@@ -320,6 +320,82 @@ struct PipelineOrchestratorTests {
         #expect(payload?["skip.jpg"] == nil)
     }
 
+    @Test("skipped image file is removed from image folder before downstream binary")
+    func skippedImageRemovedFromFolder() async throws {
+        // Plugin A: pre-process with a skip rule matching "Draft" keyword
+        let pluginAScript = try makeTempScript("exit 0")
+        defer { try? FileManager.default.removeItem(at: pluginAScript) }
+        let pluginsDir = try makePluginsDirWithSkipRule(
+            identifier: "com.test.skipper", hook: "pre-process", scriptURL: pluginAScript
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+
+        // Plugin B: publish stage — writes the list of image files it sees to a marker file
+        let markerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-seen-\(UUID().uuidString)")
+        let pluginBScript = try makeTempScript("""
+            ls "$PIQLEY_IMAGE_FOLDER_PATH" > "\(markerPath.path)"
+            """)
+        defer { try? FileManager.default.removeItem(at: pluginBScript) }
+
+        // Add plugin B to pluginsDir
+        let pluginBDir = pluginsDir.appendingPathComponent("com.test.publisher")
+        try FileManager.default.createDirectory(at: pluginBDir, withIntermediateDirectories: true)
+        let manifestB: [String: Any] = [
+            "identifier": "com.test.publisher",
+            "name": "publisher",
+            "type": "static",
+            "pluginSchemaVersion": "1"
+        ]
+        try JSONSerialization.data(withJSONObject: manifestB)
+            .write(to: pluginBDir.appendingPathComponent("manifest.json"))
+        let stageBConfig: [String: Any] = [
+            "binary": ["command": pluginBScript.path, "args": [], "protocol": "pipe"]
+        ]
+        try JSONSerialization.data(withJSONObject: stageBConfig)
+            .write(to: pluginBDir.appendingPathComponent("stage-publish.json"))
+        try FileManager.default.createDirectory(
+            at: pluginBDir.appendingPathComponent("data"), withIntermediateDirectories: true
+        )
+
+        // Source dir with two images: one with Draft keyword (should be skipped), one without
+        let sourceDir = try makeSourceDir(withImage: false)
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+        try TestFixtures.createTestJPEG(
+            at: sourceDir.appendingPathComponent("draft.jpg").path,
+            keywords: ["Draft-Photo"]
+        )
+        try TestFixtures.createTestJPEG(
+            at: sourceDir.appendingPathComponent("keep.jpg").path
+        )
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["pre-process"] = ["com.test.skipper"]
+        workflow.pipeline["publish"] = ["com.test.publisher"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.skipper", "com.test.publisher"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow, pluginsDirectory: pluginsDir, secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == true)
+
+        // The marker file should list only keep.jpg, not draft.jpg
+        let seen = try String(contentsOf: markerPath, encoding: .utf8)
+            .split(separator: "\n")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        #expect(seen.contains("keep.jpg"))
+        #expect(!seen.contains("draft.jpg"))
+    }
+
     @Test("aliased stage sends resolved hook to plugin binary")
     func aliasedStageSendsResolvedHook() async throws {
         // Create a script that writes the PIQLEY_HOOK env var to a file
