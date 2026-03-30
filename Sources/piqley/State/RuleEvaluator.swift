@@ -236,7 +236,6 @@ struct RuleEvaluator: Sendable {
             }
 
         default:
-            // unreachable: RuleValidator.validateEmit rejects unknown actions above
             throw RuleCompilationError.invalidEmit(ruleIndex: ruleIndex, reason: "unknown action '\(actionStr)'")
         }
     }
@@ -362,8 +361,14 @@ struct RuleEvaluator: Sendable {
             if case let .clone(field, sourceNamespace, sourceField) = action {
                 if sourceNamespace == "read" {
                     let fileMetadata = await buffer.load(image: image)
-                    if let sourceField, let val = fileMetadata[sourceField] {
+                    if field == "*" {
+                        await buffer.applyCloneAll(values: fileMetadata, image: image)
+                    } else if let sourceField, let val = fileMetadata[sourceField] {
                         await buffer.applyClone(field: field, value: val, image: image)
+                    }
+                } else if field == "*" {
+                    if let namespaceData = state[sourceNamespace] {
+                        await buffer.applyCloneAll(values: namespaceData, image: image)
                     }
                 } else if let sourceField, let val = state[sourceNamespace]?[sourceField] {
                     await buffer.applyClone(field: field, value: val, image: image)
