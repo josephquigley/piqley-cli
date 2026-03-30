@@ -4,7 +4,7 @@ Generative AI was used extensively to write code in this project. All planning, 
 
 ## Environmental Responsibility
 
-All contributors who use AI tools in their work on this project acknowledge the environmental cost of AI-assisted development and have attested to having funded [Carbon Dioxide Removal (CDR)](https://carbongap.org/wp-content/uploads/2022/11/The-difference-between-CCS-CCU-and-CDR-and-why-it-matters.pdf), *not offsets*, to mitigate their impact.
+All contributors who use AI tools in their work on this project acknowledge the environmental cost of AI-assisted development and have attested to having funded [Carbon Dioxide Removal (CDR)](https://carbongap.org/wp-content/uploads/2022/11/The-difference-between-CCS-CCU-and-CDR-and-why-it-matters.pdf), *avoiding offsets*, to mitigate their impact to the best of their ability.
 
 | Contributor | Amount | Date | Provider |
 |---|---|---|---|
