@@ -72,7 +72,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- `lastExecutedVersion` is now included in the JSON payload sent to plugin binaries, populated from the persisted version state after each successful pipeline-start stage
+- `PipelineOrchestrator` now holds a `VersionStateStore` and persists plugin version after each successful `pipeline-start` stage; `lastExecutedVersion` is passed to `PluginRunner` and included in the JSON payload sent to plugin binaries
 - `VersionStateStore` protocol with `FileVersionStateStore` and `InMemoryVersionStateStore` implementations for persisting the last successfully executed plugin version
 - Integration test for wipe-and-restore pattern (removeField wildcard followed by clone to restore specific fields)
 - Wildcard clone support (`field: "*"`) for write actions, copying all fields from a source namespace into file metadata
