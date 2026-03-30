@@ -1459,4 +1459,56 @@ struct RuleEvaluatorTests {
         #expect(meta["EXIF:FNumber"] == .string("f/2.8"))
         #expect(meta["TIFF:Make"] == .string("Sony"))
     }
+
+    // MARK: - Integration: Wipe-and-Restore Pattern
+
+    @Test("removeField wildcard then clone restores only allowed fields")
+    func writeWipeAndRestore() async throws {
+        let rules = [
+            Rule(
+                match: nil,
+                emit: [],
+                write: [EmitConfig(
+                    action: "removeField", field: "*",
+                    values: nil, replacements: nil, source: nil
+                )]
+            ),
+            Rule(
+                match: nil,
+                emit: [],
+                write: [
+                    EmitConfig(action: "clone", field: "TIFF:Make", values: nil, replacements: nil, source: "original:TIFF:Make"),
+                    EmitConfig(action: "clone", field: "EXIF:FNumber", values: nil, replacements: nil, source: "original:EXIF:FNumber"),
+                ]
+            ),
+        ]
+        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
+        let buffer = MetadataBuffer(preloaded: [
+            "img.jpg": [
+                "TIFF:Make": .string("Sony"),
+                "EXIF:FNumber": .string("f/2.8"),
+                "EXIF:GPSLatitude": .string("40.7128"),
+                "EXIF:SerialNumber": .string("12345"),
+                "XMP:CreatorTool": .string("Lightroom"),
+            ]
+        ])
+        _ = await evaluator.evaluate(
+            state: ["original": [
+                "TIFF:Make": .string("Sony"),
+                "EXIF:FNumber": .string("f/2.8"),
+                "EXIF:GPSLatitude": .string("40.7128"),
+                "EXIF:SerialNumber": .string("12345"),
+                "XMP:CreatorTool": .string("Lightroom"),
+            ]],
+            metadataBuffer: buffer,
+            imageName: "img.jpg"
+        )
+        let meta = await buffer.load(image: "img.jpg")
+        #expect(meta["TIFF:Make"] == .string("Sony"))
+        #expect(meta["EXIF:FNumber"] == .string("f/2.8"))
+        #expect(meta["EXIF:GPSLatitude"] == nil)
+        #expect(meta["EXIF:SerialNumber"] == nil)
+        #expect(meta["XMP:CreatorTool"] == nil)
+        #expect(meta.count == 2)
+    }
 }

@@ -68,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Integration test for wipe-and-restore pattern (removeField wildcard followed by clone to restore specific fields)
 - Wildcard clone support (`field: "*"`) for write actions, copying all fields from a source namespace into file metadata
 - Clone actions in write rules now copy fields from source namespaces into file metadata
 - `piqley plugin edit [plugin-identifier]` command for editing mutable plugin rules directly via the TUI wizard
