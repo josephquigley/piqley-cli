@@ -8,32 +8,7 @@ This document covers the state store that holds per-image metadata, the rule str
 
 The state store is a three-level hierarchy: image filename, then namespace, then key/value pairs. Each image gets its own isolated set of namespaces, and each namespace belongs to either the `original` metadata extractor or a specific plugin.
 
-```mermaid
-graph TD
-    subgraph StateStore
-        subgraph "IMG_1234.jpg"
-            A["original namespace"]
-            B["plugin-a namespace"]
-            C["plugin-b namespace"]
-        end
-        subgraph "IMG_5678.jpg"
-            D["original namespace"]
-            E["plugin-a namespace"]
-            F["plugin-b namespace"]
-        end
-    end
-
-    ME[MetadataExtractor] -->|"populates"| A
-    ME -->|"populates"| D
-    PA[plugin-a] -->|"writes"| B
-    PA -->|"writes"| E
-    PB[plugin-b] -->|"writes"| C
-    PB -->|"writes"| F
-
-    R[Rules] -.->|"reads"| A
-    R -.->|"reads"| B
-    R -.->|"reads"| C
-```
+![State store diagram](img/rules-and-state-1.svg)
 
 `MetadataExtractor` reads EXIF, IPTC, TIFF, GPS, and JFIF metadata from each image file and stores it under the `original` namespace. Plugins write their output to their own namespace. Rules can read across any namespace using qualified field names in the form `namespace:field`.
 
@@ -100,24 +75,7 @@ Each `Replacement` contains a `pattern` (with optional `regex:` or `glob:` prefi
 
 When rules run, they are first compiled into `CompiledRule` structs. This precompiles regex patterns into `TagMatcher` instances and resolves namespace references. Then the evaluator walks each image, applying matching rules.
 
-```mermaid
-flowchart TD
-    A[Compile rules] --> B[Build TagMatchers]
-    B --> C[Resolve namespaces]
-    C --> D{Each image}
-    D --> E{Each rule}
-    E --> F{Unconditional?}
-    F -->|Yes| G[Apply actions]
-    F -->|No| H[Evaluate match]
-    H --> I{Matched?}
-    I -->|Yes| G
-    I -->|No| E
-    G --> J[Apply emit actions]
-    J --> K[Flush writes]
-    K --> E
-    E -->|Done| L[Return result]
-    L --> D
-```
+![Rule evaluation flowchart](img/rules-and-state-2.svg)
 
 ### Compilation phase
 
@@ -150,6 +108,8 @@ The `evaluate()` method processes compiled rules against resolved state:
 | `clone` | Copies a field (or all fields with `"*"`) from another namespace into the working namespace. Merges array values, deduplicating. | `field`, `source` | working: `{}` | working: `{Keywords: ["nature"]}` (cloned from `original:Keywords`) |
 | `skip` | Marks the image as skipped for downstream plugins. Must be the only emit action. Cannot have write actions. | none | image is active | image is skipped, removed from working folder |
 | `writeBack` | Triggers writing the current file metadata buffer to disk. Must appear in `write[]`, not `emit[]`. Must be the only write action. | none | metadata in buffer | metadata written to image file |
+
+> **Linux:** The `writeBack` action and all metadata write operations require `ImageIO` (macOS/Apple platforms only). On Linux, `MetadataWriter` is a no-op that logs a warning. Rules that use `writeBack` will still evaluate without error, but no changes will be written to the image files. Similarly, the `read:` namespace (which reads live file metadata) returns empty results on Linux.
 
 ## Rule slots
 

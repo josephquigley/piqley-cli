@@ -4,24 +4,14 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 
 ## System layers
 
-```mermaid
-graph LR
-  Plugins["Plugins"] --> SDK["SDK"]
-  SDK --> Core["Core"]
-  CLI["CLI"] --> Core
-
-  style Plugins fill:#fff3e0,stroke:#e65100
-  style SDK fill:#e3f2fd,stroke:#1565c0
-  style Core fill:#e8f5e9,stroke:#2e7d32
-  style CLI fill:#f3e5f5,stroke:#6a1b9a
-```
+![System layers diagram](img/overview-1.svg)
 
 | Layer | Repository | Key types |
 |-------|-----------|-----------|
 | **CLI** | piqley-cli | Pipeline orchestrator, plugin discovery, rule evaluator, state store, TUI wizards, CLI commands |
 | **SDK** | piqley-plugin-sdk | `PiqleyPlugin` protocol, `HookRegistry`, `PluginRequest`/`PluginResponse`, `PluginState`/`ResolvedState`, packager |
 | **Core** | piqley-core | `PluginManifest`, `Hook`/`StandardHook`, `Rule`/`EmitConfig`, `StageConfig`/`StageRegistry`, `PluginInputPayload`/`PluginOutputLine`, `JSONValue` |
-| **Plugins** | your repo | Conforms to SDK (Swift) or raw JSON protocol (any language) |
+| **Plugins** | external | Conforms to SDK (Swift) or raw JSON protocol (any language) |
 
 **PiqleyCore** is the foundation library with no external dependencies. It defines the shared types that both the CLI and the SDK depend on: plugin manifests, rules, stage configs, JSON payload schemas, and validation.
 
@@ -31,38 +21,34 @@ graph LR
 
 ## Pipeline at a glance
 
-```mermaid
-graph LR
-  Src["Source images"]
-  PS["pipeline-start"]
-  Pre["pre-process"]
-  Post["post-process"]
-  Pub["publish"]
-  PP["post-publish"]
-  PF["pipeline-finished"]
-  Out["Processed images"]
-
-  Src --> PS --> Pre --> Post --> Pub --> PP --> PF --> Out
-
-  style PS fill:#e8f5e9
-  style PF fill:#e8f5e9
-```
+![Pipeline flow diagram](img/overview-2.svg)
 
 Images enter at `pipeline-start` and flow through each stage in order. At every stage, the orchestrator runs each assigned plugin's **preRules**, then its **binary** (if any), then its **postRules**. Rules read and transform metadata in the state store; binaries do the heavy lifting (resize, upload, tag).
 
-The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle hooks that always run. The middle stages are the default set, but users can add, remove, rename, and reorder custom stages via the stage registry.
+The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle hooks that always run. The middle stages are the default set, but users can add, remove, rename, and reorder custom stages via the stage registry. Plugins may also vend their own custom stages: when a plugin includes a stage file for an unrecognized hook name, piqley auto-registers it into the registry.
 
 ## Key concepts
 
 | Concept | Definition |
 |---|---|
-| **Stage** | A named step in the pipeline (e.g. `pre-process`, `publish`). Each stage has slots for preRules, a binary command, and postRules. |
-| **Hook** | The protocol-level name a plugin recognizes. Usually matches the stage name, but custom stages can alias to a standard hook. |
-| **Plugin** | A package installed at `~/.config/piqley/plugins/<identifier>/` containing a manifest, stage configs, and optionally a binary. |
+| **Stage** | A named step in the pipeline (e.g. `pre-process`, `publish`). Each stage has slots for pre-execution rules, a binary command that executes against the images (or image folder), and post-execution rules. |
+| **Hook** | The protocol-level name a plugin recognizes. Usually matches the stage name, but custom stages can alias to a standard hook to re-run the binary against different rules in the same pipeline (eg. test and prod environment upload). |
+| **Plugin** | A package installed at `~/.config/piqley/plugins/<identifier>/` containing a manifest, stage configs, and (optionally) a binary. |
 | **Rule** | A declarative match-and-action pair. Matches a metadata field pattern, then emits actions (add, remove, replace, skip, etc.) to transform state. |
 | **Workflow** | A named pipeline configuration stored at `~/.config/piqley/workflows/<name>/`. Maps stages to plugin lists and holds per-plugin config overrides. |
-| **Namespace** | A scoped bucket in the state store. Each plugin writes to its own namespace; `original` holds extracted image metadata. |
+| **Namespace** | A scoped bucket in the state store. Each plugin writes to its own namespace; `original` holds extracted image metadata from before the pipeline ran. |
 | **State store** | The in-memory, per-run data structure holding all metadata and plugin output, keyed by image, then namespace, then field. |
+
+## Linux support
+
+Piqley runs on Linux, but several features that depend on Apple's `ImageIO` and `CoreGraphics` frameworks are unavailable:
+
+- **Metadata extraction**: the `original` namespace is empty. Plugins must extract metadata themselves.
+- **Metadata writing**: `writeBack` rules are no-ops. The `read:` namespace returns empty results.
+- **Image format conversion**: `ImageConverter` is unavailable. Plugins that need conversion must handle it in their own binary.
+- **Secrets**: stored in `~/.config/piqley/secrets.json` (file-based) instead of the macOS Keychain.
+
+The pipeline, plugin system, rules engine, workflows, config resolution, and TUI wizards all work identically on both platforms.
 
 ## Detailed documentation
 

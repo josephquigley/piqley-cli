@@ -4,57 +4,7 @@ piqley uses Swift ArgumentParser for its CLI. Commands are organized into groups
 
 ## Command tree
 
-```mermaid
-graph TD
-    piqley[piqley]
-
-    subgraph process_group["process"]
-        process["process"]
-    end
-
-    subgraph workflow_group["workflow"]
-        wf_list["list"]
-        wf_create["create"]
-        wf_clone["clone"]
-        wf_delete["delete"]
-        wf_edit["edit"]
-        wf_open["open"]
-        wf_add_plugin["add-plugin"]
-        wf_remove_plugin["remove-plugin"]
-        wf_config["config"]
-        wf_rules["rules"]
-        wf_command["command"]
-    end
-
-    subgraph plugin_group["plugin"]
-        pl_list["list"]
-        pl_setup["setup"]
-        pl_init["init"]
-        pl_create["create"]
-        pl_install["install"]
-        pl_update["update"]
-        pl_uninstall["uninstall"]
-        pl_edit["edit"]
-    end
-
-    subgraph secret_group["secret"]
-        sec_set["set"]
-        sec_delete["delete"]
-        sec_prune["prune"]
-    end
-
-    setup["setup"]
-    clear_cache["clear-cache"]
-    uninstall["uninstall"]
-
-    piqley --> process_group
-    piqley --> workflow_group
-    piqley --> plugin_group
-    piqley --> secret_group
-    piqley --> setup
-    piqley --> clear_cache
-    piqley --> uninstall
-```
+![Command tree diagram](img/cli-commands-1.svg)
 
 ## Process command
 
@@ -171,25 +121,7 @@ On restore (or deinit), it reverses everything: shows the cursor, exits the alte
 
 The `ConfigWizard` is launched from `workflow edit` and `setup`. It provides a multi-level navigation for managing a workflow's pipeline.
 
-```mermaid
-flowchart TD
-    A["Stage list"] -->|Enter| B["Plugin list"]
-    A -->|a| A1["Add"]
-    A -->|u| A2["Duplicate"]
-    A -->|v| A3["Activate"]
-    A -->|x| A4["Remove"]
-    A -->|n| A5["Rename"]
-    A -->|r| A6["Reorder"]
-    B -->|Enter| C["Rules wizard"]
-    B -->|a| B1["Add plugin"]
-    B -->|d| B2["Remove/undelete"]
-    B -->|r| B3["Reorder"]
-    B -->|Esc| A
-    A -->|Esc| D["Unsaved changes?"]
-    D -->|s| E["Save + quit"]
-    D -->|d| F["Discard + quit"]
-    D -->|Esc| A
-```
+![ConfigWizard navigation diagram](img/cli-commands-2.svg)
 
 The plugin list shows active plugins for the selected stage. Below a divider, it shows inactive plugins (installed but not in this stage's pipeline). You can activate an inactive plugin by pressing Enter or `a` on it.
 
@@ -199,28 +131,7 @@ Plugins marked for removal appear struck-through. Removals are not applied until
 
 The `RulesWizard` is launched from `workflow rules`, `plugin edit`, or by pressing Enter on a plugin in the ConfigWizard. It edits the declarative rules for a specific plugin.
 
-```mermaid
-flowchart TD
-    S["Stage select"] -->|Enter| SL["Slot select"]
-    SL -->|Enter| RL["Rule list"]
-    RL -->|a| ADD["Add"]
-    RL -->|e / Enter| EDIT["Edit"]
-    RL -->|i| INSPECT["Inspect"]
-    RL -->|d| DEL["Delete/undelete"]
-    RL -->|r| REORDER["Reorder"]
-    RL -->|Esc| SL
-    SL -->|Esc| S
-
-    ADD --> BUILD["Build rule flow"]
-    EDIT --> BUILD
-
-    BUILD --> RT["Rule type selection"]
-    RT --> FS["Field selection"]
-    FS --> PE["Pattern entry"]
-    PE --> AC["Action configuration"]
-    AC --> VE["Value entry"]
-    VE --> SAVE["Save to context"]
-```
+![RulesWizard navigation diagram](img/cli-commands-3.svg)
 
 The rule types available when adding a new rule are:
 
