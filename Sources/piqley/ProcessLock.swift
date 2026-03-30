@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 final class ProcessLock {
     private var fileDescriptor: Int32
@@ -17,6 +18,30 @@ final class ProcessLock {
         }
         fileDescriptor = fileDesc
         self.path = path
+    }
+
+    static func acquire(path: String, timeout: Int) async throws -> ProcessLock {
+        let logger = Logger(label: "piqley.lock")
+        var elapsed = 0
+        var printed = false
+
+        while true {
+            do {
+                return try ProcessLock(path: path)
+            } catch ProcessLockError.alreadyRunning {
+                if elapsed >= timeout {
+                    throw ProcessLockError.timedOut(seconds: timeout)
+                }
+                if !printed {
+                    printed = true
+                    logger.info(
+                        "Another instance is running, waiting up to \(formatDuration(seconds: timeout))..."
+                    )
+                }
+                try await Task.sleep(for: .seconds(5))
+                elapsed += 5
+            }
+        }
     }
 
     static func formatDuration(seconds: Int) -> String {

@@ -42,4 +42,31 @@ final class ProcessLockTests: XCTestCase {
     func testFormatDurationOneSecond() {
         XCTAssertEqual(ProcessLock.formatDuration(seconds: 1), "1 second")
     }
+
+    func testAcquireSucceedsImmediately() async throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let lockPath = tmpDir.appendingPathComponent("test.lock").path
+        let lock = try await ProcessLock.acquire(path: lockPath, timeout: 10)
+        lock.release()
+    }
+
+    func testAcquireTimesOut() async throws {
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let lockPath = tmpDir.appendingPathComponent("test.lock").path
+        let holder = try ProcessLock(path: lockPath)
+        defer { holder.release() }
+
+        do {
+            _ = try await ProcessLock.acquire(path: lockPath, timeout: 1)
+            XCTFail("Expected timedOut error")
+        } catch ProcessLockError.timedOut {
+            // expected
+        }
+    }
 }
