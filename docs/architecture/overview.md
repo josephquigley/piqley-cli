@@ -11,7 +11,7 @@ config:
     useMaxWidth: false
 ---
 graph LR
-  Plugins["&nbsp;&nbsp;Plugins&nbsp;&nbsp;"] --> SDK["&nbsp;&nbsp;Plugin SDK&nbsp;&nbsp;"]
+  Plugins["&nbsp;&nbsp;Plugins&nbsp;&nbsp;"] --> SDK["&nbsp;&nbsp;&nbsp;Plugin SDK&nbsp;&nbsp;&nbsp;"]
   SDK --> Core["&nbsp;&nbsp;Core&nbsp;&nbsp;"]
   CLI["&nbsp;&nbsp;CLI&nbsp;&nbsp;"] --> Core
 
