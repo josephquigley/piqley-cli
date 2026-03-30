@@ -232,11 +232,7 @@ struct PluginCommand: ParsableCommand {
                     description: resolvedDescription,
                     pluginSchemaVersion: "1",
                     pluginVersion: SemanticVersion(major: 0, minor: 0, patch: 1),
-                    config: [
-                        .value(key: "outputQuality", type: .int, value: .number(85), metadata: ConfigMetadata(label: "Output Quality")),
-                        .value(key: "tagPrefix", type: .string, value: .string("auto"), metadata: ConfigMetadata(label: "Tag Prefix")),
-                        .secret(secretKey: "API_KEY", type: .string, metadata: ConfigMetadata(label: "API Key")),
-                    ]
+                    config: []
                 )
             } else {
                 PluginManifest(
@@ -255,19 +251,10 @@ struct PluginCommand: ParsableCommand {
             """
             try Self.writeJSON(manifest.encode(), comment: manifestComment, to: pluginDir, fileName: PluginFile.manifest)
 
-            let config: PluginConfig = if includeExamples {
-                buildConfig {
-                    Values {
-                        "outputQuality" => 85
-                        "tagPrefix" => "auto"
-                    }
-                }
-            } else {
-                buildConfig {}
-            }
+            let config: PluginConfig = buildConfig {}
             let configComment = """
-            This is your plugin's runtime configuration. The 'values' section currently holds \
-            example key-value settings that your plugin could read at runtime.
+            This is your plugin's runtime configuration. Add key-value settings \
+            that your plugin reads at runtime.
             """
             try Self.writeJSON(config, comment: configComment, to: pluginDir, fileName: PluginFile.config)
 
