@@ -39,6 +39,17 @@ The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle 
 | **Namespace** | A scoped bucket in the state store. Each plugin writes to its own namespace; `original` holds extracted image metadata from before the pipeline ran. |
 | **State store** | The in-memory, per-run data structure holding all metadata and plugin output, keyed by image, then namespace, then field. |
 
+## Linux support
+
+Piqley runs on Linux, but several features that depend on Apple's `ImageIO` and `CoreGraphics` frameworks are unavailable:
+
+- **Metadata extraction**: the `original` namespace is empty. Plugins must extract metadata themselves.
+- **Metadata writing**: `writeBack` rules are no-ops. The `read:` namespace returns empty results.
+- **Image format conversion**: `ImageConverter` is unavailable. Plugins that need conversion must handle it in their own binary.
+- **Secrets**: stored in `~/.config/piqley/secrets.json` (file-based) instead of the macOS Keychain.
+
+The pipeline, plugin system, rules engine, workflows, config resolution, and TUI wizards all work identically on both platforms.
+
 ## Detailed documentation
 
 Each subsystem has its own detailed doc:

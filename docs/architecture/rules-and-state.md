@@ -109,6 +109,8 @@ The `evaluate()` method processes compiled rules against resolved state:
 | `skip` | Marks the image as skipped for downstream plugins. Must be the only emit action. Cannot have write actions. | none | image is active | image is skipped, removed from working folder |
 | `writeBack` | Triggers writing the current file metadata buffer to disk. Must appear in `write[]`, not `emit[]`. Must be the only write action. | none | metadata in buffer | metadata written to image file |
 
+> **Linux:** The `writeBack` action and all metadata write operations require `ImageIO` (macOS/Apple platforms only). On Linux, `MetadataWriter` is a no-op that logs a warning. Rules that use `writeBack` will still evaluate without error, but no changes will be written to the image files. Similarly, the `read:` namespace (which reads live file metadata) returns empty results on Linux.
+
 ## Rule slots
 
 Each stage configuration (`StageConfig`) has two rule slots surrounding the binary execution:

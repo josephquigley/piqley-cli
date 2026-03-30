@@ -50,6 +50,8 @@ When `PipelineOrchestrator.run()` starts, it creates a `TempFolder` in your syst
 
 After copying, `MetadataExtractor` reads EXIF, IPTC, TIFF, GPS, and JFIF metadata from each image using Apple's `ImageIO` framework. The extracted key-value pairs are stored in the `StateStore` under the `original` namespace, using `Group:Tag` keys (for example, `EXIF:DateTimeOriginal` or `IPTC:Caption/Abstract`). Every plugin and rule in the pipeline can read from this namespace.
 
+> **Linux:** `MetadataExtractor` requires `ImageIO` (macOS/Apple platforms only). On Linux, extraction returns an empty dictionary, so the `original` namespace will be empty. Plugins that need metadata on Linux must extract it themselves and write to their own namespace.
+
 When the pipeline finishes, the temp folder is deleted in a `defer` block, regardless of whether the run succeeded or failed. If `--overwrite-source` was passed, processed images are copied back to the source folder before cleanup.
 
 ## Fork manager
@@ -61,6 +63,8 @@ A fork is created when a plugin's stage config sets `fork: true` on its binary, 
 ### Fork creation
 
 When creating a fork, `ForkManager` copies images from the resolved source folder. If the plugin declares `supportedFormats` in its manifest and an image does not match, `ImageConverter` converts the image to the plugin's declared `conversionFormat` using Apple's `ImageIO`. For example, a plugin that only supports JPEG will have HEIC files automatically converted to JPEG in its fork.
+
+> **Linux:** `ImageConverter` requires `CoreGraphics` and `ImageIO`. Format conversion during fork creation is not available on Linux. Plugins that need format conversion on Linux should handle it in their own binary.
 
 ### Source resolution
 
