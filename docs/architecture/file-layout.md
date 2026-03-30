@@ -21,8 +21,7 @@ Piqley stores all configuration, plugins, and runtime data under `~/.config/piql
 │       └── logs/                  # Plugin logs
 │           └── execution.jsonl   # Execution log for idempotent processing
 ├── config/                       # Base plugin configurations
-│   └── <plugin-id>/
-│       └── config.json           # Values and secret aliases
+│   └── <plugin-id>.json          # Values and secret aliases (flat, one file per plugin)
 ├── stages.json                   # Stage registry (active + available)
 ├── secrets.json                  # File-based secret store (non-macOS)
 └── piqley.lock                   # Process lock file
@@ -113,7 +112,7 @@ Defined in `HookConfig.swift` (PiqleyCore). The `binary` field inside a StageCon
 | `command` | `String?` | Executable path relative to the plugin directory |
 | `args` | `[String]` | Command-line arguments |
 | `timeout` | `Int?` | Execution timeout in seconds |
-| `protocol` | `String?` | Plugin protocol (`"jsonLines"`, etc.) |
+| `protocol` | `String?` | Plugin protocol (`"json"` or `"pipe"`) |
 | `successCodes` | `[Int32]?` | Exit codes that mean success |
 | `warningCodes` | `[Int32]?` | Exit codes that mean warning |
 | `criticalCodes` | `[Int32]?` | Exit codes that mean critical failure |
@@ -207,16 +206,16 @@ These environment variables are set by piqley before invoking a plugin binary.
 | `PIQLEY_HOOK` | Current stage hook name |
 | `PIQLEY_IMAGE_FOLDER_PATH` | Path to the working image folder |
 | `PIQLEY_IMAGE_PATH` | Path to the current image being processed |
-| `PIQLEY_DRY_RUN` | `"true"` or `"false"` |
-| `PIQLEY_DEBUG` | `"true"` or `"false"` |
+| `PIQLEY_DRY_RUN` | `"1"` or `"0"` |
+| `PIQLEY_DEBUG` | `"1"` or `"0"` |
 | `PIQLEY_PIPELINE_RUN_ID` | UUID for the current pipeline run |
-| `PIQLEY_DATA_PATH` | Plugin data directory |
-| `PIQLEY_LOG_PATH` | Plugin log directory |
 | `PIQLEY_EXECUTION_LOG_PATH` | Path to the execution log file |
 | `PIQLEY_CONFIG_<KEY>` | Config values, with the key uppercased |
 | `PIQLEY_SECRET_<KEY>` | Resolved secrets, with the key uppercased |
 
 Plugins can also declare custom environment variable mappings via the `environment` field in `HookConfig`. Each entry maps an environment variable name to a value or template string.
+
+Note: `dataPath`, `logPath`, and `executionLogPath` are provided in the JSON payload for JSON-protocol plugins, but only `PIQLEY_EXECUTION_LOG_PATH` has an environment variable counterpart for pipe-protocol plugins.
 
 ## Exit code reference
 

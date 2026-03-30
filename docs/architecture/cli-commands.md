@@ -112,7 +112,7 @@ The `plugin` group manages the installed plugin catalog.
 |---|---|
 | `plugin list` | List all installed plugins with version, description, and workflow membership |
 | `plugin setup [plugin]` | Run interactive setup for one or all plugins (use `--force` to re-setup) |
-| `plugin init [identifier]` | Create a new declarative-only (mutable) plugin with scaffolded config and stage files |
+| `plugin init [identifier]` | Create a new user-editable plugin with declarative rules (no binary); type is set to `.mutable` |
 | `plugin create` | Create a new executable plugin from a template |
 | `plugin install <path-or-url>` | Install a plugin from a local path or remote URL |
 | `plugin update <plugin> <path-or-url>` | Update an installed plugin from a new path or URL |

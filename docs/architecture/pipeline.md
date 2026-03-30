@@ -152,7 +152,7 @@ Post-run cleanup flags (`--delete-source-contents` and `--delete-source-folder`)
 
 ## Process lock
 
-Piqley enforces single-instance execution using `ProcessLock`. When `ProcessCommand` starts, it opens a lock file at `~/.piqley/lock` and attempts an exclusive, non-blocking `flock`. If another instance already holds the lock, the command fails immediately with an error message.
+Piqley enforces single-instance execution using `ProcessLock`. When `ProcessCommand` starts, it opens a lock file at `~/.config/piqley/piqley.lock` and attempts an exclusive, non-blocking `flock`. If another instance already holds the lock, the command fails immediately with an error message.
 
 The lock is released in a `defer` block when `ProcessCommand.run()` exits. If the process crashes, the operating system automatically releases the file lock, so stale locks do not accumulate.
 

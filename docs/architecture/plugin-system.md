@@ -99,9 +99,9 @@ The JSON payload written to stdin for the JSON protocol. Defined in `PiqleyCore/
 | `logPath` | `String` | Path to the plugin's log directory |
 | `dryRun` | `Bool` | When true, skip destructive operations |
 | `debug` | `Bool` | When true, emit additional diagnostic output |
-| `state` | `[String: [String: [String: JSONValue]]]?` | Persisted state from previous executions, keyed by image name, then plugin namespace, then key |
-| `pluginVersion` | `SemanticVersion` | The current version of this plugin |
-| `lastExecutedVersion` | `SemanticVersion?` | The last version of this plugin that ran |
+| `state` | `[String: [String: [String: JSONValue]]]?` | Persisted state from previous executions, keyed by plugin namespace, then folder path, then field key |
+| `pluginVersion` | `SemanticVersion` | The current version of this plugin (serialized as a `"major.minor.patch"` string in JSON) |
+| `lastExecutedVersion` | `SemanticVersion?` | The last version of this plugin that ran (serialized as a string in JSON) |
 | `skipped` | `[SkipRecord]` | Images that were skipped during pipeline processing |
 | `pipelineRunId` | `String?` | Unique identifier for the current pipeline run |
 
