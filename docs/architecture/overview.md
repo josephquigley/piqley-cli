@@ -68,7 +68,7 @@ The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle 
 
 Each subsystem has its own detailed doc:
 
-- **[Pipeline execution](pipeline.md):** how images flow through stages, the orchestrator sequence, fork management, dry-run mode
+- **[Pipeline execution](pipeline.md):** how images flow through stages, the orchestrator sequence, dry-run mode
 - **[Plugin system](plugin-system.md):** plugin discovery, the communication protocol, manifest structure, the SDK, packaging
 - **[Rules and state](rules-and-state.md):** the state store, rule evaluation, emit actions, templates, skip propagation
 - **[Configuration and workflows](config-and-workflows.md):** config resolution, workflow model, secrets, the stage registry

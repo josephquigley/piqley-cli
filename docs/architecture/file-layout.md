@@ -90,7 +90,6 @@ Defined in `PluginManifest.swift` (PiqleyCore).
 | `dependencies` | `[PluginDependency]?` | Plugins this one depends on |
 | `fields` | `[ConsumedField]` | State fields this plugin declares it works with |
 | `supportedFormats` | `[String]?` | Image formats the plugin can handle |
-| `conversionFormat` | `String?` | Format the plugin converts images to |
 | `supportedPlatforms` | `[String]?` | Platforms the plugin supports |
 
 ### StageConfig
@@ -118,7 +117,6 @@ Defined in `HookConfig.swift` (PiqleyCore). The `binary` field inside a StageCon
 | `criticalCodes` | `[Int32]?` | Exit codes that mean critical failure |
 | `batchProxy` | `BatchProxyConfig?` | Batch proxy configuration |
 | `environment` | `{String: String}?` | Custom environment variable mappings |
-| `fork` | `Bool?` | Whether to fork the process |
 
 ### Rule
 

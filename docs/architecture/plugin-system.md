@@ -160,7 +160,6 @@ The `manifest.json` file describes a plugin's identity, configuration, and requi
 | `setup` | `SetupConfig` | No | Setup instructions or hooks |
 | `dependencies` | `[PluginDependency]` | No | Other plugins this plugin depends on |
 | `supportedFormats` | `[String]` | No | Image formats this plugin can handle |
-| `conversionFormat` | `String` | No | Format to convert images to before processing |
 | `supportedPlatforms` | `[String]` | No | Platforms this plugin supports |
 | `fields` | `[ConsumedField]` | No | State fields this plugin declares it works with |
 
@@ -192,7 +191,6 @@ The `Packager` (in PiqleyPluginSDK) assembles a `.piqleyplugin` archive from a p
 | `config` | `[ConfigEntry]?` | Default config entries (can be overridden by `config-entries.json`) |
 | `setup` | `SetupConfig?` | Setup configuration |
 | `supportedFormats` | `[String]?` | Supported image formats |
-| `conversionFormat` | `String?` | Conversion target format |
 | `bin` | `[String: [String]]` | Platform-keyed binary paths (e.g. `{"macos-arm64": ["bin/my-plugin"]}`) |
 | `data` | `[String: [String]]` | Platform-keyed data file paths |
 | `dependencies` | `[PluginDependency]?` | Plugin dependencies |

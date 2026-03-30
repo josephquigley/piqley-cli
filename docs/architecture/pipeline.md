@@ -16,7 +16,6 @@ sequenceDiagram
     participant SS as StateStore
     participant RE as RuleEvaluator
     participant PR as PluginRunner
-    participant FM as ForkManager
     participant MB as MetadataBuffer
 
     PC->>PL: acquire lock (flock LOCK_EX)
@@ -37,8 +36,6 @@ sequenceDiagram
     loop each active stage in registry order
         loop each plugin assigned to stage
             PO->>PO: loadPlugin, resolveConfigAndSecrets
-            PO->>FM: resolveSource / getOrCreateFork
-            FM-->>PO: imageFolderURL
 
             opt preRules defined
                 PO->>RE: evaluate(preRules, state)
@@ -58,9 +55,6 @@ sequenceDiagram
                 PO->>MB: flush()
             end
 
-            opt writeBack triggered
-                PO->>FM: writeBack(pluginId, mainURL)
-            end
         end
     end
 
@@ -86,7 +80,7 @@ flowchart LR
 
 **binary** is the plugin's executable. It receives the image folder path, configuration, secrets, and (for the JSON protocol) the full state payload on stdin. It does its work: editing images, uploading, renaming, or whatever the plugin is built to do. Its stdout output is parsed for progress lines, image results, and a final result line.
 
-**postRules** transform the binary's output. They run against the updated state (including any values the binary returned) and can further modify the plugin namespace. The buffer flushes again after postRules complete. If any buffer writes occurred, `ForkManager.writeBack()` copies modified images from the fork back to the main temp folder.
+**postRules** transform the binary's output. They run against the updated state (including any values the binary returned) and can further modify the plugin namespace. The buffer flushes again after postRules complete.
 
 ## Standard hooks
 
@@ -119,24 +113,6 @@ When `PipelineOrchestrator.run()` starts, it creates a `TempFolder` in your syst
 After copying, `MetadataExtractor` reads EXIF, IPTC, TIFF, GPS, and JFIF metadata from each image using Apple's `ImageIO` framework. The extracted key-value pairs are stored in the `StateStore` under the `original` namespace, using `Group:Tag` keys (for example, `EXIF:DateTimeOriginal` or `IPTC:Caption/Abstract`). Every plugin and rule in the pipeline can read from this namespace.
 
 When the pipeline finishes, the temp folder is deleted in a `defer` block, regardless of whether the run succeeded or failed. If `--overwrite-source` was passed, processed images are copied back to the source folder before cleanup.
-
-## Fork manager
-
-Not every plugin works with the same image format or needs to see every other plugin's edits. `ForkManager` provides copy-on-write image isolation so each plugin can operate on its own copy of the image set.
-
-A fork is created when a plugin's stage config sets `fork: true` on its binary, or when the plugin's manifest declares a `conversionFormat`. The fork lives in a subdirectory under `<temp>/forks/<plugin-id>/`.
-
-### Fork creation
-
-When creating a fork, `ForkManager` copies images from the resolved source folder. If the plugin declares `supportedFormats` in its manifest and an image does not match, `ImageConverter` converts the image to the plugin's declared `conversionFormat` using Apple's `ImageIO`. For example, a plugin that only supports JPEG will have HEIC files automatically converted to JPEG in its fork.
-
-### Source resolution
-
-`ForkManager.resolveSource()` determines which folder a plugin should read images from. It walks the plugin's declared dependencies, finds the most recently executed dependency that has a fork, and uses that fork as the source. If no dependency has a fork, the main temp folder is used. This creates a lightweight DAG of image lineage.
-
-### Write-back
-
-After a plugin's rules and binary finish, if the `MetadataBuffer` detects that any metadata writes occurred, `ForkManager.writeBack()` copies the fork's images back into the main temp folder. This ensures downstream plugins see the updated files.
 
 ## Dry-run mode
 
