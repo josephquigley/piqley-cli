@@ -345,6 +345,70 @@ Every plugin gets its own namespace. A plugin named `privacy-strip` writes to `p
 
 Two namespaces are reserved. The `original` namespace is populated with the image's file metadata before any plugins run. Plugins can always read `original:EXIF:*` and `original:IPTC:*` fields. The `skip` namespace tracks images that have been excluded from the pipeline via the `skip` action.
 
+### Clone vs. Add with Templates
+
+The `add` action supports `{{namespace:field}}` templates that resolve field values from other plugins at evaluation time. This overlaps with `clone`, but the two actions handle data differently.
+
+#### Scalar Fields
+
+For single-value fields (strings, numbers), add with a template produces the same result as clone:
+
+```json
+{ "action": "clone", "field": "subject", "source": "original:IPTC:ObjectName" }
+```
+
+```json
+{ "field": "subject", "values": ["{{original:IPTC:ObjectName}}"] }
+```
+
+Both copy the IPTC title into the plugin's `subject` field.
+
+#### Array Fields
+
+Clone preserves array structure. Add with templates does not.
+
+If `privacy-strip:tags` contains `["sunset", "beach", "golden hour"]`, then:
+
+**Clone** merges each element individually:
+
+```json
+{ "action": "clone", "field": "tags", "source": "privacy-strip:tags" }
+```
+
+Result: `["sunset", "beach", "golden hour"]` (three separate values)
+
+**Add with template** resolves the reference to a single comma-joined string:
+
+```json
+{ "field": "tags", "values": ["{{privacy-strip:tags}}"] }
+```
+
+Result: `["sunset,beach,golden hour"]` (one string containing commas)
+
+This matters for downstream rules. A `remove` action matching `"sunset"` would find and remove it from the clone result, but would not match inside the comma-joined string from add.
+
+#### Wildcard Clone
+
+Clone supports `field: "*"` to copy all fields from a source namespace:
+
+```json
+{ "action": "clone", "field": "*", "source": "original" }
+```
+
+Add has no equivalent. You would need to list every field individually, which requires knowing the field names in advance. For the `original` namespace (populated from file metadata), the available fields vary per image.
+
+#### When to Use Each
+
+Use **clone** when:
+- You need to copy array-valued fields and preserve their structure
+- You want all fields from a namespace (`field: "*"`)
+- You are forwarding metadata that downstream plugins will filter with `remove` rules
+
+Use **add with templates** when:
+- You are interpolating a field value into a larger string: `"Photo taken at {{original:EXIF:DateTimeOriginal}}"`
+- You are combining values from multiple namespaces in one field
+- The source field is a scalar (string or number)
+
 ### Reading vs. Writing
 
 - **emit** modifies in-memory state. Fast, non-destructive, visible to downstream plugins.
