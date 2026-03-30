@@ -38,6 +38,12 @@ struct ProcessCommand: AsyncParsableCommand {
 
     private var logger: Logger { Logger(label: "piqley.process") }
 
+    mutating func validate() throws {
+        guard lockTimeout >= 0 else {
+            throw ValidationError("--lock-timeout must be non-negative")
+        }
+    }
+
     func run() async throws {
         let (workflow, folderPath) = try resolveArguments()
 

@@ -43,6 +43,10 @@ final class ProcessLockTests: XCTestCase {
         XCTAssertEqual(ProcessLock.formatDuration(seconds: 1), "1 second")
     }
 
+    func testFormatDurationZero() {
+        XCTAssertEqual(ProcessLock.formatDuration(seconds: 0), "0 seconds")
+    }
+
     func testAcquireSucceedsImmediately() async throws {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-test-\(UUID().uuidString)")

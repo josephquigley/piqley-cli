@@ -45,6 +45,7 @@ final class ProcessLock {
     }
 
     static func formatDuration(seconds: Int) -> String {
+        guard seconds > 0 else { return "0 seconds" }
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         var parts: [String] = []
