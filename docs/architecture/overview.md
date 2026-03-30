@@ -8,11 +8,10 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 ---
 config:
   flowchart:
-    padding: 20
-    wrappingWidth: 200
+    useMaxWidth: false
 ---
 graph LR
-  Plugins["Plugins"] --> SDK["SDK"]
+  Plugins["Plugins"] --> SDK["Plugin SDK"]
   SDK --> Core["Core"]
   CLI["CLI"] --> Core
 
