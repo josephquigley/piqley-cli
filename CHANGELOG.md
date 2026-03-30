@@ -67,6 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `piqley plugin edit [plugin-identifier]` command for editing mutable plugin rules directly via the TUI wizard
 - Pipeline orchestrator resolves stage hook aliases: custom stages with a `hook` field send the aliased hook to the plugin binary while using the stage name for rule files, caching, and logs
 - Negated match rules now display `!~` instead of `~` in rule summaries, detail views, and edit menus
 - Rule `add` action values now support `{{namespace:field}}` template syntax, resolving referenced fields from state, file metadata (`read:`), or plugin namespace at evaluation time

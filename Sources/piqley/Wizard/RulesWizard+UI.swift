@@ -48,7 +48,9 @@ extension RulesWizard {
             try StageFileManager.saveStages(context.stages, to: rulesDir)
             modified = false
             savedAt = Date()
-            promptToAddToMissingStages()
+            if workflowName != nil {
+                promptToAddToMissingStages()
+            }
         } catch {
             terminal.showMessage("Error saving: \(error.localizedDescription)")
         }
@@ -57,7 +59,7 @@ extension RulesWizard {
     /// After saving, check if the plugin has rules for stages it's not in the pipeline for.
     /// Prompt the user to add it to those stages.
     private func promptToAddToMissingStages() {
-        guard var workflow = try? WorkflowStore.load(name: workflowName) else { return }
+        guard let workflowName, var workflow = try? WorkflowStore.load(name: workflowName) else { return }
         let pluginID = context.pluginIdentifier
 
         let missingStages = context.stages.filter { stageName, config in
