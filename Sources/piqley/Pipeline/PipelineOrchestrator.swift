@@ -258,6 +258,8 @@ struct PipelineOrchestrator: Sendable {
         })
         let buffer = MetadataBuffer(imageURLs: imageURLs)
 
+        logger.info("Running plugin '\(loadedPlugin.name)' for stage '\(ctx.stage)'")
+
         // Pre-rules
         var preRulesDidRun = false
         if let preRules = stageConfig.preRules, !preRules.isEmpty {

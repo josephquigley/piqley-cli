@@ -209,7 +209,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 
 - `plugin init` no longer scaffolds example config entries; manifest and config start empty
-- Plugin run log message moved to orchestrator scope for consistent timing
 - Template resolution logic extracted from `PluginRunner` into a standalone `TemplateResolver` struct for shared use across the pipeline
 - Switched piqley-plugin-sdk dependency from local path to remote 0.14.0
 - Updated man page to match current CLI: added missing commands, flags, and corrected inaccurate references
@@ -217,6 +216,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Stage plugin list now shows inactive plugins below a divider, allowing direct activation via Enter or 'a'
 - `piqley plugin rules` moved to `piqley workflow rules` (operates on workflow-scoped rule files)
 - `piqley plugin command` moved to `piqley workflow command` (operates on workflow-scoped rule files)
+- Plugin run log message moved to orchestrator scope for consistent timing
 - ConfigWizard and pipeline orchestrator now scan workflow rules directories for stage files and auto-register unknown stages
 - `piqley plugin update` now shows human-readable display labels instead of raw config keys
 - `piqley plugin rules` no longer requires the plugin to be mutable

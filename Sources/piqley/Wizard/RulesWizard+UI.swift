@@ -235,6 +235,7 @@ extension RulesWizard {
         }
         let emitSummary = rule.emit.map { emit in
             let action = emit.action ?? "add"
+            if action == "skip" { return "skip" }
             let target = emit.field ?? "keywords"
             if let values = emit.values {
                 return "\(action) \(target)=[\(values.joined(separator: ", "))]"
@@ -255,6 +256,8 @@ extension RulesWizard {
         let action = emit.action ?? "add"
         let target = emit.field ?? "keywords"
         switch action {
+        case "skip":
+            return "skip image"
         case "add", "remove":
             let vals = emit.values?.joined(separator: ", ") ?? ""
             return "\(actionFieldVerb(action)) \(target)=[\(vals)]"

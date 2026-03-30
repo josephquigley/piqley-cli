@@ -172,7 +172,7 @@ extension RulesWizard {
     }
 
     private func addEmitToList(_ list: inout [EmitConfig], title: String = "Select action type") {
-        let actions = ["add", "remove", "replace", "removeField", "clone"]
+        let actions = ["add", "remove", "replace", "removeField", "clone", "skip"]
         if let actionIdx = terminal.selectFromList(title: title, items: actions) {
             if let config = promptForEmitConfig(action: actions[actionIdx]) {
                 list.append(config)

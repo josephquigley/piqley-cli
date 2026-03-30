@@ -182,7 +182,7 @@ extension RulesWizard {
     }
 
     private func handleActionTypeSelection(state: inout EditActionState) {
-        let actions = ["add", "remove", "replace", "removeField", "clone"]
+        let actions = ["add", "remove", "replace", "removeField", "clone", "skip"]
         guard let idx = terminal.selectFromList(title: "Select action type", items: actions) else { return }
         let newAction = actions[idx]
         guard newAction != state.action else { return }

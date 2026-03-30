@@ -293,7 +293,6 @@ extension PipelineOrchestrator {
             skippedImages: skippedImages
         )
 
-        logger.info("Running plugin '\(loadedPlugin.name)' for stage '\(ctx.stage)'")
         let output = try await runner.run(
             hook: ctx.hook,
             hookConfig: hookConfig,

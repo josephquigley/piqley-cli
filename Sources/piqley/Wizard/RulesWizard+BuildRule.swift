@@ -12,6 +12,7 @@ extension RulesWizard {
         let ruleTypes = [
             "add", "add (when matching)", "replace", "remove from",
             "remove field", "clone", "clone (when matching)",
+            "skip (when matching)",
         ]
         guard let typeIdx = terminal.selectFromList(
             title: "Select rule type",
@@ -33,6 +34,8 @@ extension RulesWizard {
             return buildUnconditionalRule(action: "clone")
         case 6:
             return buildConditionalRule(action: "clone")
+        case 7:
+            return buildConditionalRule(action: "skip")
         default:
             return nil
         }
@@ -94,25 +97,28 @@ extension RulesWizard {
             return nil
         }
 
-        // Additional emit actions
-        let emitActions = ["add", "remove", "replace", "removeField", "clone"]
-        while terminal.confirm("Add another action?") {
-            guard let actionIdx = terminal.selectFromList(
-                title: "\(whenLine)\nSelect action  \(ANSI.dim)(Esc when done)\(ANSI.reset)",
-                items: emitActions
-            ) else { break }
+        // Skip action is terminal: no additional actions or writes
+        if action != "skip" {
+            // Additional emit actions
+            let emitActions = ["add", "remove", "replace", "removeField", "clone", "skip"]
+            while terminal.confirm("Add another action?") {
+                guard let actionIdx = terminal.selectFromList(
+                    title: "\(whenLine)\nSelect action  \(ANSI.dim)(Esc when done)\(ANSI.reset)",
+                    items: emitActions
+                ) else { break }
 
-            let nextAction = emitActions[actionIdx]
-            guard let nextConfig = promptForEmitConfig(action: nextAction) else { continue }
-            if case let .failure(error) = builder.addEmit(nextConfig) {
-                showError(error)
-                continue
+                let nextAction = emitActions[actionIdx]
+                guard let nextConfig = promptForEmitConfig(action: nextAction) else { continue }
+                if case let .failure(error) = builder.addEmit(nextConfig) {
+                    showError(error)
+                    continue
+                }
             }
-        }
 
-        // Step 4: Write actions
-        if terminal.confirm("Add write actions (modify file metadata)?") {
-            promptForWriteActions(builder: &builder, contextLine: whenLine)
+            // Step 4: Write actions
+            if terminal.confirm("Add write actions (modify file metadata)?") {
+                promptForWriteActions(builder: &builder, contextLine: whenLine)
+            }
         }
 
         // Build
@@ -151,6 +157,10 @@ extension RulesWizard {
     }
 
     func promptForEmitConfig(action: String) -> EmitConfig? {
+        if action == "skip" {
+            return EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)
+        }
+
         let (uniqueFields, readOnlyCount) = buildWritableFieldCompletions()
 
         let readOnlyNote: String? = readOnlyCount > 0
