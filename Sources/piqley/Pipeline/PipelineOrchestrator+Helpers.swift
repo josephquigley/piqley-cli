@@ -248,6 +248,7 @@ extension PipelineOrchestrator {
         rulesDidRun: Bool,
         execLogPath: URL,
         skipped: [SkipRecord] = [],
+        skippedImages: Set<String> = [],
         imageFolderURL: URL? = nil,
         metadataBuffer: MetadataBuffer? = nil,
         pipelineRunId: String? = nil
@@ -266,7 +267,8 @@ extension PipelineOrchestrator {
             proto: proto, hasEnvironmentMapping: hasEnvironmentMapping,
             manifestDeps: manifestDeps,
             pluginIdentifier: ctx.pluginIdentifier, rulesDidRun: rulesDidRun,
-            stateStore: ctx.stateStore
+            stateStore: ctx.stateStore,
+            skippedImages: skippedImages
         )
 
         logger.info("Running plugin '\(loadedPlugin.name)' for stage '\(ctx.stage)'")
