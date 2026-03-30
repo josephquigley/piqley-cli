@@ -28,18 +28,18 @@ When piqley starts, `PluginDiscovery` scans the plugins directory and loads ever
 
 ```mermaid
 flowchart TD
-    A["Scan ~/.config/piqley/plugins/"] --> B["For each subdirectory"]
-    B --> C{"manifest.json exists?"}
+    A["Scan plugins/"] --> B["Each subdirectory"]
+    B --> C{"manifest.json?"}
     C -- No --> D["Skip"]
-    C -- Yes --> E["Decode PluginManifest"]
-    E --> F["ManifestValidator.validate()"]
+    C -- Yes --> E["Decode manifest"]
+    E --> F["Validate"]
     F --> G{"Valid?"}
-    G -- No --> H["Throw invalidManifest error"]
-    G -- Yes --> I{"identifier == directory name?"}
-    I -- No --> J["Throw identifierMismatch error"]
-    I -- Yes --> K["Load stage-*.json files"]
-    K --> L["Auto-register unknown stage names into StageRegistry"]
-    L --> M["Create data/ directory if missing"]
+    G -- No --> H["Error"]
+    G -- Yes --> I{"ID == dir name?"}
+    I -- No --> J["Error"]
+    I -- Yes --> K["Load stage files"]
+    K --> L["Auto-register stages"]
+    L --> M["Create data/"]
     M --> N["Return LoadedPlugin"]
 ```
 
@@ -59,21 +59,21 @@ sequenceDiagram
     participant Plugin as Plugin binary
 
     CLI->>Plugin: Spawn process
-    CLI->>Plugin: Write PluginInputPayload as JSON to stdin
+    CLI->>Plugin: Write JSON payload to stdin
     CLI->>Plugin: Close stdin
 
-    loop For each event
-        Plugin->>CLI: {"type": "progress", "message": "..."}\n (newline-delimited JSON on stdout)
+    loop Each event
+        Plugin->>CLI: progress line (JSON)
     end
 
-    loop For each image
-        Plugin->>CLI: {"type": "imageResult", "filename": "...", "status": "..."}\n
+    loop Each image
+        Plugin->>CLI: imageResult line (JSON)
     end
 
-    Plugin->>CLI: {"type": "result", "success": true, "state": {...}}\n
+    Plugin->>CLI: result line (JSON)
     Plugin->>CLI: Exit with status code
 
-    CLI->>CLI: ExitCodeEvaluator maps code to success/warning/critical
+    CLI->>CLI: Evaluate exit code
 ```
 
 ### Pipe protocol

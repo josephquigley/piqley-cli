@@ -8,13 +8,13 @@ When a plugin runs, `ConfigResolver` merges three layers of configuration into a
 
 ```mermaid
 flowchart TD
-    A["Plugin manifest defaults\n(ConfigEntry values)"] --> D
-    B["Base plugin config\n~/.config/piqley/config/&lt;plugin&gt;.json"] --> D
-    C["Workflow-scoped overrides\nworkflow.json config section"] --> D
-    D["ConfigResolver\nmerges all layers"]
-    D --> E["Config values injected as\nPIQLEY_CONFIG_* env vars"]
-    D --> F["Secret aliases resolved\nfrom SecretStore"]
-    F --> G["Secrets injected as\nPIQLEY_SECRET_* env vars"]
+    A["Manifest defaults"] --> D
+    B["Base plugin config"] --> D
+    C["Workflow overrides"] --> D
+    D["ConfigResolver"]
+    D --> E["PIQLEY_CONFIG_*"]
+    D --> F["Resolve secret aliases"]
+    F --> G["PIQLEY_SECRET_*"]
 ```
 
 Each layer works as follows:
@@ -68,8 +68,8 @@ flowchart LR
     end
 
     subgraph Config
-        CA["plugin-b:\nvalues: {quality: 90}\nsecrets: {api-key: alias}"]
-        CB["plugin-d:\nvalues: {platform: web}"]
+        CA["plugin-b overrides"]
+        CB["plugin-d overrides"]
     end
 
     P --> S1

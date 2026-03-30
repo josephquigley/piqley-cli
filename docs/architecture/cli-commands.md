@@ -9,37 +9,37 @@ graph TD
     piqley[piqley]
 
     subgraph process_group["process"]
-        process["process [workflow] folder"]
+        process["process"]
     end
 
     subgraph workflow_group["workflow"]
         wf_list["list"]
-        wf_create["create name"]
-        wf_clone["clone source dest"]
-        wf_delete["delete name"]
-        wf_edit["edit [name]"]
-        wf_open["open name"]
-        wf_add_plugin["add-plugin workflow plugin stage"]
-        wf_remove_plugin["remove-plugin workflow plugin stage"]
-        wf_config["config workflow plugin"]
-        wf_rules["rules [workflow] [plugin]"]
-        wf_command["command [workflow] [plugin]"]
+        wf_create["create"]
+        wf_clone["clone"]
+        wf_delete["delete"]
+        wf_edit["edit"]
+        wf_open["open"]
+        wf_add_plugin["add-plugin"]
+        wf_remove_plugin["remove-plugin"]
+        wf_config["config"]
+        wf_rules["rules"]
+        wf_command["command"]
     end
 
     subgraph plugin_group["plugin"]
         pl_list["list"]
-        pl_setup["setup [plugin]"]
-        pl_init["init [identifier]"]
+        pl_setup["setup"]
+        pl_init["init"]
         pl_create["create"]
-        pl_install["install path-or-url"]
-        pl_update["update plugin path-or-url"]
-        pl_uninstall["uninstall plugin"]
-        pl_edit["edit [plugin]"]
+        pl_install["install"]
+        pl_update["update"]
+        pl_uninstall["uninstall"]
+        pl_edit["edit"]
     end
 
     subgraph secret_group["secret"]
-        sec_set["set plugin key"]
-        sec_delete["delete plugin key"]
+        sec_set["set"]
+        sec_delete["delete"]
         sec_prune["prune"]
     end
 
@@ -173,21 +173,21 @@ The `ConfigWizard` is launched from `workflow edit` and `setup`. It provides a m
 
 ```mermaid
 flowchart TD
-    A["Stage list"] -->|Enter| B["Plugin list for stage"]
-    A -->|a| A1["Add stage"]
-    A -->|u| A2["Duplicate stage"]
-    A -->|v| A3["Activate stage"]
-    A -->|x| A4["Remove stage"]
-    A -->|n| A5["Rename stage"]
-    A -->|r| A6["Reorder stages"]
-    B -->|Enter| C["Rules wizard for plugin+stage"]
-    B -->|a| B1["Add plugin to stage"]
-    B -->|d| B2["Toggle remove/undelete plugin"]
-    B -->|r| B3["Reorder plugins"]
+    A["Stage list"] -->|Enter| B["Plugin list"]
+    A -->|a| A1["Add"]
+    A -->|u| A2["Duplicate"]
+    A -->|v| A3["Activate"]
+    A -->|x| A4["Remove"]
+    A -->|n| A5["Rename"]
+    A -->|r| A6["Reorder"]
+    B -->|Enter| C["Rules wizard"]
+    B -->|a| B1["Add plugin"]
+    B -->|d| B2["Remove/undelete"]
+    B -->|r| B3["Reorder"]
     B -->|Esc| A
-    A -->|Esc| D["Unsaved changes prompt"]
-    D -->|s| E["Save and quit"]
-    D -->|d| F["Discard and quit"]
+    A -->|Esc| D["Unsaved changes?"]
+    D -->|s| E["Save + quit"]
+    D -->|d| F["Discard + quit"]
     D -->|Esc| A
 ```
 
@@ -201,13 +201,13 @@ The `RulesWizard` is launched from `workflow rules`, `plugin edit`, or by pressi
 
 ```mermaid
 flowchart TD
-    S["Stage select"] -->|Enter| SL["Slot select: pre-rules / post-rules"]
+    S["Stage select"] -->|Enter| SL["Slot select"]
     SL -->|Enter| RL["Rule list"]
-    RL -->|a| ADD["Add rule"]
-    RL -->|e / Enter| EDIT["Edit rule"]
-    RL -->|i| INSPECT["Inspect rule (read-only)"]
-    RL -->|d| DEL["Toggle delete/undelete"]
-    RL -->|r| REORDER["Reorder rules"]
+    RL -->|a| ADD["Add"]
+    RL -->|e / Enter| EDIT["Edit"]
+    RL -->|i| INSPECT["Inspect"]
+    RL -->|d| DEL["Delete/undelete"]
+    RL -->|r| REORDER["Reorder"]
     RL -->|Esc| SL
     SL -->|Esc| S
 

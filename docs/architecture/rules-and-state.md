@@ -25,14 +25,14 @@ graph TD
 
     ME[MetadataExtractor] -->|"populates"| A
     ME -->|"populates"| D
-    PA[plugin-a binary] -->|"writes to own namespace"| B
-    PA -->|"writes to own namespace"| E
-    PB[plugin-b binary] -->|"writes to own namespace"| C
-    PB -->|"writes to own namespace"| F
+    PA[plugin-a] -->|"writes"| B
+    PA -->|"writes"| E
+    PB[plugin-b] -->|"writes"| C
+    PB -->|"writes"| F
 
-    R[Rules] -.->|"reads via namespace:field"| A
-    R -.->|"reads via namespace:field"| B
-    R -.->|"reads via namespace:field"| C
+    R[Rules] -.->|"reads"| A
+    R -.->|"reads"| B
+    R -.->|"reads"| C
 ```
 
 `MetadataExtractor` reads EXIF, IPTC, TIFF, GPS, and JFIF metadata from each image file and stores it under the `original` namespace. Plugins write their output to their own namespace. Rules can read across any namespace using qualified field names in the form `namespace:field`.
@@ -102,20 +102,20 @@ When rules run, they are first compiled into `CompiledRule` structs. This precom
 
 ```mermaid
 flowchart TD
-    A[Compile rules] --> B[Patterns to TagMatchers]
-    B --> C[Resolve namespace references]
-    C --> D{For each image}
-    D --> E{For each rule}
+    A[Compile rules] --> B[Build TagMatchers]
+    B --> C[Resolve namespaces]
+    C --> D{Each image}
+    D --> E{Each rule}
     E --> F{Unconditional?}
     F -->|Yes| G[Apply actions]
-    F -->|No| H[Evaluate match against state]
-    H --> I{Matched? Respecting not flag}
+    F -->|No| H[Evaluate match]
+    H --> I{Matched?}
     I -->|Yes| G
     I -->|No| E
-    G --> J[Apply emit actions to working namespace]
-    J --> K[Apply write actions via MetadataBuffer]
+    G --> J[Apply emit actions]
+    J --> K[Flush writes]
     K --> E
-    E -->|Done| L[Return updated namespace + skip status]
+    E -->|Done| L[Return result]
     L --> D
 ```
 

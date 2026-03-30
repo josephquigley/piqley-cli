@@ -21,20 +21,20 @@ graph TB
   end
 
   subgraph piqley-plugin-sdk
-    Proto["PiqleyPlugin protocol"]
+    Proto["PiqleyPlugin"]
     HookReg["HookRegistry"]
-    Req["PluginRequest/PluginResponse"]
-    State["PluginState/ResolvedState"]
-    Pack["Packager/piqley-build"]
+    Req["Request / Response"]
+    State["State types"]
+    Pack["Packager"]
   end
 
   subgraph piqley-core
-    Manifest["PluginManifest"]
-    HookProto["Hook protocol/StandardHook"]
-    Rules["Rule/EmitConfig/MatchConfig"]
-    Stages["StageConfig/StageRegistry"]
-    Payload["PluginInputPayload/PluginOutputLine"]
-    JSON["JSONValue/SemanticVersion"]
+    Manifest["Manifest"]
+    HookProto["Hook / StandardHook"]
+    Rules["Rule / EmitConfig"]
+    Stages["StageConfig / Registry"]
+    Payload["Payloads"]
+    JSON["JSONValue"]
   end
 
   YP --> Proto
