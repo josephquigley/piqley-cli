@@ -1381,4 +1381,30 @@ struct RuleEvaluatorTests {
         )
         #expect(result.namespace["camera"] == .array([.string("Nikon")]))
     }
+
+    // MARK: - Write action template resolution
+
+    @Test("write add action resolves templates from state")
+    func writeAddResolveTemplate() async throws {
+        let rule = Rule(
+            match: nil,
+            emit: [],
+            write: [EmitConfig(
+                action: "add", field: "EXIF:FNumber",
+                values: ["{{original:EXIF:FNumber}}"],
+                replacements: nil, source: nil
+            )]
+        )
+        let evaluator = try RuleEvaluator(rules: [rule], logger: logger)
+        let buffer = MetadataBuffer(preloaded: [
+            "img.jpg": ["EXIF:FNumber": .string("old")]
+        ])
+        _ = await evaluator.evaluate(
+            state: ["original": ["EXIF:FNumber": .string("f/2.8")]],
+            metadataBuffer: buffer,
+            imageName: "img.jpg"
+        )
+        let meta = await buffer.load(image: "img.jpg")
+        #expect(meta["EXIF:FNumber"] == .array([.string("old"), .string("f/2.8")]))
+    }
 }

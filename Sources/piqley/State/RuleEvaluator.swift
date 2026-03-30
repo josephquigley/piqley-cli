@@ -337,7 +337,14 @@ struct RuleEvaluator: Sendable {
                 // Write actions second (modify file metadata via buffer)
                 if let buffer = metadataBuffer, let image = imageName {
                     for action in rule.writeActions {
-                        await buffer.applyAction(action, image: image)
+                        let resolvedAction = await resolveTemplates(
+                            in: action,
+                            state: state,
+                            metadataBuffer: metadataBuffer,
+                            imageName: imageName,
+                            pluginId: pluginId
+                        )
+                        await buffer.applyAction(resolvedAction, image: image)
                     }
                 }
             }

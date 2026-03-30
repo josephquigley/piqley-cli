@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Write action values containing templates (e.g. `{{original:EXIF:FNumber}}`) are now resolved from state instead of being treated as literal strings
 - Globally skipped images are now excluded from the state payload sent to plugin binaries, preventing skipped images from appearing in plugin input
 - Skipped image files are now removed from the working folder before plugin binary execution, preventing downstream plugin binaries from seeing or processing them
 - Template references in `add` action values (e.g. `{{namespace:field}}`) now include the referenced namespace in rule dependency resolution, fixing cross-stage template fields resolving to empty
