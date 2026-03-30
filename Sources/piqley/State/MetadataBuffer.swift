@@ -52,6 +52,30 @@ actor MetadataBuffer {
         dirty.insert(image)
     }
 
+    /// Merge a resolved value into a specific field for an image's metadata.
+    func applyClone(field: String, value: JSONValue, image: String) {
+        if metadata[image] == nil {
+            _ = load(image: image)
+        }
+        var current = metadata[image] ?? [:]
+        RuleEvaluator.mergeClonedValue(value, into: &current, forKey: field)
+        metadata[image] = current
+        dirty.insert(image)
+    }
+
+    /// Merge all key-value pairs from a resolved namespace into an image's metadata.
+    func applyCloneAll(values: [String: JSONValue], image: String) {
+        if metadata[image] == nil {
+            _ = load(image: image)
+        }
+        var current = metadata[image] ?? [:]
+        for (key, val) in values {
+            RuleEvaluator.mergeClonedValue(val, into: &current, forKey: key)
+        }
+        metadata[image] = current
+        dirty.insert(image)
+    }
+
     /// Flush all dirty images to disk. Errors are logged, not thrown.
     func flush() {
         for imageName in dirty {

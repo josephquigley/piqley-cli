@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Write action values containing templates (e.g. `{{original:EXIF:FNumber}}`) are now resolved from state instead of being treated as literal strings
 - Globally skipped images are now excluded from the state payload sent to plugin binaries, preventing skipped images from appearing in plugin input
 - Skipped image files are now removed from the working folder before plugin binary execution, preventing downstream plugin binaries from seeing or processing them
 - Template references in `add` action values (e.g. `{{namespace:field}}`) now include the referenced namespace in rule dependency resolution, fixing cross-stage template fields resolving to empty
@@ -71,6 +72,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Integration test for wipe-and-restore pattern (removeField wildcard followed by clone to restore specific fields)
+- Wildcard clone support (`field: "*"`) for write actions, copying all fields from a source namespace into file metadata
+- Clone actions in write rules now copy fields from source namespaces into file metadata
 - `piqley plugin edit [plugin-identifier]` command for editing mutable plugin rules directly via the TUI wizard
 - Skip action type in rules wizard: "skip (when matching)" rule type, skip in action type menus for editing emit and write actions
 - Pipeline orchestrator resolves stage hook aliases: custom stages with a `hook` field send the aliased hook to the plugin binary while using the stage name for rule files, caching, and logs
