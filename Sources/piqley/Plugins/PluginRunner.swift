@@ -40,7 +40,6 @@ struct PluginRunner: Sendable {
         debug: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
         skipped: [SkipRecord] = [],
-        imageFolderOverride: URL? = nil,
         pipelineRunId: String? = nil
     ) async throws -> RunOutput {
         guard let hookConfig else {
@@ -54,7 +53,6 @@ struct PluginRunner: Sendable {
         }
 
         let proto = hookConfig.pluginProtocol ?? .json
-        let effectiveFolderURL = imageFolderOverride ?? tempFolder.url
 
         if proto == .json, hookConfig.batchProxy != nil {
             logger.error("Plugin '\(plugin.identifier)' hook '\(hook)': batchProxy is only valid with pipe protocol")
@@ -71,7 +69,6 @@ struct PluginRunner: Sendable {
                 dryRun: dryRun,
                 debug: debug,
                 state: state,
-                imageFolderOverride: imageFolderOverride,
                 pipelineRunId: pipelineRunId
             ))
             return RunOutput(exitResult: result, state: nil, errorMessage: nil, skippedImages: [])
@@ -79,7 +76,7 @@ struct PluginRunner: Sendable {
 
         var environment = buildEnvironment(
             hook: hook,
-            folderPath: effectiveFolderURL,
+            folderPath: tempFolder.url,
             imagePath: nil,
             executionLogPath: executionLogPath,
             dryRun: dryRun,
@@ -104,7 +101,7 @@ struct PluginRunner: Sendable {
                 args: args,
                 environment: environment,
                 hookConfig: hookConfig,
-                folderPath: effectiveFolderURL,
+                folderPath: tempFolder.url,
                 executionLogPath: executionLogPath,
                 dryRun: dryRun,
                 debug: debug,
@@ -327,12 +324,11 @@ struct PluginRunner: Sendable {
         let dryRun: Bool
         let debug: Bool
         let state: [String: [String: [String: JSONValue]]]?
-        let imageFolderOverride: URL?
         let pipelineRunId: String?
     }
 
     private func runBatchProxy(context: BatchRunContext) async throws -> ExitCodeResult {
-        let effectiveFolder = context.imageFolderOverride ?? context.tempFolder.url
+        let effectiveFolder = context.tempFolder.url
         let images = try sortedImages(in: effectiveFolder, sort: context.batchProxy.sort)
 
         for image in images {

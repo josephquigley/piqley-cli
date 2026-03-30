@@ -262,6 +262,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Removed
 
+- Image forking (copy-on-write isolation): `ForkManager`, `ImageConverter`, fork UI in command wizard, and `writeBack` trigger from metadata buffer. Code preserved on `research/image-forking` branch.
 - `AppConfig` and `config.json`: replaced entirely by the workflow system
 - `piqley config` command group: replaced by `piqley workflow`
 - `piqley plugin config` command (use `piqley plugin setup` for base config or `piqley workflow config` for per-workflow overrides)
