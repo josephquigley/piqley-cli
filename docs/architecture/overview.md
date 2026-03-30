@@ -5,6 +5,12 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 ## System layers
 
 ```mermaid
+---
+config:
+  flowchart:
+    padding: 20
+    wrappingWidth: 200
+---
 graph LR
   Plugins["Plugins"] --> SDK["SDK"]
   SDK --> Core["Core"]
