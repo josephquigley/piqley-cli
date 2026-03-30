@@ -11,7 +11,8 @@ extension PipelineOrchestrator {
         manifestDeps: [String],
         pluginIdentifier: String,
         rulesDidRun: Bool,
-        stateStore: StateStore
+        stateStore: StateStore,
+        skippedImages: Set<String> = []
     ) async -> [String: [String: [String: JSONValue]]]? {
         let needsState = hasEnvironmentMapping || (proto == .json && (!manifestDeps.isEmpty || rulesDidRun))
         guard needsState else { return nil }
@@ -21,6 +22,7 @@ extension PipelineOrchestrator {
             ? manifestDeps + [ReservedName.original, pluginIdentifier, ReservedName.skip]
             : manifestDeps + [ReservedName.original, ReservedName.skip]
         for imageName in await stateStore.allImageNames {
+            if skippedImages.contains(imageName) { continue }
             let resolved = await stateStore.resolve(
                 image: imageName, dependencies: allDeps
             )

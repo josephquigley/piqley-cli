@@ -285,6 +285,41 @@ struct PipelineOrchestratorTests {
         #expect(!FileManager.default.fileExists(atPath: markerPath.path))
     }
 
+    @Test("buildStatePayload excludes skipped images")
+    func buildStatePayloadExcludesSkipped() async throws {
+        let stateStore = StateStore()
+        await stateStore.setNamespace(
+            image: "keep.jpg", plugin: "original",
+            values: ["IPTC:Keywords": .array([.string("Landscape")])]
+        )
+        await stateStore.setNamespace(
+            image: "skip.jpg", plugin: "original",
+            values: ["IPTC:Keywords": .array([.string("Draft")])]
+        )
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: .empty(name: "test", activeStages: StandardHook.defaultStageNames),
+            pluginsDirectory: FileManager.default.temporaryDirectory,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: FileManager.default.temporaryDirectory
+        )
+
+        let payload = await orchestrator.buildStatePayload(
+            proto: .json,
+            hasEnvironmentMapping: false,
+            manifestDeps: [],
+            pluginIdentifier: "com.test",
+            rulesDidRun: true,
+            stateStore: stateStore,
+            skippedImages: ["skip.jpg"]
+        )
+
+        #expect(payload != nil)
+        #expect(payload?["keep.jpg"] != nil)
+        #expect(payload?["skip.jpg"] == nil)
+    }
+
     @Test("aliased stage sends resolved hook to plugin binary")
     func aliasedStageSendsResolvedHook() async throws {
         // Create a script that writes the PIQLEY_HOOK env var to a file
