@@ -15,7 +15,7 @@ Piqley stores all configuration, plugins, and runtime data under `~/.config/piql
 ├── plugins/                      # Installed plugins
 │   └── <identifier>/
 │       ├── manifest.json         # Plugin metadata and declarations
-│       ├── stage-*.json          # Built-in stage configs (immutable after install)
+│       ├── stage-*.json          # Built-in stage configs (immutable for static plugins)
 │       ├── bin/                   # Plugin binaries
 │       ├── data/                  # Plugin data files
 │       └── logs/                  # Plugin logs
@@ -39,7 +39,7 @@ The plugin's identity and capabilities. Written once at install time and never m
 
 ### Stage files (`stage-*.json`)
 
-Files named `stage-<name>.json` define the plugin's default behaviour for each stage it participates in. These files are **immutable after install**: piqley never writes back to them. When a workflow needs customised rules, the stage files are copied into the workflow's `rules/` directory instead.
+Files named `stage-<name>.json` define the plugin's default behaviour for each stage it participates in. For **static** plugins, these files are immutable after install — piqley never writes back to them. For **mutable** plugins, the user can edit these files directly via `piqley plugin edit`. When a workflow needs customised rules, the stage files are copied into the workflow's `rules/` directory instead.
 
 ### `bin/`
 

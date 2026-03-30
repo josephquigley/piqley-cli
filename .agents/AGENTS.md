@@ -1,38 +1,22 @@
-# piqley — Agent Directives
+# piqley-cli — Agent Directives
+
+> Cross-repo conventions (code style, architecture, git commits) live in the top-level `../../.agents/AGENTS.md`. This file covers CLI-specific details only.
 
 ## Project
 
-Swift CLI tool (`piqley`) — a plugin-driven photographer workflow engine for processing and publishing photos. Invoked by macOS Hazel automation or any folder-watching tool.
+Swift CLI tool (`piqley`) — the main entry point for running plugin pipelines. Uses `swift-argument-parser` for CLI parsing and `swift-log` for structured logging.
 
 ## Design Spec
 
 See [docs/superpowers/specs/2026-03-16-quigsphoto-uploader-cli-design.md](../docs/superpowers/specs/2026-03-16-quigsphoto-uploader-cli-design.md) for the full design.
 
-## Key Conventions
+## CLI-Specific Constants
 
-- **Swift Package Manager** project with `swift-argument-parser` and `swift-log`
-- **Protocol-first for platform abstractions:** `SecretStore`, `ImageProcessor`, `MetadataReader` — macOS implementations backed by system frameworks, swappable for Linux later
-- **Config at runtime:** `~/.config/piqley/config.json` is source of truth. Secrets in macOS Keychain via `SecretStore`.
-- **Plugin pipeline:** all processing, publishing, and post-processing is handled by plugins via stdin/stdout JSON protocol or pipe protocol
-- **Atomic appends** to JSONL log files (`O_APPEND`) for concurrency safety
-- **Error handling:** per-image errors are non-fatal, fatal errors exit with code 1, partial success exits with code 2
-- **Logging:** `swift-log` for structured logging throughout
+These constant enums live in `Sources/piqley/Constants/` (not in PiqleyCore):
 
-## Architecture
-
-See [architecture.md](architecture.md) for detailed guidelines. Key rules:
-
-- **No magic strings** — all string keys, identifiers, and lookup values must live in `String`-backed enums (or enums with static properties for prefixes). See architecture.md for the full policy and enum layout.
-
-## Code Style
-
-- Keep files focused — one type/protocol per file
-- Prefer `async/await` for async operations
-- No force unwraps in production code
-- All config values should be `Codable`
-
-## Git Commits
-
-- Always write commit messages to a temp file in the project working directory using the native file writer tool (Write). Use a random filename (e.g., `.commit-msg-<random>.txt`). Then commit with `git commit -F <path>`. Never use `git commit -m` with inline messages, heredocs, `cat`, `printf`, or any other bash file-writing commands for commit messages.
-- Delete the temp file after the commit succeeds.
-- The temp file must be gitignored or deleted before staging. Do not commit the temp file itself.
+| Domain | Enum | Location |
+|--------|------|----------|
+| Environment variables | `PluginEnvironment` | `Sources/piqley/Constants/PluginEnvironment.swift` |
+| Filesystem paths | `PiqleyPath` | `Sources/piqley/Constants/PiqleyPath.swift` |
+| Plugin directories | `PluginDirectory` | `Sources/piqley/Constants/PluginDirectory.swift` |
+| Secret namespacing | `SecretNamespace` | `Sources/piqley/Constants/SecretNamespace.swift` |

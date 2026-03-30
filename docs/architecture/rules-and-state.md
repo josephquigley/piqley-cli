@@ -81,7 +81,7 @@ When rules run, they are first compiled into `CompiledRule` structs. This precom
 
 During compilation, each `Rule` becomes a `CompiledRule`:
 
-1. The match field is split on the first `:` to extract the namespace and field name. A bare field name (no colon) defaults to the plugin's own namespace when a `pluginId` is provided.
+1. The match field is split on the first `:` to extract the namespace and field name. A bare field name (no colon) is automatically scoped to the plugin's own namespace (e.g. `rating` in plugin `stars` becomes `stars:rating`).
 2. The `self` namespace prefix is resolved to the actual `pluginId`.
 3. Match patterns are compiled into `TagMatcher` instances (`ExactMatcher`, `GlobMatcher`, or `RegexMatcher`).
 4. Emit and write configs are compiled into `EmitAction` enum values.
