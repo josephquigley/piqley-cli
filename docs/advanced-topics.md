@@ -656,3 +656,9 @@ piqley workflow rules my-plugin
 ```
 
 Use Ctrl+L to browse available metadata fields from a real image.
+
+## Further reading
+
+- [Getting Started](getting-started.md) for installation, first workflow, and CLI basics
+- [Plugin Development with the SDK](plugin-sdk-guide.md) for building binary plugins
+- [Architecture Overview](architecture/overview.md) for system diagrams, pipeline flow, and detailed subsystem documentation
