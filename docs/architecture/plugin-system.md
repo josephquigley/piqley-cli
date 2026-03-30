@@ -61,7 +61,7 @@ The JSON payload written to stdin for the JSON protocol. Defined in `PiqleyCore/
 | `debug` | `Bool` | When true, emit additional diagnostic output |
 | `state` | `[String: [String: [String: JSONValue]]]?` | Persisted state from previous executions, keyed by plugin namespace, then folder path, then field key |
 | `pluginVersion` | `SemanticVersion` | The current version of this plugin (serialized as a `"major.minor.patch"` string in JSON) |
-| `lastExecutedVersion` | `SemanticVersion?` | The last version of this plugin that ran (serialized as a string in JSON) |
+| `lastExecutedVersion` | `SemanticVersion?` | The last version of this plugin that ran successfully through `pipeline-start` (serialized as a string in JSON). Persisted to `version-state.json` in the plugin directory. `nil` on first run. |
 | `skipped` | `[SkipRecord]` | Images that were skipped during pipeline processing |
 | `pipelineRunId` | `String?` | Unique identifier for the current pipeline run |
 

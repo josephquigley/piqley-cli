@@ -70,6 +70,21 @@ This is useful when a plugin needs to do preparation in pre-process and then act
 | `pluginVersion` | Your plugin's current version |
 | `lastExecutedVersion` | Version from the previous run (useful for migrations) |
 
+### Version Migrations
+
+The `pipeline-start` stage is the designated place for version-dependent initialization: schema migrations, data format upgrades, cache invalidation, or any work that must happen once per version change. The CLI persists `lastExecutedVersion` after a successful `pipeline-start`, so:
+
+- Your plugin receives the previous version during `pipeline-start` and can compare it to `pluginVersion`.
+- If `pipeline-start` fails, the version is not updated, so the migration retries on the next run.
+
+```swift
+case .pipelineStart:
+    if let last = request.lastExecutedVersion, last < request.pluginVersion {
+        try migrateData(from: last, to: request.pluginVersion)
+    }
+    return .ok
+```
+
 ### Reading State from Other Plugins
 
 State flows forward through the pipeline. If a pre-process plugin called `ghost-tagger` emitted a `ghost-tags` field, your publish plugin can read it:
