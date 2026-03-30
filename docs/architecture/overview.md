@@ -26,7 +26,7 @@ graph LR
 | **CLI** | piqley-cli | Pipeline orchestrator, plugin discovery, rule evaluator, state store, TUI wizards, CLI commands |
 | **SDK** | piqley-plugin-sdk | `PiqleyPlugin` protocol, `HookRegistry`, `PluginRequest`/`PluginResponse`, `PluginState`/`ResolvedState`, packager |
 | **Core** | piqley-core | `PluginManifest`, `Hook`/`StandardHook`, `Rule`/`EmitConfig`, `StageConfig`/`StageRegistry`, `PluginInputPayload`/`PluginOutputLine`, `JSONValue` |
-| **Plugins** | external repo | Conforms to SDK (Swift) or raw JSON protocol (any language) |
+| **Plugins** | external | Conforms to SDK (Swift) or raw JSON protocol (any language) |
 
 **PiqleyCore** is the foundation library with no external dependencies. It defines the shared types that both the CLI and the SDK depend on: plugin manifests, rules, stage configs, JSON payload schemas, and validation.
 
