@@ -72,6 +72,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Tests for orchestrator-level version persistence: save only on `pipeline-start` success, not on other stages or on failure
 - `PipelineOrchestrator` now holds a `VersionStateStore` and persists plugin version after each successful `pipeline-start` stage; `lastExecutedVersion` is passed to `PluginRunner` and included in the JSON payload sent to plugin binaries
 - `VersionStateStore` protocol with `FileVersionStateStore` and `InMemoryVersionStateStore` implementations for persisting the last successfully executed plugin version
 - Integration test for wipe-and-restore pattern (removeField wildcard followed by clone to restore specific fields)
