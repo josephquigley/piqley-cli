@@ -6,13 +6,13 @@ The pipeline is the core of piqley. When you run `piqley process`, the `ProcessC
 
 This diagram shows the full lifecycle of a single `piqley process` invocation.
 
-![Pipeline orchestration sequence diagram](diagrams/pipeline-1.svg)
+![Pipeline orchestration sequence diagram](img/pipeline-1.svg)
 
 ## Stage hook lifecycle
 
 Each stage has three slots that execute in sequence. A plugin does not need to use all three; any combination is valid.
 
-![Stage hook lifecycle diagram](diagrams/pipeline-2.svg)
+![Stage hook lifecycle diagram](img/pipeline-2.svg)
 
 **preRules** transform state before the binary sees it. Rules can set fields in the plugin's namespace, skip images, or copy values from other namespaces. After preRules evaluate, the `MetadataBuffer` flushes any pending EXIF/IPTC writes. Skipped images are physically removed from the plugin's image folder so the binary never receives them.
 

@@ -4,7 +4,7 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 
 ## System layers
 
-![System layers diagram](diagrams/overview-1.svg)
+![System layers diagram](img/overview-1.svg)
 
 | Layer | Repository | Key types |
 |-------|-----------|-----------|
@@ -21,7 +21,7 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 
 ## Pipeline at a glance
 
-![Pipeline flow diagram](diagrams/overview-2.svg)
+![Pipeline flow diagram](img/overview-2.svg)
 
 Images enter at `pipeline-start` and flow through each stage in order. At every stage, the orchestrator runs each assigned plugin's **preRules**, then its **binary** (if any), then its **postRules**. Rules read and transform metadata in the state store; binaries do the heavy lifting (resize, upload, tag).
 
@@ -31,12 +31,12 @@ The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle 
 
 | Concept | Definition |
 |---|---|
-| **Stage** | A named step in the pipeline (e.g. `pre-process`, `publish`). Each stage has slots for preRules, a binary command, and postRules. |
-| **Hook** | The protocol-level name a plugin recognizes. Usually matches the stage name, but custom stages can alias to a standard hook. |
-| **Plugin** | A package installed at `~/.config/piqley/plugins/<identifier>/` containing a manifest, stage configs, and optionally a binary. |
+| **Stage** | A named step in the pipeline (e.g. `pre-process`, `publish`). Each stage has slots for pre-execution rules, a binary command that executes against the images (or image folder), and post-execution rules. |
+| **Hook** | The protocol-level name a plugin recognizes. Usually matches the stage name, but custom stages can alias to a standard hook to re-run the binary against different rules in the same pipeline (eg. test and prod environment upload). |
+| **Plugin** | A package installed at `~/.config/piqley/plugins/<identifier>/` containing a manifest, stage configs, and (optionally) a binary. |
 | **Rule** | A declarative match-and-action pair. Matches a metadata field pattern, then emits actions (add, remove, replace, skip, etc.) to transform state. |
 | **Workflow** | A named pipeline configuration stored at `~/.config/piqley/workflows/<name>/`. Maps stages to plugin lists and holds per-plugin config overrides. |
-| **Namespace** | A scoped bucket in the state store. Each plugin writes to its own namespace; `original` holds extracted image metadata. |
+| **Namespace** | A scoped bucket in the state store. Each plugin writes to its own namespace; `original` holds extracted image metadata from before the pipeline ran. |
 | **State store** | The in-memory, per-run data structure holding all metadata and plugin output, keyed by image, then namespace, then field. |
 
 ## Detailed documentation
