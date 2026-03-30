@@ -5,56 +5,23 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 ## System layers
 
 ```mermaid
-graph TB
-  subgraph External
-    YP["Your plugin"]
-    AP["Another plugin"]
-  end
+graph LR
+  Plugins["Plugins"] --> SDK["SDK"]
+  SDK --> Core["Core"]
+  CLI["CLI"] --> Core
 
-  subgraph piqley-cli
-    CLI["CLI commands"]
-    Orch["Pipeline orchestrator"]
-    TUI["TUI wizards"]
-    Disc["Plugin discovery"]
-    Eval["Rule evaluator"]
-    Store["State store"]
-  end
-
-  subgraph piqley-plugin-sdk
-    Proto["PiqleyPlugin"]
-    HookReg["HookRegistry"]
-    Req["Request / Response"]
-    State["State types"]
-    Pack["Packager"]
-  end
-
-  subgraph piqley-core
-    Manifest["Manifest"]
-    HookProto["Hook / StandardHook"]
-    Rules["Rule / EmitConfig"]
-    Stages["StageConfig / Registry"]
-    Payload["Payloads"]
-    JSON["JSONValue"]
-  end
-
-  YP --> Proto
-  AP --> Proto
-  CLI --> Orch
-  CLI --> TUI
-  Orch --> Disc
-  Orch --> Eval
-  Orch --> Store
-  Proto --> HookReg
-  Proto --> Req
-  Req --> State
-  Disc --> Manifest
-  Eval --> Rules
-  Orch --> Stages
-  Orch --> Payload
-  Proto --> HookProto
-  HookReg --> HookProto
-  Pack --> Manifest
+  style Plugins fill:#fff3e0,stroke:#e65100
+  style SDK fill:#e3f2fd,stroke:#1565c0
+  style Core fill:#e8f5e9,stroke:#2e7d32
+  style CLI fill:#f3e5f5,stroke:#6a1b9a
 ```
+
+| Layer | Repository | Key types |
+|-------|-----------|-----------|
+| **CLI** | piqley-cli | Pipeline orchestrator, plugin discovery, rule evaluator, state store, TUI wizards, CLI commands |
+| **SDK** | piqley-plugin-sdk | `PiqleyPlugin` protocol, `HookRegistry`, `PluginRequest`/`PluginResponse`, `PluginState`/`ResolvedState`, packager |
+| **Core** | piqley-core | `PluginManifest`, `Hook`/`StandardHook`, `Rule`/`EmitConfig`, `StageConfig`/`StageRegistry`, `PluginInputPayload`/`PluginOutputLine`, `JSONValue` |
+| **Plugins** | your repo | Conforms to SDK (Swift) or raw JSON protocol (any language) |
 
 **PiqleyCore** is the foundation library with no external dependencies. It defines the shared types that both the CLI and the SDK depend on: plugin manifests, rules, stage configs, JSON payload schemas, and validation.
 
