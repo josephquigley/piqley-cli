@@ -33,7 +33,7 @@ struct ProcessCommand: AsyncParsableCommand {
     @Flag(help: "Skip interactive prompts; drop invalid rules with warnings")
     var nonInteractive = false
 
-    @Option(help: "Seconds to wait for another instance to finish (default: 600)")
+    @Option(help: "Seconds to wait for another instance to finish")
     var lockTimeout: Int = 600
 
     private var logger: Logger { Logger(label: "piqley.process") }
