@@ -57,6 +57,48 @@ struct RuleEvaluatorNamespaceResolutionTests {
         #expect(result.namespace["tags"] == .array([.string("tag1"), .string("tag2")]))
     }
 
+    @Test("template reference namespace resolved via referencedNamespaces")
+    func testTemplateReferenceNamespaceResolution() async throws {
+        let stateStore = StateStore()
+
+        await stateStore.setNamespace(
+            image: "photo.jpg",
+            plugin: "photo.quigs.datetools",
+            values: ["day_diff": .number(42)]
+        )
+
+        let rule = Rule(
+            match: nil,
+            emit: [
+                EmitConfig(action: "add", field: "title", values: ["Day #{{photo.quigs.datetools:day_diff}}"], replacements: nil, source: nil)
+            ]
+        )
+
+        let evaluator = try RuleEvaluator(
+            rules: [rule],
+            pluginId: "com.test.consumer",
+            logger: logger
+        )
+
+        #expect(evaluator.referencedNamespaces.contains("photo.quigs.datetools"))
+
+        let ruleDeps = Array(evaluator.referencedNamespaces)
+        let resolved = await stateStore.resolve(
+            image: "photo.jpg",
+            dependencies: ruleDeps + [ReservedName.original, "com.test.consumer", ReservedName.skip]
+        )
+
+        let result = await evaluator.evaluate(
+            state: resolved,
+            currentNamespace: [:],
+            imageName: "photo.jpg",
+            pluginId: "com.test.consumer",
+            stateStore: stateStore
+        )
+
+        #expect(result.namespace["title"] == .array([.string("Day #42")]))
+    }
+
     @Test("foreign namespace not resolved without referencedNamespaces")
     func testForeignNamespaceNotResolvedWithoutRuleDeps() async throws {
         let stateStore = StateStore()

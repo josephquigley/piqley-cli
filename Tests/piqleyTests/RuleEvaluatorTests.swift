@@ -1202,6 +1202,51 @@ struct RuleEvaluatorTests {
         #expect(evaluator.referencedNamespaces.contains("foreign.plugin"))
     }
 
+    @Test("template namespace in add values included in referencedNamespaces")
+    func testTemplateNamespaceInAddValues() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "add", field: "title", values: ["Day #{{photo.quigs.datetools:day_diff}}"], replacements: nil, source: nil)]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.referencedNamespaces.contains("photo.quigs.datetools"))
+    }
+
+    @Test("multiple template namespaces in add values included in referencedNamespaces")
+    func testMultipleTemplateNamespaces() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [
+                    EmitConfig(action: "add", field: "title", values: ["{{plugin.a:field1}} and {{plugin.b:field2}}"], replacements: nil, source: nil)
+                ]
+            )],
+            logger: logger
+        )
+        #expect(evaluator.referencedNamespaces.contains("plugin.a"))
+        #expect(evaluator.referencedNamespaces.contains("plugin.b"))
+    }
+
+    @Test("reserved template namespaces excluded from referencedNamespaces")
+    func testReservedTemplateNamespacesExcluded() throws {
+        let evaluator = try RuleEvaluator(
+            rules: [makeRule(
+                field: "original:TIFF:Model",
+                pattern: "glob:*",
+                emit: [EmitConfig(action: "add", field: "title", values: ["{{read:EXIF:Date}} {{self:myField}}"], replacements: nil, source: nil)]
+            )],
+            pluginId: "com.test.myplugin",
+            logger: logger
+        )
+        #expect(!evaluator.referencedNamespaces.contains("read"))
+        #expect(!evaluator.referencedNamespaces.contains("self"))
+        #expect(!evaluator.referencedNamespaces.contains("com.test.myplugin"))
+    }
+
     // MARK: - Unconditional rules
 
     @Test("unconditional rule always fires")

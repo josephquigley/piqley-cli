@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Template references in `add` action values (e.g. `{{namespace:field}}`) now include the referenced namespace in rule dependency resolution, fixing cross-stage template fields resolving to empty
 - Inactive plugin index calculation no longer overflows when the divider row is absent
 - Field autocomplete in the rule editor now sees all upstream plugins when a plugin appears in multiple stages (previously only considered the first stage occurrence)
 - Images skipped by plugins are now reported during pipeline runs

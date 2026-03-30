@@ -152,10 +152,17 @@ struct RuleEvaluator: Sendable {
                 namespaces.insert(rule.namespace)
             }
             for action in rule.emitActions + rule.writeActions {
-                if case let .clone(_, sourceNamespace, _) = action,
-                   !reserved.contains(sourceNamespace)
-                {
-                    namespaces.insert(sourceNamespace)
+                switch action {
+                case let .clone(_, sourceNamespace, _):
+                    if !reserved.contains(sourceNamespace) {
+                        namespaces.insert(sourceNamespace)
+                    }
+                case let .add(_, values):
+                    for templateNS in Self.templateNamespaces(in: values) where !reserved.contains(templateNS) {
+                        namespaces.insert(templateNS)
+                    }
+                default:
+                    break
                 }
             }
         }
@@ -400,6 +407,27 @@ struct RuleEvaluator: Sendable {
             return ("self", fieldName)
         }
         return (namespace, fieldName)
+    }
+
+    /// Extracts namespace identifiers from `{{namespace:field}}` template references in values.
+    static func templateNamespaces(in values: [String]) -> Set<String> {
+        var namespaces = Set<String>()
+        for value in values {
+            var remaining = value[...]
+            while let openIdx = remaining.range(of: "{{") {
+                remaining = remaining[openIdx.upperBound...]
+                guard let closeIdx = remaining.range(of: "}}") else { break }
+                let reference = remaining[..<closeIdx.lowerBound]
+                remaining = remaining[closeIdx.upperBound...]
+                if let colonIdx = reference.firstIndex(of: ":") {
+                    let namespace = String(reference[reference.startIndex ..< colonIdx])
+                    if !namespace.isEmpty {
+                        namespaces.insert(namespace)
+                    }
+                }
+            }
+        }
+        return namespaces
     }
 
     private func resolveTemplates(
