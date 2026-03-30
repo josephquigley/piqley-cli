@@ -4,7 +4,7 @@ Plugins are the extensibility mechanism in piqley. They let you add new stages t
 
 ## Repository structure
 
-The plugin system spans three repositories. PiqleyCore sits at the bottom, providing shared types like `PluginManifest`, `PluginInputPayload`, and `PluginOutputLine`. Both the CLI and the SDK depend on PiqleyCore, but not on each other. Plugins optionally depend on the SDK for convenience, or they can implement the raw JSON protocol directly.
+The plugin system spans three repositories. PiqleyCore sits at the bottom, providing shared types like `PluginManifest`, `PluginInputPayload`, and `PluginOutputLine`. The SDK depends on PiqleyCore, and the CLI depends on both the SDK and PiqleyCore. The SDK does not depend on the CLI. Plugins optionally depend on the SDK for convenience, or they can implement the raw JSON protocol directly.
 
 ```mermaid
 graph TD
