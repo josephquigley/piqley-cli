@@ -25,7 +25,7 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 
 Images enter at `pipeline-start` and flow through each stage in order. At every stage, the orchestrator runs each assigned plugin's **preRules**, then its **binary** (if any), then its **postRules**. Rules read and transform metadata in the state store; binaries do the heavy lifting (resize, upload, tag).
 
-The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle hooks that always run. The middle stages are the default set, but users can add, remove, rename, and reorder custom stages via the stage registry.
+The green stages (`pipeline-start`, `pipeline-finished`) are required lifecycle hooks that always run. The middle stages are the default set, but users can add, remove, rename, and reorder custom stages via the stage registry. Plugins may also vend their own custom stages: when a plugin includes a stage file for an unrecognized hook name, piqley auto-registers it into the registry.
 
 ## Key concepts
 
