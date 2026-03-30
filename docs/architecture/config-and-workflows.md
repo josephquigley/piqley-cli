@@ -6,7 +6,7 @@ piqley uses a layered configuration system. Plugin defaults are overridden by ba
 
 When a plugin runs, `ConfigResolver` merges three layers of configuration into a single `ResolvedPluginConfig`. The result is injected into the plugin process as environment variables.
 
-![Config resolution diagram](img/config-and-workflows-1.svg)
+<img src="img/config-and-workflows-1.svg" alt="Config resolution diagram" style="max-width: 800px; max-height: 600px;" />
 
 Each layer works as follows:
 
@@ -42,7 +42,7 @@ A `Workflow` represents a named processing pipeline with per-plugin configuratio
 
 The `pipeline` dictionary maps stage names (hook names) to ordered lists of plugin identifiers. When you create a new workflow with `Workflow.empty(name:displayName:description:activeStages:)`, every active stage gets initialized to an empty array.
 
-![Workflow model diagram](img/config-and-workflows-2.svg)
+<img src="img/config-and-workflows-2.svg" alt="Workflow model diagram" style="max-width: 800px; max-height: 600px;" />
 
 ### WorkflowPluginConfig
 
