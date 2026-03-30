@@ -31,6 +31,7 @@ When only one argument is given, piqley checks if it matches a workflow name. If
 | `--delete-source-folder` | Delete the source folder and its contents after a successful run |
 | `--overwrite-source` | Overwrite source images with processed versions after a successful run |
 | `--non-interactive` | Skip interactive prompts; drop invalid rules with warnings |
+| `--lock-timeout <seconds>` | Seconds to wait for another instance to finish (default: 600) |
 
 The process command also acquires a file lock at `~/.config/piqley/piqley.lock` to prevent concurrent runs.
 
@@ -63,7 +64,7 @@ The `plugin` group manages the installed plugin catalog.
 | `plugin list` | List all installed plugins with version, description, and workflow membership |
 | `plugin setup [plugin]` | Run interactive setup for one or all plugins (use `--force` to re-setup) |
 | `plugin init [identifier]` | Create a new user-editable plugin with declarative rules (no binary); type is set to `.mutable` |
-| `plugin create` | Create a new executable plugin from a template |
+| `plugin create <dir> --identifier <id>` | Scaffold a new plugin project from an SDK template |
 | `plugin install <source>` | Install a plugin from a local path, download URL, or git repo (SSH/HTTPS) |
 | `plugin update <source>` | Update an installed plugin from a local path, download URL, or git repo |
 | `plugin uninstall <plugin>` | Remove a plugin from the plugins directory |
