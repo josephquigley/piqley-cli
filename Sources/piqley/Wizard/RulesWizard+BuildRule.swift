@@ -90,8 +90,9 @@ extension RulesWizard {
         // Step 3: Prompt for emit config
         let matchDesc = "\(selected.qualifiedName) ~ \(pattern)"
         let whenLine = "\(ANSI.dim)When \(matchDesc)\(ANSI.reset)"
+        let matchCtx = MatchContext(field: selected.qualifiedName, pattern: pattern)
 
-        guard let config = promptForEmitConfig(action: action) else { return nil }
+        guard let config = promptForEmitConfig(action: action, matchContext: matchCtx) else { return nil }
         if case let .failure(error) = builder.addEmit(config) {
             showError(error)
             return nil
@@ -108,7 +109,7 @@ extension RulesWizard {
                 ) else { break }
 
                 let nextAction = emitActions[actionIdx]
-                guard let nextConfig = promptForEmitConfig(action: nextAction) else { continue }
+                guard let nextConfig = promptForEmitConfig(action: nextAction, matchContext: matchCtx) else { continue }
                 if case let .failure(error) = builder.addEmit(nextConfig) {
                     showError(error)
                     continue
@@ -156,7 +157,13 @@ extension RulesWizard {
         }
     }
 
-    func promptForEmitConfig(action: String) -> EmitConfig? {
+    struct MatchContext {
+        let field: String // qualified name, e.g. "original:IPTC:Keywords"
+        let pattern: String // the match pattern
+    }
+
+    // swiftlint:disable:next cyclomatic_complexity
+    func promptForEmitConfig(action: String, matchContext: MatchContext? = nil) -> EmitConfig? {
         if action == "skip" {
             return EmitConfig(action: "skip", field: nil, values: nil, replacements: nil, source: nil)
         }
@@ -211,14 +218,32 @@ extension RulesWizard {
             return EmitConfig(action: action, field: field, values: values, replacements: nil, source: nil)
 
         case "remove":
+            // If the match field matches the target field, offer to reuse the match pattern
+            if let match = matchContext,
+               match.field == field || match.field.hasSuffix(":\(field)")
+            {
+                let choices = [
+                    "Remove values matching the rule's pattern  \(ANSI.dim)(\(match.pattern))\(ANSI.reset)",
+                    "Specify different values to remove",
+                ]
+                guard let choice = terminal.selectFromList(
+                    title: "What to remove from \(field)?",
+                    items: choices
+                ) else { return nil }
+
+                if choice == 0 {
+                    return EmitConfig(action: action, field: field, values: [match.pattern], replacements: nil, source: nil)
+                }
+            }
+
             var values: [String] = []
             while true {
-                let ordinal = values.isEmpty ? "first" : "next"
+                let ordinal = values.isEmpty ? "" : "another "
                 let hint = values.isEmpty
                     ? "e.g. sony  or  regex:.*\\d+mm.*"
-                    : "Enter another value, or press Enter to finish"
+                    : "Enter another value to remove, or press Enter to finish"
                 guard let value = terminal.promptForInput(
-                    title: "Enter \(ordinal) value",
+                    title: "Enter \(ordinal)value to remove from \(field)",
                     hint: hint,
                     allowEmpty: !values.isEmpty
                 ) else {
@@ -234,7 +259,7 @@ extension RulesWizard {
         case "replace":
             guard let pattern = terminal.promptForInput(
                 title: "Replacement pattern",
-                hint: "Pattern to match in values"
+                hint: "Exact, glob:, or regex: (e.g. sony, glob:Sony*, regex:.*\\d+mm.*)"
             ) else { return nil }
             guard let replacement = terminal.promptForInput(
                 title: "Replacement string",

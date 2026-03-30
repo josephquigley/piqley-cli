@@ -64,6 +64,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Rules editor now shows pre-rules and post-rules as separate slots within each stage instead of only editing pre-rules; labels use "command" instead of "binary"
 - `plugin init` now seeds each stage file with an empty binary config; pipeline warns about empty commands
 - `piqley plugin command <identifier>` menu-driven wizard for editing environment mappings, command, args, timeout, and fork per stage; env var editor autocompletes field names from metadata catalog and dependencies, auto-generates `PQY_NAMESPACE_FIELD` env names and `{{namespace:field}}` template values; `$VAR` names autocomplete in the args editor
+- Rules wizard remove action now offers to reuse the match pattern when the target field matches the match field
+- Replacement pattern prompts now show syntax hints (exact, glob:, regex:)
+- Field source prompt changed to "Match against field from which source?"
+- Remove value prompts now include the field name for context
 
 ### Added
 

@@ -134,7 +134,7 @@ extension RulesWizard {
             let rep = state.replacements[idx]
             if let pat = terminal.promptForInput(
                 title: "Replacement pattern",
-                hint: "Pattern to match in values",
+                hint: "Exact, glob:, or regex: (e.g. sony, glob:Sony*, regex:.*\\d+mm.*)",
                 defaultValue: rep.pattern
             ), let repStr = terminal.promptForInput(
                 title: "Replacement string",
@@ -213,7 +213,7 @@ extension RulesWizard {
         case "replace":
             if let pat = terminal.promptForInput(
                 title: "Replacement pattern",
-                hint: "Pattern to match in values"
+                hint: "Exact, glob:, or regex: (e.g. sony, glob:Sony*, regex:.*\\d+mm.*)"
             ), let rep = terminal.promptForInput(
                 title: "Replacement string",
                 hint: "What to replace with (use $1, $2 for capture groups)"
@@ -241,7 +241,7 @@ extension RulesWizard {
         if state.action == "replace" {
             if let pat = terminal.promptForInput(
                 title: "Replacement pattern",
-                hint: "Pattern to match in values"
+                hint: "Exact, glob:, or regex: (e.g. sony, glob:Sony*, regex:.*\\d+mm.*)"
             ), let repStr = terminal.promptForInput(
                 title: "Replacement string",
                 hint: "What to replace with (use $1, $2 for capture groups)"
