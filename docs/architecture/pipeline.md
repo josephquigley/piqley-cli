@@ -6,81 +6,13 @@ The pipeline is the core of piqley. When you run `piqley process`, the `ProcessC
 
 This diagram shows the full lifecycle of a single `piqley process` invocation.
 
-```mermaid
-sequenceDiagram
-    participant PC as ProcessCommand
-    participant PL as ProcessLock
-    participant PO as PipelineOrchestrator
-    participant TF as TempFolder
-    participant ME as MetadataExtractor
-    participant SS as StateStore
-    participant RE as RuleEvaluator
-    participant PR as PluginRunner
-    participant FM as ForkManager
-    participant MB as MetadataBuffer
-
-    PC->>PL: acquire lock (flock LOCK_EX)
-    PC->>PO: run(sourceURL, dryRun, debug)
-    PO->>TF: create()
-    PO->>TF: copyImages(from: sourceURL)
-    TF-->>PO: CopyResult (copiedCount, skippedFiles)
-
-    loop each image file
-        PO->>ME: extract(from: imageFile)
-        ME-->>PO: [String: JSONValue]
-        PO->>SS: setNamespace(image, "original", metadata)
-    end
-
-    PO->>PO: validateDependencies(pipeline)
-    PO->>PO: validateBinaries(pipeline)
-
-    loop each active stage in registry order
-        loop each plugin assigned to stage
-            PO->>PO: loadPlugin, resolveConfigAndSecrets
-            PO->>FM: resolveSource / getOrCreateFork
-            FM-->>PO: imageFolderURL
-
-            opt preRules defined
-                PO->>RE: evaluate(preRules, state)
-                RE-->>PO: RulesetResult (didRun, skippedImages)
-                PO->>MB: flush()
-            end
-
-            opt binary command defined
-                PO->>PR: run(hook, hookConfig, tempFolder, state)
-                PR-->>PO: RunOutput (exitResult, state, skippedImages)
-                PO->>SS: merge returned state into plugin namespace
-            end
-
-            opt postRules defined
-                PO->>RE: evaluate(postRules, state)
-                RE-->>PO: RulesetResult
-                PO->>MB: flush()
-            end
-
-            opt writeBack triggered
-                PO->>FM: writeBack(pluginId, mainURL)
-            end
-        end
-    end
-
-    PO->>TF: delete()
-    PO-->>PC: Bool (success / failure)
-    PC->>PL: release lock
-```
+![Pipeline orchestration sequence diagram](diagrams/pipeline-1.svg)
 
 ## Stage hook lifecycle
 
 Each stage has three slots that execute in sequence. A plugin does not need to use all three; any combination is valid.
 
-```mermaid
-flowchart LR
-    A[preRules] --> B[binary] --> C[postRules]
-
-    style A fill:#e8f4f8,stroke:#2980b9
-    style B fill:#fef9e7,stroke:#f39c12
-    style C fill:#e8f4f8,stroke:#2980b9
-```
+![Stage hook lifecycle diagram](diagrams/pipeline-2.svg)
 
 **preRules** transform state before the binary sees it. Rules can set fields in the plugin's namespace, skip images, or copy values from other namespaces. After preRules evaluate, the `MetadataBuffer` flushes any pending EXIF/IPTC writes. Skipped images are physically removed from the plugin's image folder so the binary never receives them.
 

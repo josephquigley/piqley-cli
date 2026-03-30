@@ -6,13 +6,7 @@ Plugins are the extensibility mechanism in piqley. They let you add new stages t
 
 The plugin system spans three repositories. PiqleyCore sits at the bottom, providing shared types like `PluginManifest`, `PluginInputPayload`, and `PluginOutputLine`. Both the CLI and the SDK depend on PiqleyCore, but not on each other. Plugins optionally depend on the SDK for convenience, or they can implement the raw JSON protocol directly.
 
-```mermaid
-graph TD
-    Plugin["Your plugin"] -->|optional| SDK["PiqleyPluginSDK"]
-    Plugin -->|or raw JSON protocol| Core["PiqleyCore"]
-    SDK --> Core
-    CLI["piqley-cli"] --> Core
-```
+![Three-repo dependency diagram](diagrams/plugin-system-1.svg)
 
 ## Plugin types
 
@@ -26,22 +20,7 @@ Piqley recognizes two plugin types, declared in the manifest's `type` field.
 
 When piqley starts, `PluginDiscovery` scans the plugins directory and loads every valid plugin it finds. The directory name must match the manifest's `identifier` field exactly.
 
-```mermaid
-flowchart TD
-    A["Scan plugins/"] --> B["Each subdirectory"]
-    B --> C{"manifest.json?"}
-    C -- No --> D["Skip"]
-    C -- Yes --> E["Decode manifest"]
-    E --> F["Validate"]
-    F --> G{"Valid?"}
-    G -- No --> H["Error"]
-    G -- Yes --> I{"ID == dir name?"}
-    I -- No --> J["Error"]
-    I -- Yes --> K["Load stage files"]
-    K --> L["Auto-register stages"]
-    L --> M["Create data/"]
-    M --> N["Return LoadedPlugin"]
-```
+![Plugin discovery flowchart](diagrams/plugin-system-2.svg)
 
 Stage files follow the naming convention `stage-{hookName}.json`. When a stage file references a hook name that the registry does not already know, piqley auto-registers it. This lets plugins introduce entirely new stages without any CLI changes.
 
@@ -53,28 +32,7 @@ Piqley supports two protocols for running plugin hooks: JSON and pipe. The proto
 
 The JSON protocol is the primary communication channel. It provides full access to state, configuration, and per-image results.
 
-```mermaid
-sequenceDiagram
-    participant CLI as piqley-cli
-    participant Plugin as Plugin binary
-
-    CLI->>Plugin: Spawn process
-    CLI->>Plugin: Write JSON payload to stdin
-    CLI->>Plugin: Close stdin
-
-    loop Each event
-        Plugin->>CLI: progress line (JSON)
-    end
-
-    loop Each image
-        Plugin->>CLI: imageResult line (JSON)
-    end
-
-    Plugin->>CLI: result line (JSON)
-    Plugin->>CLI: Exit with status code
-
-    CLI->>CLI: Evaluate exit code
-```
+![Plugin communication sequence diagram](diagrams/plugin-system-3.svg)
 
 ### Pipe protocol
 

@@ -4,18 +4,7 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 
 ## System layers
 
-```mermaid
-%%{init: {"flowchart": {"htmlLabels": false}} }%%
-graph LR
-  Plugins["Plugins"] --> SDK["Plugin SDK"]
-  SDK --> Core["Core"]
-  CLI["CLI"] --> Core
-
-  style Plugins fill:#fff3e0,stroke:#e65100
-  style SDK fill:#e3f2fd,stroke:#1565c0
-  style Core fill:#e8f5e9,stroke:#2e7d32
-  style CLI fill:#f3e5f5,stroke:#6a1b9a
-```
+![System layers diagram](diagrams/overview-1.svg)
 
 | Layer | Repository | Key types |
 |-------|-----------|-----------|
@@ -32,22 +21,7 @@ graph LR
 
 ## Pipeline at a glance
 
-```mermaid
-graph LR
-  Src["Source images"]
-  PS["pipeline-start"]
-  Pre["pre-process"]
-  Post["post-process"]
-  Pub["publish"]
-  PP["post-publish"]
-  PF["pipeline-finished"]
-  Out["Processed images"]
-
-  Src --> PS --> Pre --> Post --> Pub --> PP --> PF --> Out
-
-  style PS fill:#e8f5e9
-  style PF fill:#e8f5e9
-```
+![Pipeline flow diagram](diagrams/overview-2.svg)
 
 Images enter at `pipeline-start` and flow through each stage in order. At every stage, the orchestrator runs each assigned plugin's **preRules**, then its **binary** (if any), then its **postRules**. Rules read and transform metadata in the state store; binaries do the heavy lifting (resize, upload, tag).
 

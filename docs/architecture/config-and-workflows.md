@@ -6,16 +6,7 @@ piqley uses a layered configuration system. Plugin defaults are overridden by ba
 
 When a plugin runs, `ConfigResolver` merges three layers of configuration into a single `ResolvedPluginConfig`. The result is injected into the plugin process as environment variables.
 
-```mermaid
-flowchart TD
-    A["Manifest defaults"] --> D
-    B["Base plugin config"] --> D
-    C["Workflow overrides"] --> D
-    D["ConfigResolver"]
-    D --> E["PIQLEY_CONFIG_*"]
-    D --> F["Resolve secret aliases"]
-    F --> G["PIQLEY_SECRET_*"]
-```
+![Config resolution diagram](diagrams/config-and-workflows-1.svg)
 
 Each layer works as follows:
 
@@ -51,35 +42,7 @@ A `Workflow` represents a named processing pipeline with per-plugin configuratio
 
 The `pipeline` dictionary maps stage names (hook names) to ordered lists of plugin identifiers. When you create a new workflow with `Workflow.empty(name:displayName:description:activeStages:)`, every active stage gets initialized to an empty array.
 
-```mermaid
-flowchart LR
-    subgraph Workflow
-        direction TB
-        P["pipeline"]
-        C["config overrides"]
-    end
-
-    subgraph Pipeline
-        S1["pipeline-start\n[plugin-a]"]
-        S2["pre-process\n[plugin-b, plugin-c]"]
-        S3["post-process\n[plugin-b]"]
-        S4["publish\n[plugin-d]"]
-        S5["pipeline-finished\n[plugin-a]"]
-    end
-
-    subgraph Config
-        CA["plugin-b overrides"]
-        CB["plugin-d overrides"]
-    end
-
-    P --> S1
-    P --> S2
-    P --> S3
-    P --> S4
-    P --> S5
-    C --> CA
-    C --> CB
-```
+![Workflow model diagram](diagrams/config-and-workflows-2.svg)
 
 ### WorkflowPluginConfig
 
