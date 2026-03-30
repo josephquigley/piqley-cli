@@ -267,7 +267,7 @@ extension PipelineOrchestrator {
             stateStore: ctx.stateStore
         )
 
-        logger.info("Running plugin '\(loadedPlugin.name)' for hook '\(ctx.hook)'")
+        logger.info("Running plugin '\(loadedPlugin.name)' for stage '\(ctx.stage)'")
         let output = try await runner.run(
             hook: ctx.hook,
             hookConfig: hookConfig,
@@ -315,14 +315,14 @@ extension PipelineOrchestrator {
 
         switch result {
         case .success:
-            logger.info("[\(loadedPlugin.name)] hook '\(ctx.hook)': success")
+            logger.info("[\(loadedPlugin.name)] stage '\(ctx.stage)': success")
             return (.success, output.skippedImages)
         case .warning:
-            logger.warning("[\(loadedPlugin.name)] hook '\(ctx.hook)': completed with warnings")
+            logger.warning("[\(loadedPlugin.name)] stage '\(ctx.stage)': completed with warnings")
             return (.warning, output.skippedImages)
         case .critical:
             logger.error(
-                "[\(loadedPlugin.name)] hook '\(ctx.hook)': critical failure — aborting pipeline"
+                "[\(loadedPlugin.name)] stage '\(ctx.stage)': critical failure — aborting pipeline"
             )
             return (.critical, output.skippedImages)
         }

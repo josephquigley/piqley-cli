@@ -114,9 +114,10 @@ struct PipelineOrchestrator: Sendable {
                     continue
                 }
 
+                let resolvedHook = registry.resolvedHook(for: stage)
                 let ctx = HookContext(
                     pluginIdentifier: pluginEntry, pluginName: pluginEntry,
-                    hook: stage, temp: temp,
+                    hook: resolvedHook, stage: stage, temp: temp,
                     stateStore: stateStore, imageFiles: imageFiles,
                     dryRun: dryRun, debug: debug, nonInteractive: nonInteractive,
                     skippedImages: skippedImages,
@@ -158,6 +159,7 @@ struct PipelineOrchestrator: Sendable {
         let pluginIdentifier: String
         let pluginName: String
         let hook: String
+        let stage: String
         let temp: TempFolder
         let stateStore: StateStore
         let imageFiles: [URL]
@@ -193,8 +195,8 @@ struct PipelineOrchestrator: Sendable {
             return (.pluginNotFound, skippedImages)
         }
 
-        guard let stageConfig = loadedPlugin.stages[ctx.hook] else {
-            logger.debug("[\(loadedPlugin.name)] hook '\(ctx.hook)': no stage file -- skipping")
+        guard let stageConfig = loadedPlugin.stages[ctx.stage] else {
+            logger.debug("[\(loadedPlugin.name)] stage '\(ctx.stage)': no stage file -- skipping")
             return (.skipped, skippedImages)
         }
 
@@ -263,7 +265,7 @@ struct PipelineOrchestrator: Sendable {
                 let rulesetResult = try await evaluateRuleset(
                     rules: preRules, ctx: ctx, manifestDeps: manifestDeps,
                     buffer: buffer, ruleEvaluatorCache: &ruleEvaluatorCache,
-                    cacheKey: "\(ctx.pluginIdentifier):pre:\(ctx.hook)",
+                    cacheKey: "\(ctx.pluginIdentifier):pre:\(ctx.stage)",
                     skippedImages: skippedImages
                 )
                 preRulesDidRun = rulesetResult.didRun
@@ -279,13 +281,13 @@ struct PipelineOrchestrator: Sendable {
         // Binary
         var binaryDidRun = false
         if let binaryCommand = stageConfig.binary?.command, binaryCommand.isEmpty {
-            logger.warning("[\(loadedPlugin.name)] hook '\(ctx.hook)': binary command is empty, skipping binary")
+            logger.warning("[\(loadedPlugin.name)] stage '\(ctx.stage)': binary command is empty, skipping binary")
         }
         if let binaryCommand = stageConfig.binary?.command, !binaryCommand.isEmpty {
             // Skip binary entirely if all images are skipped
             let allImageNames = Set(forkImageFiles.map(\.lastPathComponent))
             if allImageNames.isSubset(of: skippedImages) {
-                logger.info("[\(loadedPlugin.name)] hook '\(ctx.hook)': all images skipped, skipping binary")
+                logger.info("[\(loadedPlugin.name)] stage '\(ctx.stage)': all images skipped, skipping binary")
             } else {
                 // Build skip records from state store for the payload
                 var skipRecords: [SkipRecord] = []
@@ -338,7 +340,7 @@ struct PipelineOrchestrator: Sendable {
                 let rulesetResult = try await evaluateRuleset(
                     rules: postRules, ctx: ctx, manifestDeps: manifestDeps,
                     buffer: buffer, ruleEvaluatorCache: &ruleEvaluatorCache,
-                    cacheKey: "\(ctx.pluginIdentifier):post:\(ctx.hook)",
+                    cacheKey: "\(ctx.pluginIdentifier):post:\(ctx.stage)",
                     skippedImages: skippedImages
                 )
                 skippedImages = rulesetResult.skippedImages

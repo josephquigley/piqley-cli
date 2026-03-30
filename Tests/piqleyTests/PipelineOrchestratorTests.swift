@@ -284,4 +284,57 @@ struct PipelineOrchestratorTests {
         #expect(result == true)
         #expect(!FileManager.default.fileExists(atPath: markerPath.path))
     }
+
+    @Test("aliased stage sends resolved hook to plugin binary")
+    func aliasedStageSendsResolvedHook() async throws {
+        // Create a script that writes the PIQLEY_HOOK env var to a file
+        let hookFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-hook-\(UUID().uuidString).txt")
+        let script = try makeTempScript("echo $PIQLEY_HOOK > \(hookFile.path)")
+
+        // Stage file is named stage-publish-365.json (keyed by stage name)
+        let pluginsDir = try makePluginsDir(
+            withPlugin: "com.test.alias-plugin",
+            hook: "publish-365",
+            scriptURL: script
+        )
+
+        // The alias points stage "publish-365" to hook "publish"
+        // so the plugin binary should receive "publish" as PIQLEY_HOOK
+        let registry = StageRegistry(
+            active: [
+                StageEntry(name: "pipeline-start"),
+                StageEntry(name: "publish-365", hook: "publish"),
+                StageEntry(name: "pipeline-finished")
+            ]
+        )
+
+        let sourceDir = try makeSourceDir()
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test",
+            pluginsDir: pluginsDir,
+            identifiers: ["com.test.alias-plugin"]
+        )
+
+        let workflow = Workflow(
+            name: "test",
+            displayName: "test",
+            description: "test",
+            pipeline: ["publish-365": ["com.test.alias-plugin"]]
+        )
+
+        let secretStore = FakeSecretStore()
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: secretStore,
+            registry: registry,
+            workflowsRoot: workflowsRoot
+        )
+
+        _ = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+
+        let hookValue = try String(contentsOf: hookFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(hookValue == "publish")
+    }
 }
