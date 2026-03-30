@@ -279,6 +279,8 @@ extension PipelineOrchestrator {
             metadataBuffer: metadataBuffer
         )
 
+        let lastExecutedVersion = versionStateStore.lastExecutedVersion(for: ctx.pluginIdentifier)
+
         // Build state payload for plugins that need it:
         // - JSON protocol plugins with dependencies (state goes on stdin)
         // - Any plugin with environment mappings (templates resolve against state)
@@ -301,7 +303,8 @@ extension PipelineOrchestrator {
             debug: ctx.debug,
             state: pluginState,
             skipped: skipped,
-            pipelineRunId: pipelineRunId
+            pipelineRunId: pipelineRunId,
+            lastExecutedVersion: lastExecutedVersion
         )
         let result = output.exitResult
         let returnedState = output.state

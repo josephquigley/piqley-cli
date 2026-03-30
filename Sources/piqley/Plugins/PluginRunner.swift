@@ -40,7 +40,8 @@ struct PluginRunner: Sendable {
         debug: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
         skipped: [SkipRecord] = [],
-        pipelineRunId: String? = nil
+        pipelineRunId: String? = nil,
+        lastExecutedVersion: SemanticVersion? = nil
     ) async throws -> RunOutput {
         guard let hookConfig else {
             logger.error("Plugin '\(plugin.identifier)' has no hook config for hook '\(hook)'")
@@ -107,7 +108,8 @@ struct PluginRunner: Sendable {
                 debug: debug,
                 state: state,
                 skipped: skipped,
-                pipelineRunId: pipelineRunId
+                pipelineRunId: pipelineRunId,
+                lastExecutedVersion: lastExecutedVersion
             ))
         case .pipe:
             let result = try await runPipe(
@@ -136,6 +138,7 @@ struct PluginRunner: Sendable {
         let state: [String: [String: [String: JSONValue]]]?
         let skipped: [SkipRecord]
         let pipelineRunId: String?
+        let lastExecutedVersion: SemanticVersion?
     }
 
     private func runJSON(
@@ -165,7 +168,8 @@ struct PluginRunner: Sendable {
             debug: context.debug,
             state: context.state,
             skipped: context.skipped,
-            pipelineRunId: context.pipelineRunId
+            pipelineRunId: context.pipelineRunId,
+            lastExecutedVersion: context.lastExecutedVersion
         )
         if let data = try? JSONEncoder.piqley.encode(payload) {
             stdinPipe.fileHandleForWriting.write(data)
@@ -419,7 +423,8 @@ struct PluginRunner: Sendable {
         debug: Bool,
         state: [String: [String: [String: JSONValue]]]? = nil,
         skipped: [SkipRecord] = [],
-        pipelineRunId: String? = nil
+        pipelineRunId: String? = nil,
+        lastExecutedVersion: SemanticVersion? = nil
     ) -> PluginInputPayload {
         let dataPath = plugin.directory.appendingPathComponent(PluginDirectory.data).path
         let logPath = plugin.directory.appendingPathComponent(PluginDirectory.logs).path
@@ -436,7 +441,7 @@ struct PluginRunner: Sendable {
             debug: debug,
             state: state,
             pluginVersion: pluginVersion,
-            lastExecutedVersion: nil,
+            lastExecutedVersion: lastExecutedVersion,
             skipped: skipped,
             pipelineRunId: pipelineRunId
         )

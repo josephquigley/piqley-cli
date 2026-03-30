@@ -8,6 +8,7 @@ struct PipelineOrchestrator: Sendable {
     let secretStore: any SecretStore
     let registry: StageRegistry
     let workflowsRoot: URL?
+    let versionStateStore: any VersionStateStore
     let logger = Logger(label: "piqley.pipeline")
 
     init(
@@ -15,13 +16,17 @@ struct PipelineOrchestrator: Sendable {
         pluginsDirectory: URL,
         secretStore: any SecretStore,
         registry: StageRegistry,
-        workflowsRoot: URL? = nil
+        workflowsRoot: URL? = nil,
+        versionStateStore: any VersionStateStore = FileVersionStateStore(
+            pluginsDirectory: defaultPluginsDirectory
+        )
     ) {
         self.workflow = workflow
         self.pluginsDirectory = pluginsDirectory
         self.secretStore = secretStore
         self.registry = registry
         self.workflowsRoot = workflowsRoot
+        self.versionStateStore = versionStateStore
     }
 
     /// Resolves the default plugins directory.
@@ -318,6 +323,20 @@ struct PipelineOrchestrator: Sendable {
         if !preRulesDidRun, !binaryDidRun, (stageConfig.postRules ?? []).isEmpty {
             return (.skipped, skippedImages)
         }
+
+        // Persist version after successful pipeline-start
+        if ctx.stage == StandardHook.pipelineStart.rawValue {
+            let pluginVersion = loadedPlugin.manifest.pluginVersion
+                ?? SemanticVersion(major: 0, minor: 0, patch: 0)
+            do {
+                try versionStateStore.save(version: pluginVersion, for: ctx.pluginIdentifier)
+            } catch {
+                logger.warning(
+                    "[\(loadedPlugin.name)] failed to save version state: \(error)"
+                )
+            }
+        }
+
         return (.success, skippedImages)
     }
 }
