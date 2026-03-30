@@ -4,7 +4,7 @@ Piqley is a plugin-driven photographer workflow engine. It processes batches of 
 
 ## System layers
 
-![System layers diagram](img/overview-1.svg)
+![System layers diagram](img/plugin-system-1.svg)
 
 | Layer | Repository | Key types |
 |-------|-----------|-----------|
