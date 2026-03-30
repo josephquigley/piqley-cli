@@ -4,9 +4,15 @@ The pipeline is the core of piqley. When you run `piqley process`, the `ProcessC
 
 ## Orchestration sequence
 
-This diagram shows the full lifecycle of a single `piqley process` invocation.
+This diagram shows the high-level lifecycle of a single `piqley process` invocation: lock, setup, stage loop, cleanup.
 
 <img src="img/pipeline-1.png" alt="Pipeline orchestration sequence diagram" style="max-width: 800px; max-height: 600px;" />
+
+### Stage execution detail
+
+Inside each stage, the orchestrator walks each assigned plugin and runs its rules and binary in sequence.
+
+<img src="img/pipeline-1b.png" alt="Stage execution detail diagram" style="max-width: 800px; max-height: 600px;" />
 
 ## Stage hook lifecycle
 
