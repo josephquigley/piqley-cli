@@ -271,7 +271,6 @@ extension PipelineOrchestrator {
         execLogPath: URL,
         skipped: [SkipRecord] = [],
         skippedImages: Set<String> = [],
-        imageFolderURL: URL? = nil,
         metadataBuffer: MetadataBuffer? = nil,
         pipelineRunId: String? = nil
     ) async throws -> (HookResult, [String]) {
@@ -302,7 +301,6 @@ extension PipelineOrchestrator {
             debug: ctx.debug,
             state: pluginState,
             skipped: skipped,
-            imageFolderOverride: imageFolderURL,
             pipelineRunId: pipelineRunId
         )
         let result = output.exitResult
@@ -316,7 +314,7 @@ extension PipelineOrchestrator {
 
         // Store returned state under the plugin's namespace
         if let returnedState {
-            let checkURL = imageFolderURL ?? ctx.temp.url
+            let checkURL = ctx.temp.url
             for (imageName, values) in returnedState {
                 let imageExists = FileManager.default.fileExists(
                     atPath: checkURL.appendingPathComponent(imageName).path

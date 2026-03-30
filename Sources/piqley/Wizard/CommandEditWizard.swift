@@ -140,7 +140,6 @@ final class CommandEditWizard {
         var command: String
         var args: [String]
         var timeout: Int?
-        var fork: Bool
         var environment: [String: String]
         var pluginProtocol: PluginProtocol?
         var batchProxy: BatchProxyConfig?
@@ -150,7 +149,6 @@ final class CommandEditWizard {
             command = binary?.command ?? ""
             args = binary?.args ?? []
             timeout = binary?.timeout
-            fork = binary?.fork ?? false
             environment = binary?.environment ?? [:]
             pluginProtocol = binary?.pluginProtocol
             batchProxy = binary?.batchProxy
@@ -165,8 +163,7 @@ final class CommandEditWizard {
                 warningCodes: original?.warningCodes,
                 criticalCodes: original?.criticalCodes,
                 batchProxy: batchProxy,
-                environment: environment.isEmpty ? nil : environment,
-                fork: fork ? true : nil
+                environment: environment.isEmpty ? nil : environment
             )
         }
     }
@@ -229,7 +226,6 @@ final class CommandEditWizard {
             "Command      \(ANSI.dim)\(state.command.isEmpty ? "(not set)" : state.command)\(ANSI.reset)",
             "Arguments    \(ANSI.dim)\(argsSummary)\(ANSI.reset)",
             "Timeout      \(ANSI.dim)\(timeoutStr)\(ANSI.reset)",
-            "Fork         \(ANSI.dim)\(state.fork ? "yes" : "no")\(ANSI.reset)",
         ]
     }
 
@@ -266,9 +262,6 @@ final class CommandEditWizard {
                 state.timeout = val.isEmpty ? nil : Int(val) ?? state.timeout
                 state.changed = true
             }
-        case 4: // Fork
-            state.fork = terminal.confirm("Enable fork (copy-on-write image isolation)?")
-            state.changed = true
         default: break
         }
     }

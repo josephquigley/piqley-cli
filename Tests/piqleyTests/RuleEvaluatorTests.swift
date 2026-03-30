@@ -890,25 +890,6 @@ struct RuleEvaluatorTests {
         #expect(result.namespace["notes"] == nil)
     }
 
-    // MARK: - WriteBack compilation
-
-    @Test("writeBack action compiles without error")
-    func testWriteBackCompiles() throws {
-        let rules = [Rule(
-            match: MatchConfig(field: "original:TIFF:Model", pattern: "glob:*"),
-            emit: [EmitConfig(action: nil, field: "keywords", values: ["test"], replacements: nil, source: nil)],
-            write: [EmitConfig(action: "writeBack", field: nil, values: nil, replacements: nil, source: nil)]
-        )]
-        let evaluator = try RuleEvaluator(rules: rules, logger: logger)
-        #expect(evaluator.compiledRules.count == 1)
-        #expect(evaluator.compiledRules[0].writeActions.count == 1)
-        if case .writeBack = evaluator.compiledRules[0].writeActions[0] {
-            // expected
-        } else {
-            Issue.record("Expected writeBack action")
-        }
-    }
-
     // MARK: - Self namespace resolution
 
     @Test("bare field name resolves to pluginId namespace")

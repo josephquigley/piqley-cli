@@ -57,7 +57,6 @@ struct PipelineOrchestrator: Sendable {
 
         let blocklist = PluginBlocklist()
         let stateStore = StateStore()
-        let forkManager = ForkManager(baseURL: temp.url)
         var ruleEvaluatorCache: [String: RuleEvaluator] = [:]
 
         // Extract metadata from all images into original namespace
@@ -121,7 +120,6 @@ struct PipelineOrchestrator: Sendable {
                     stateStore: stateStore, imageFiles: imageFiles,
                     dryRun: dryRun, debug: debug, nonInteractive: nonInteractive,
                     skippedImages: skippedImages,
-                    forkManager: forkManager,
                     executedPlugins: executedPlugins,
                     pipelineRunId: pipelineRunId
                 )
@@ -167,7 +165,6 @@ struct PipelineOrchestrator: Sendable {
         let debug: Bool
         let nonInteractive: Bool
         let skippedImages: Set<String>
-        let forkManager: ForkManager
         let executedPlugins: [(hook: String, pluginId: String)]
         let pipelineRunId: String
     }
@@ -223,37 +220,11 @@ struct PipelineOrchestrator: Sendable {
 
         let manifestDeps = loadedPlugin.manifest.dependencyIdentifiers
 
-        // Determine image folder: fork if needed, otherwise resolve from dependencies
-        let shouldFork = stageConfig.binary?.fork == true
-            || loadedPlugin.manifest.conversionFormat != nil
-
-        let imageFolderURL: URL
-        if shouldFork {
-            let source = await ctx.forkManager.resolveSource(
-                pluginId: ctx.pluginIdentifier,
-                dependencies: manifestDeps,
-                executedPlugins: ctx.executedPlugins,
-                mainURL: ctx.temp.url
-            )
-            imageFolderURL = try await ctx.forkManager.getOrCreateFork(
-                pluginId: ctx.pluginIdentifier,
-                sourceURL: source,
-                manifest: loadedPlugin.manifest
-            )
-        } else {
-            imageFolderURL = await ctx.forkManager.resolveSource(
-                pluginId: ctx.pluginIdentifier,
-                dependencies: manifestDeps,
-                executedPlugins: ctx.executedPlugins,
-                mainURL: ctx.temp.url
-            )
-        }
-
-        let forkImageFiles = try FileManager.default.contentsOfDirectory(
-            at: imageFolderURL, includingPropertiesForKeys: nil
+        let currentImageFiles = try FileManager.default.contentsOfDirectory(
+            at: ctx.temp.url, includingPropertiesForKeys: nil
         ).filter { TempFolder.imageExtensions.contains($0.pathExtension.lowercased()) }
 
-        let imageURLs = Dictionary(uniqueKeysWithValues: forkImageFiles.map {
+        let imageURLs = Dictionary(uniqueKeysWithValues: currentImageFiles.map {
             ($0.lastPathComponent, $0)
         })
         let buffer = MetadataBuffer(imageURLs: imageURLs)
@@ -282,7 +253,7 @@ struct PipelineOrchestrator: Sendable {
 
         // Remove skipped images from the image folder so the binary never sees them
         for imageName in skippedImages {
-            let imageURL = imageFolderURL.appendingPathComponent(imageName)
+            let imageURL = ctx.temp.url.appendingPathComponent(imageName)
             try? FileManager.default.removeItem(at: imageURL)
         }
 
@@ -293,7 +264,7 @@ struct PipelineOrchestrator: Sendable {
         }
         if let binaryCommand = stageConfig.binary?.command, !binaryCommand.isEmpty {
             // Skip binary entirely if all images are skipped
-            let allImageNames = Set(forkImageFiles.map(\.lastPathComponent))
+            let allImageNames = Set(currentImageFiles.map(\.lastPathComponent))
             if allImageNames.isSubset(of: skippedImages) {
                 logger.info("[\(loadedPlugin.name)] stage '\(ctx.stage)': all images skipped, skipping binary")
             } else {
@@ -306,7 +277,6 @@ struct PipelineOrchestrator: Sendable {
                     rulesDidRun: preRulesDidRun, execLogPath: execLogPath,
                     skipped: skipRecords,
                     skippedImages: skippedImages,
-                    imageFolderURL: imageFolderURL,
                     metadataBuffer: buffer,
                     pipelineRunId: ctx.pipelineRunId
                 )
@@ -344,11 +314,6 @@ struct PipelineOrchestrator: Sendable {
         }
 
         await buffer.flush()
-
-        if await buffer.writeBackTriggered {
-            try await ctx.forkManager.writeBack(pluginId: ctx.pluginIdentifier, mainURL: ctx.temp.url)
-            logger.info("[\(loadedPlugin.name)] writeBack completed")
-        }
 
         if !preRulesDidRun, !binaryDidRun, (stageConfig.postRules ?? []).isEmpty {
             return (.skipped, skippedImages)
