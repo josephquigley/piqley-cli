@@ -396,6 +396,72 @@ struct PipelineOrchestratorTests {
         #expect(!seen.contains("draft.jpg"))
     }
 
+    @Test("critical failure stops remaining plugins in the same stage")
+    func testCriticalAbortsSameStage() async throws {
+        let failScript = try makeTempScript("exit 1")
+        let markerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-same-stage-marker-\(UUID().uuidString)")
+        let successScript = try makeTempScript("""
+            [ "$1" = "--piqley-info" ] && exit 1
+            touch "\(markerPath.path)"
+            """)
+        defer {
+            try? FileManager.default.removeItem(at: failScript)
+            try? FileManager.default.removeItem(at: successScript)
+            try? FileManager.default.removeItem(at: markerPath)
+        }
+
+        // Two plugins in the SAME stage: first fails critically, second should never run
+        let pluginsDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-orch-\(UUID().uuidString)")
+
+        for (identifier, script) in [("com.test.fail-plugin", failScript), ("com.test.ok-plugin", successScript)] {
+            let pluginDir = pluginsDir.appendingPathComponent(identifier)
+            try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+            let manifest: [String: Any] = [
+                "identifier": identifier,
+                "name": identifier,
+                "type": "static",
+                "pluginSchemaVersion": "1"
+            ]
+            try JSONSerialization.data(withJSONObject: manifest)
+                .write(to: pluginDir.appendingPathComponent("manifest.json"))
+            let stageConfig: [String: Any] = [
+                "binary": ["command": script.path, "args": [], "protocol": "pipe"]
+            ]
+            try JSONSerialization.data(withJSONObject: stageConfig)
+                .write(to: pluginDir.appendingPathComponent("stage-pre-process.json"))
+            try FileManager.default.createDirectory(
+                at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true
+            )
+        }
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+
+        let sourceDir = try makeSourceDir()
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["pre-process"] = ["com.test.fail-plugin", "com.test.ok-plugin"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.fail-plugin", "com.test.ok-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == false)
+        // The second plugin must NOT have run — marker file should not exist
+        #expect(!FileManager.default.fileExists(atPath: markerPath.path))
+    }
+
     @Test("aliased stage sends resolved hook to plugin binary")
     func aliasedStageSendsResolvedHook() async throws {
         // Create a script that writes the PIQLEY_HOOK env var to a file

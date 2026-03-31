@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Critical plugin failure now immediately stops remaining plugins in the same stage, instead of only stopping at the next stage boundary
 - Write action values containing templates (e.g. `{{original:EXIF:FNumber}}`) are now resolved from state instead of being treated as literal strings
 - Globally skipped images are now excluded from the state payload sent to plugin binaries, preventing skipped images from appearing in plugin input
 - Skipped image files are now removed from the working folder before plugin binary execution, preventing downstream plugin binaries from seeing or processing them

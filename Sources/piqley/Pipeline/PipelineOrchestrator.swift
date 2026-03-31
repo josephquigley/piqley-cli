@@ -113,6 +113,7 @@ struct PipelineOrchestrator: Sendable {
             guard !pipelineFailed else { break }
 
             for pluginEntry in pipeline[stage] ?? [] {
+                guard !pipelineFailed else { break }
                 guard !blocklist.isBlocked(pluginEntry) else {
                     logger.debug("[\(pluginEntry)] skipped (blocklisted)")
                     continue
