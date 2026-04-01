@@ -73,6 +73,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- `Workflow.empty()` now excludes lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline dictionary; added `strippingLifecycleStages()` helper to remove lifecycle keys from an existing workflow
 - `plugin install` and `plugin update` now accept a URL to download a `.piqleyplugin` file or a git repository URL (SSH/HTTPS) as the source argument, in addition to local file paths
 - `process` command now accepts `--lock-timeout <seconds>` to control how long to wait for another instance to release the lock (default: 600s); validates non-negative values
 - `ProcessLock.acquire(path:timeout:)` retries acquiring a lock every 5 seconds until the timeout expires, logging a user-facing message on first contention and throwing `.timedOut` when the deadline is reached

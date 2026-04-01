@@ -25,16 +25,34 @@ struct ConfigTests {
         #expect(workflow.pipeline["publish"] == ["ghost"])
     }
 
-    @Test("empty workflow has all six hooks")
+    @Test("empty workflow has user-configurable hooks only")
     func testEmptyWorkflow() {
         let workflow = Workflow.empty(name: "default", activeStages: StandardHook.defaultStageNames)
-        #expect(workflow.pipeline.count == 6)
-        #expect(workflow.pipeline["pipeline-start"] == [])
+        #expect(workflow.pipeline.count == 4)
+        #expect(workflow.pipeline["pipeline-start"] == nil)
         #expect(workflow.pipeline["pre-process"] == [])
         #expect(workflow.pipeline["post-process"] == [])
         #expect(workflow.pipeline["publish"] == [])
         #expect(workflow.pipeline["post-publish"] == [])
-        #expect(workflow.pipeline["pipeline-finished"] == [])
+        #expect(workflow.pipeline["pipeline-finished"] == nil)
+    }
+
+    @Test("strippingLifecycleStages removes pipeline-start and pipeline-finished")
+    func testStrippingLifecycleStages() {
+        let workflow = Workflow(
+            name: "test", displayName: "test", description: "",
+            pipeline: [
+                "pipeline-start": ["com.test.plugin"],
+                "pre-process": ["com.test.plugin"],
+                "publish": ["com.test.plugin"],
+                "pipeline-finished": ["com.test.plugin"]
+            ]
+        )
+        let stripped = workflow.strippingLifecycleStages()
+        #expect(stripped.pipeline["pipeline-start"] == nil)
+        #expect(stripped.pipeline["pipeline-finished"] == nil)
+        #expect(stripped.pipeline["pre-process"] == ["com.test.plugin"])
+        #expect(stripped.pipeline["publish"] == ["com.test.plugin"])
     }
 
     @Test("encodes and decodes round-trip")
