@@ -235,19 +235,17 @@ struct PluginRunner: Sendable {
                 case "progress":
                     logger.info("[\(plugin.name)]: \(obj.message ?? "")")
                 case "imageResult":
-                    logger.debug(
-                        "[\(plugin.name)] imageResult: \(obj.filename ?? "") status=\(obj.status?.rawValue ?? "unknown")"
-                    )
                     if let filename = obj.filename {
+                        let detail = obj.message ?? obj.error ?? ""
+                        let suffix = detail.isEmpty ? "" : " \(detail)"
                         switch obj.status {
+                        case .success: logger.info("[\(plugin.name)] Uploaded: \(filename)")
+                        case .failure: logger.error("[\(plugin.name)] Failed: \(filename)\(suffix)")
                         case .skip:
                             skippedFilenames.append(filename)
-                            logger.info("[\(plugin.name)] Skipping: \(filename)")
-                        case .warning:
-                            let detail = obj.message ?? obj.error ?? ""
-                            logger.warning("[\(plugin.name)] Warning: \(filename)\(detail.isEmpty ? "" : " \(detail)")")
-                        default:
-                            break
+                            logger.info("[\(plugin.name)] Skipping: \(filename)\(detail.isEmpty ? "" : " — \(detail)")")
+                        case .warning: logger.warning("[\(plugin.name)] Warning: \(filename)\(suffix)")
+                        case .none: logger.debug("[\(plugin.name)] imageResult: \(filename) status=unknown")
                         }
                     }
                 case "result":

@@ -75,6 +75,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- ExifAux dictionary support in metadata extraction and writing
+- Two-pass metadata writer: strips all metadata first, then re-applies only desired fields, preventing stale metadata from leaking through
+- XMP APP1 segment stripping at the byte level, removing XMP data that ImageIO copies through as raw bytes
+- Rules and templates can now reference the current plugin's in-progress working state, allowing earlier emit results to be used in later rules within the same evaluation
 - Three-phase pipeline orchestration: `pipeline-start` runs for all plugins before main stages, `pipeline-finished` always runs after (even on failure) for cleanup
 - `collectLifecyclePlugins()` helper discovers plugins with binaries for automatic lifecycle hook invocation
 - `runLifecycleHook()` helper invokes a lifecycle hook for a single plugin with version persistence on successful `pipeline-start`
@@ -233,6 +237,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Plugin imageResult logging now handles success and failure cases explicitly with descriptive messages instead of silently dropping them
+- piqley-plugin-sdk updated from 0.14.2 to 0.16.0
 - Lifecycle stages (pipeline-start, pipeline-finished) are now hidden from the TUI stage editor and plugin picker — they are invoked automatically for all plugins with binaries
 - `plugin init` no longer scaffolds example config entries; manifest and config start empty
 - Template resolution logic extracted from `PluginRunner` into a standalone `TemplateResolver` struct for shared use across the pipeline
