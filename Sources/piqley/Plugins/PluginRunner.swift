@@ -239,7 +239,8 @@ struct PluginRunner: Sendable {
                         let detail = obj.message ?? obj.error ?? ""
                         let suffix = detail.isEmpty ? "" : " \(detail)"
                         switch obj.status {
-                        case .success: logger.info("[\(plugin.name)] Uploaded: \(filename)")
+                        case .success:
+                            if !suffix.isEmpty { logger.info("[\(plugin.name)]\(suffix)") }
                         case .failure: logger.error("[\(plugin.name)] Failed: \(filename)\(suffix)")
                         case .skip:
                             skippedFilenames.append(filename)

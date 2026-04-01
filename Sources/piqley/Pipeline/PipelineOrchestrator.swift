@@ -330,7 +330,7 @@ struct PipelineOrchestrator: Sendable {
         // Binary
         var binaryDidRun = false
         if let binaryCommand = stageConfig.binary?.command, binaryCommand.isEmpty {
-            logger.warning("[\(loadedPlugin.name)] stage '\(ctx.stage)': binary command is empty, skipping binary")
+            logger.debug("[\(loadedPlugin.name)] stage '\(ctx.stage)': binary command is empty, skipping binary")
         }
         if let binaryCommand = stageConfig.binary?.command, !binaryCommand.isEmpty {
             // Skip binary entirely if all images are skipped
