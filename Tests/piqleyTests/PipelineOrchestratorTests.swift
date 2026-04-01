@@ -250,6 +250,8 @@ struct PipelineOrchestratorTests {
             .appendingPathComponent("piqley-skip-marker-\(UUID().uuidString)")
         let script = try makeTempScript("""
             [ "$1" = "--piqley-info" ] && exit 1
+            [ "$PIQLEY_HOOK" = "pipeline-start" ] && exit 0
+            [ "$PIQLEY_HOOK" = "pipeline-finished" ] && exit 0
             touch "\(markerPath.path)"
             """)
         defer { try? FileManager.default.removeItem(at: script) }
@@ -398,11 +400,17 @@ struct PipelineOrchestratorTests {
 
     @Test("critical failure stops remaining plugins in the same stage")
     func testCriticalAbortsSameStage() async throws {
-        let failScript = try makeTempScript("exit 1")
+        let failScript = try makeTempScript("""
+            [ "$PIQLEY_HOOK" = "pipeline-start" ] && exit 0
+            [ "$PIQLEY_HOOK" = "pipeline-finished" ] && exit 0
+            exit 1
+            """)
         let markerPath = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-same-stage-marker-\(UUID().uuidString)")
         let successScript = try makeTempScript("""
             [ "$1" = "--piqley-info" ] && exit 1
+            [ "$PIQLEY_HOOK" = "pipeline-start" ] && exit 0
+            [ "$PIQLEY_HOOK" = "pipeline-finished" ] && exit 0
             touch "\(markerPath.path)"
             """)
         defer {
@@ -467,7 +475,11 @@ struct PipelineOrchestratorTests {
         // Create a script that writes the PIQLEY_HOOK env var to a file
         let hookFile = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-hook-\(UUID().uuidString).txt")
-        let script = try makeTempScript("echo $PIQLEY_HOOK > \(hookFile.path)")
+        let script = try makeTempScript("""
+            [ "$PIQLEY_HOOK" = "pipeline-start" ] && exit 0
+            [ "$PIQLEY_HOOK" = "pipeline-finished" ] && exit 0
+            echo $PIQLEY_HOOK > \(hookFile.path)
+            """)
 
         // Stage file is named stage-publish-365.json (keyed by stage name)
         let pluginsDir = try makePluginsDir(

@@ -387,10 +387,15 @@ extension PipelineOrchestrator {
             return .pluginNotFound
         }
 
-        guard let binaryCommand = loadedPlugin.stages.values.lazy.compactMap({ $0.binary?.command }).first(where: { !$0.isEmpty }) else {
+        guard let stageWithBinary = loadedPlugin.stages.values.first(where: {
+            if let command = $0.binary?.command, !command.isEmpty { return true }
+            return false
+        }), let binaryCommand = stageWithBinary.binary?.command else {
             logger.debug("[\(pluginIdentifier)] no binary found for lifecycle hook \(hook.rawValue)")
             return .skipped
         }
+
+        let detectedProtocol = stageWithBinary.binary?.pluginProtocol
 
         let configResult = resolvePluginConfigAndSecrets(
             plugin: loadedPlugin, pluginIdentifier: pluginIdentifier
@@ -405,7 +410,7 @@ extension PipelineOrchestrator {
             return .secretMissing
         }
 
-        let hookConfig = HookConfig(command: binaryCommand, args: [], pluginProtocol: .json, environment: nil)
+        let hookConfig = HookConfig(command: binaryCommand, args: [], pluginProtocol: detectedProtocol, environment: nil)
 
         let execLogPath = pluginsDirectory
             .appendingPathComponent(pluginIdentifier)
