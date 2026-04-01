@@ -285,6 +285,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `piqley plugin list` shows which workflows each plugin appears in instead of pipeline stages
 - plugin setup always prompts for all config values and secrets, using existing values as defaults — fixes broken state from install --force
 - All source types accept injectable FileSystemManager parameter
+- Tests use InMemoryFileManager instead of real filesystem where possible
 
 ### Removed
 
