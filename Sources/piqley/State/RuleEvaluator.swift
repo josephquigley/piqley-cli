@@ -302,19 +302,19 @@ struct RuleEvaluator: Sendable {
                             let fileMetadata = await buffer.load(image: image)
                             if field == "*" {
                                 for (key, val) in fileMetadata {
-                                    Self.mergeClonedValue(val, into: &working, forKey: key)
+                                    Self.mergeClonedValue(val, into: &working, forKey: key, normalizeToArray: true)
                                 }
                             } else if let sourceField, let val = fileMetadata[sourceField] {
-                                Self.mergeClonedValue(val, into: &working, forKey: field)
+                                Self.mergeClonedValue(val, into: &working, forKey: field, normalizeToArray: true)
                             }
                         } else if field == "*" {
                             if let namespaceData = state[sourceNamespace] {
                                 for (key, val) in namespaceData {
-                                    Self.mergeClonedValue(val, into: &working, forKey: key)
+                                    Self.mergeClonedValue(val, into: &working, forKey: key, normalizeToArray: true)
                                 }
                             }
                         } else if let sourceField, let val = state[sourceNamespace]?[sourceField] {
-                            Self.mergeClonedValue(val, into: &working, forKey: field)
+                            Self.mergeClonedValue(val, into: &working, forKey: field, normalizeToArray: true)
                         }
                         continue
                     }

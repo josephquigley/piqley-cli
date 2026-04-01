@@ -339,6 +339,9 @@ struct UpdateSubcommand: ParsableCommand {
 
         let pluginsDir = PipelineOrchestrator.defaultPluginsDirectory
 
+        // Snapshot old stages before update replaces the plugin directory
+        let oldStageNames = StageDriftChecker.snapshotOldStageNames(pluginsDir: pluginsDir, zipURL: zipURL)
+
         let result = try PluginUpdater.update(from: zipURL, pluginsDirectory: pluginsDir)
 
         // Print version transition
@@ -431,6 +434,13 @@ struct UpdateSubcommand: ParsableCommand {
         if !pruned.isEmpty {
             print("Pruned \(pruned.count) orphaned secret(s).")
         }
+
+        // Check for stage drift across workflows
+        try StageDriftChecker.check(
+            identifier: result.identifier,
+            pluginsDir: pluginsDir,
+            oldStageNames: oldStageNames
+        )
 
         print("\nUpdate complete.")
     }

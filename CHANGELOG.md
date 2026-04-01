@@ -74,6 +74,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Skip lifecycle hooks for plugins that don't vend the stage instead of invoking an arbitrary binary
 - Lifecycle hooks (pipeline-start, pipeline-finished) now load from the plugin directory when missing from the workflow rules directory, fixing cleanup and other lifecycle logic that was silently skipped
 - Reduced noisy pipeline logging: empty binary command log downgraded to debug, redundant upload success lines suppressed
+- Emit clone actions now normalize string values to arrays for consistent plugin SDK access
 
 ### Added
 
@@ -233,6 +234,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Homebrew formula with bottle support and GitHub Actions CI
 - plugin setup shows plugin name header before each plugin's config prompts
 - secret prompts support ? to reveal current value
+- Stage drift check during plugin update detects new and removed stages across workflows
 
 ### Changed
 

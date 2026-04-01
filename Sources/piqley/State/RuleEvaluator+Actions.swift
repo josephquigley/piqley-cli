@@ -95,9 +95,17 @@ extension RuleEvaluator {
     }
 
     /// Merges `source` into `working[key]`, appending unique array values. Non-array values are replaced.
-    static func mergeClonedValue(_ source: JSONValue, into working: inout [String: JSONValue], forKey key: String) {
+    /// When `normalizeToArray` is true, single string values are wrapped in arrays so that plugin
+    /// SDK `strings()` accessors work consistently. Pass `false` for metadata write-back where
+    /// the original value format must be preserved.
+    static func mergeClonedValue(
+        _ source: JSONValue,
+        into working: inout [String: JSONValue],
+        forKey key: String,
+        normalizeToArray: Bool = false
+    ) {
         let incoming = extractStrings(from: source)
-        if !incoming.isEmpty, working[key] != nil {
+        if !incoming.isEmpty, normalizeToArray || working[key] != nil {
             var existing = extractStrings(from: working[key])
             for val in incoming where !existing.contains(val) {
                 existing.append(val)

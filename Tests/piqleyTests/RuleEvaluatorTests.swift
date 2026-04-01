@@ -694,7 +694,8 @@ struct RuleEvaluatorTests {
             ]],
             currentNamespace: ["existing": .string("preserved")]
         )
-        #expect(result.namespace["TIFF:Model"] == .string("Sony"))
+        // Emit clones normalize string values to single-element arrays for SDK strings() consistency
+        #expect(result.namespace["TIFF:Model"] == .array([.string("Sony")]))
         #expect(result.namespace["IPTC:Keywords"] == .array([.string("landscape")]))
         #expect(result.namespace["existing"] == .string("preserved"))
     }
