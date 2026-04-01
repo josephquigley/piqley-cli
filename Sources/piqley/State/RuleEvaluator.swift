@@ -265,6 +265,8 @@ struct RuleEvaluator: Sendable {
                     value = fileMetadata[rule.field]
                 } else if rule.namespace.isEmpty, rule.field == "skip", let image = imageName {
                     value = Self.resolveSkipField(image: image, state: state)
+                } else if rule.namespace == pluginId, let val = working[rule.field] {
+                    value = val
                 } else {
                     value = state[rule.namespace]?[rule.field]
                 }
@@ -317,13 +319,11 @@ struct RuleEvaluator: Sendable {
                         continue
                     }
 
-                    let resolvedAction = await resolveTemplates(
-                        in: action,
-                        state: state,
-                        metadataBuffer: metadataBuffer,
-                        imageName: imageName,
-                        pluginId: pluginId
+                    let templateCtx = TemplateResolver.Context(
+                        state: state, working: working, metadataBuffer: metadataBuffer,
+                        imageName: imageName, pluginId: pluginId, logger: logger
                     )
+                    let resolvedAction = await resolveTemplates(in: action, context: templateCtx)
                     Self.autoCloneIfNeeded(action: resolvedAction, working: &working, state: state, namespace: rule.namespace)
                     Self.applyAction(resolvedAction, to: &working)
                 }
@@ -375,13 +375,11 @@ struct RuleEvaluator: Sendable {
                 }
                 continue
             }
-            let resolvedAction = await resolveTemplates(
-                in: action,
-                state: state,
-                metadataBuffer: buffer,
-                imageName: image,
-                pluginId: pluginId
+            let templateCtx = TemplateResolver.Context(
+                state: state, metadataBuffer: buffer,
+                imageName: image, pluginId: pluginId, logger: logger
             )
+            let resolvedAction = await resolveTemplates(in: action, context: templateCtx)
             await buffer.applyAction(resolvedAction, image: image)
         }
     }
@@ -472,21 +470,11 @@ struct RuleEvaluator: Sendable {
 
     private func resolveTemplates(
         in action: EmitAction,
-        state: [String: [String: JSONValue]],
-        metadataBuffer: MetadataBuffer?,
-        imageName: String?,
-        pluginId: String?
+        context ctx: TemplateResolver.Context
     ) async -> EmitAction {
         guard case let .add(field, values) = action,
               values.contains(where: { $0.contains("{{") })
         else { return action }
-        let ctx = TemplateResolver.Context(
-            state: state,
-            metadataBuffer: metadataBuffer,
-            imageName: imageName,
-            pluginId: pluginId,
-            logger: logger
-        )
         var resolved: [String] = []
         for value in values {
             if value.contains("{{") {

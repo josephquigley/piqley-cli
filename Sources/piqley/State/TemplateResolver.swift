@@ -5,6 +5,7 @@ import PiqleyCore
 struct TemplateResolver: Sendable {
     struct Context {
         var state: [String: [String: JSONValue]]
+        var working: [String: JSONValue]
         var metadataBuffer: MetadataBuffer?
         var imageName: String?
         var pluginId: String?
@@ -12,12 +13,14 @@ struct TemplateResolver: Sendable {
 
         init(
             state: [String: [String: JSONValue]],
+            working: [String: JSONValue] = [:],
             metadataBuffer: MetadataBuffer? = nil,
             imageName: String? = nil,
             pluginId: String? = nil,
             logger: Logger
         ) {
             self.state = state
+            self.working = working
             self.metadataBuffer = metadataBuffer
             self.imageName = imageName
             self.pluginId = pluginId
@@ -78,13 +81,18 @@ struct TemplateResolver: Sendable {
             return ""
         }
 
+        // Check working namespace first for self-namespace references
+        if namespace == context.pluginId, let value = context.working[field] {
+            return jsonValueToString(value)
+        }
+
         if let namespaceState = context.state[namespace], let value = namespaceState[field] {
             return jsonValueToString(value)
         }
 
         // Fallback: colon-delimited field name in plugin's own namespace
         if context.state[namespace] == nil, let pluginId = context.pluginId {
-            if let value = context.state[pluginId]?[reference] {
+            if let value = context.working[reference] ?? context.state[pluginId]?[reference] {
                 return jsonValueToString(value)
             }
         }

@@ -75,6 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Rules and templates can now reference the current plugin's in-progress working state, allowing earlier emit results to be used in later rules within the same evaluation
 - Three-phase pipeline orchestration: `pipeline-start` runs for all plugins before main stages, `pipeline-finished` always runs after (even on failure) for cleanup
 - `collectLifecyclePlugins()` helper discovers plugins with binaries for automatic lifecycle hook invocation
 - `runLifecycleHook()` helper invokes a lifecycle hook for a single plugin with version persistence on successful `pipeline-start`
