@@ -130,9 +130,19 @@ piqley plugin install https://github.com/user/my-plugin.git
 # Accepts the same sources: file path, URL, or git repo
 piqley plugin update path/to/plugin.piqleyplugin
 
-# Set per-workflow config overrides
+# Set per-workflow config overrides (interactive)
 piqley workflow config my-workflow my-plugin
+
+# Override a specific config value
+piqley workflow config my-workflow my-plugin --set siteUrl=https://staging.example.com
+
+# Override a secret alias (points to a different Keychain entry)
+piqley workflow config my-workflow my-plugin --set-secret API_KEY=staging-api-key
 ```
+
+Workflow config overrides let the same plugin behave differently in different workflows. For example, you might have a `production` workflow that publishes to your live Ghost site and a `staging` workflow that publishes to a test site, both using the same ghost-publisher plugin with different API URLs and credentials.
+
+Only the keys you override are changed. Everything else falls through to the plugin's base config (set via `piqley plugin setup`). See [Advanced Topics](advanced-topics.md#workflow-config-overrides) for a full walkthrough.
 
 ## Automating with Hazel
 

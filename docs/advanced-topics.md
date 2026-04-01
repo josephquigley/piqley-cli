@@ -657,6 +657,92 @@ piqley workflow rules my-plugin
 
 Use Ctrl+L to browse available metadata fields from a real image.
 
+## Workflow Config Overrides
+
+Plugins have a base configuration set during `piqley plugin setup`. Workflow config overrides let you change specific config values or secret aliases for a plugin within a single workflow, without touching the base config. This is how you run the same plugin against different environments, accounts, or settings.
+
+### When to Use Base Config vs. Workflow Overrides
+
+**Base config** (`piqley plugin setup`) is your default. It applies to every workflow unless overridden. Set values here that rarely change: output formats, default quality settings, your primary API credentials.
+
+**Workflow overrides** (`piqley workflow config`) are per-workflow tweaks. Use them when:
+- You publish to different sites (staging vs. production)
+- You use different credentials per workflow (test API key vs. live API key)
+- You want different resize dimensions or quality settings for different output targets
+
+### Example: Staging and Production Workflows
+
+Suppose you have a `ghost-publisher` plugin configured with your production Ghost site as the base config:
+
+```bash
+# Base config (applies to all workflows by default)
+piqley plugin setup ghost-publisher
+# → sets siteUrl = https://photos.example.com
+# → sets secret alias admin-api-key → prod-ghost-key
+```
+
+Now create a staging workflow that publishes to a test site instead:
+
+```bash
+# Override just the site URL and API key for the staging workflow
+piqley workflow config staging ghost-publisher \
+  --set siteUrl=https://staging.photos.example.com \
+  --set-secret ADMIN_API_KEY=staging-ghost-key
+```
+
+The staging workflow now uses a different URL and a different Keychain entry for the API key. Every other config value (resize dimensions, scheduling window, tag format) stays the same as the base config.
+
+Running `piqley process /path/to/photos --workflow staging` uses the overrides. Running with `--workflow production` (or the default workflow) uses the base config.
+
+### How Overrides Are Resolved
+
+When a plugin runs, piqley merges three layers:
+
+1. **Plugin manifest defaults** — declared in the plugin's `manifest.json`
+2. **Base config** — your global settings from `piqley plugin setup`
+3. **Workflow overrides** — per-plugin values from `piqley workflow config`
+
+Each layer overrides the previous one, key by key. If a workflow override specifies `siteUrl` but not `imageQuality`, the plugin gets the workflow's `siteUrl` and the base config's `imageQuality`.
+
+### Interactive vs. Flag Mode
+
+Without flags, `piqley workflow config` runs an interactive prompt that walks through every config value and secret defined in the plugin's manifest. Press Enter to keep the base config value, or type a new value to override it:
+
+```bash
+piqley workflow config staging ghost-publisher
+# siteUrl [https://photos.example.com]: https://staging.photos.example.com
+# imageQuality [85]: ↵  (keeps base value)
+# ADMIN_API_KEY [prod-ghost-key]: staging-ghost-key
+```
+
+With flags, you can set specific values without the interactive prompt:
+
+```bash
+piqley workflow config staging ghost-publisher --set siteUrl=https://staging.photos.example.com
+piqley workflow config staging ghost-publisher --set-secret ADMIN_API_KEY=staging-ghost-key
+```
+
+Both `--set` and `--set-secret` can be specified multiple times in a single command.
+
+### What Gets Stored
+
+Overrides are saved in the workflow's `workflow.json`:
+
+```json
+{
+  "name": "staging",
+  "pipeline": { "publish": ["ghost-publisher"] },
+  "config": {
+    "ghost-publisher": {
+      "values": { "siteUrl": "https://staging.photos.example.com" },
+      "secrets": { "ADMIN_API_KEY": "staging-ghost-key" }
+    }
+  }
+}
+```
+
+The `secrets` map stores aliases, not raw credentials. `staging-ghost-key` is a reference to a Keychain entry that you set with `piqley secret set ghost-publisher staging-ghost-key`. This means you can point multiple workflows at the same credential by using the same alias, or redirect to different credentials by changing the alias.
+
 ## Further reading
 
 - [Getting Started](getting-started.md) for installation, first workflow, and CLI basics
