@@ -288,6 +288,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - plugin setup always prompts for all config values and secrets, using existing values as defaults — fixes broken state from install --force
 - All source types accept injectable FileSystemManager parameter
 - Tests use InMemoryFileManager instead of real filesystem where possible
+- Bump piqley-plugin-sdk to 0.21.0 (stdout flush fix for streamed batch output)
 
 ### Removed
 
