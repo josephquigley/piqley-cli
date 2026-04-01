@@ -1,9 +1,12 @@
 import Foundation
+import PiqleyCore
 
 enum TemplateFetcher {
     /// Validate the target directory is empty or does not exist.
-    static func validateTargetDirectory(_ url: URL) throws {
-        let fileManager = FileManager.default
+    static func validateTargetDirectory(
+        _ url: URL,
+        fileManager: any FileSystemManager = FileManager.default
+    ) throws {
         var isDir: ObjCBool = false
         guard fileManager.fileExists(atPath: url.path, isDirectory: &isDir) else { return }
         guard isDir.boolValue else {
@@ -17,13 +20,14 @@ enum TemplateFetcher {
 
     /// Download and extract the SDK tarball, returning the path to the template directory.
     static func fetchAndExtractTemplate(
-        repoURL: String, tag: SemVer, language: String
+        repoURL: String, tag: SemVer, language: String,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws -> (templateDir: URL, tempDir: URL) {
         let tarballURL = "\(repoURL)/archive/refs/tags/\(tag.versionString).tar.gz"
 
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = fileManager.temporaryDirectory
             .appendingPathComponent("piqley-create-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let tarballPath = tempDir.appendingPathComponent("sdk.tar.gz")
 
@@ -47,15 +51,15 @@ enum TemplateFetcher {
 
         guard curlProcess.terminationStatus == 0,
               httpCode == "200",
-              FileManager.default.fileExists(atPath: tarballPath.path)
+              fileManager.fileExists(atPath: tarballPath.path)
         else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw CreateError.tarballDownloadFailed(tarballURL)
         }
 
         // Extract tarball
         let extractDir = tempDir.appendingPathComponent("extracted")
-        try FileManager.default.createDirectory(at: extractDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: extractDir, withIntermediateDirectories: true)
 
         let tarProcess = Process()
         tarProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -64,19 +68,19 @@ enum TemplateFetcher {
         tarProcess.waitUntilExit()
 
         guard tarProcess.terminationStatus == 0 else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw CreateError.extractionFailed("tar exited with code \(tarProcess.terminationStatus)")
         }
 
         // Find the single top-level directory inside the extracted contents
-        let extractedContents = try FileManager.default.contentsOfDirectory(
+        let extractedContents = try fileManager.contentsOfDirectory(
             at: extractDir, includingPropertiesForKeys: nil
         )
         guard let topLevel = extractedContents.first(where: {
             var isDir: ObjCBool = false
-            return FileManager.default.fileExists(atPath: $0.path, isDirectory: &isDir) && isDir.boolValue
+            return fileManager.fileExists(atPath: $0.path, isDirectory: &isDir) && isDir.boolValue
         }) else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw CreateError.extractionFailed("No top-level directory found in archive")
         }
 
@@ -84,10 +88,10 @@ enum TemplateFetcher {
         let templateDir = topLevel.appendingPathComponent("templates/\(langLower)")
 
         var isDirCheck: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: templateDir.path, isDirectory: &isDirCheck),
+        guard fileManager.fileExists(atPath: templateDir.path, isDirectory: &isDirCheck),
               isDirCheck.boolValue
         else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw CreateError.templateNotFound(langLower, tag.versionString)
         }
 
@@ -95,8 +99,10 @@ enum TemplateFetcher {
     }
 
     /// Copy template contents to the target directory.
-    static func copyTemplate(from templateDir: URL, to targetDir: URL) throws {
-        let fileManager = FileManager.default
+    static func copyTemplate(
+        from templateDir: URL, to targetDir: URL,
+        fileManager: any FileSystemManager = FileManager.default
+    ) throws {
         if !fileManager.fileExists(atPath: targetDir.path) {
             try fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
         }
@@ -132,15 +138,16 @@ enum TemplateFetcher {
 
     /// Replace template placeholders in all files under a directory.
     static func applyTemplateSubstitutions(
-        in directory: URL, pluginName: String, identifier: String, sdkVersion: String
+        in directory: URL, pluginName: String, identifier: String, sdkVersion: String,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws {
         let packageName = sanitizePackageName(pluginName)
-        let fileManager = FileManager.default
 
         // Rename directories and files whose names contain placeholders.
         // Process deepest paths first so child renames don't invalidate parent paths.
         try renamePathsContainingPlaceholders(
-            in: directory, packageName: packageName, pluginName: pluginName
+            in: directory, packageName: packageName, pluginName: pluginName,
+            fileManager: fileManager
         )
 
         // Replace placeholders inside file contents.
@@ -169,9 +176,9 @@ enum TemplateFetcher {
 
     /// Rename any directories or files whose names contain template placeholders.
     private static func renamePathsContainingPlaceholders(
-        in directory: URL, packageName: String, pluginName: String
+        in directory: URL, packageName: String, pluginName: String,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws {
-        let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(
             at: directory, includingPropertiesForKeys: nil
         ) else {

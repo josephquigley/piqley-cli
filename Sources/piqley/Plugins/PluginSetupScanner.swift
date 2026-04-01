@@ -19,6 +19,7 @@ struct PluginSetupScanner {
     let secretStore: any SecretStore
     let configStore: BasePluginConfigStore
     var inputSource: any InputSource
+    let fileManager: any FileSystemManager
     private let logger = Logger(label: "piqley.setup-scanner")
 
     /// Runs setup scan for a single plugin.
@@ -70,7 +71,7 @@ struct PluginSetupScanner {
         // Phase 3: Setup binary
         if let setup = plugin.manifest.setup, baseConfig.isSetUp != true {
             let executable = resolveExecutable(setup.command, pluginDir: plugin.directory)
-            guard FileManager.default.isExecutableFile(atPath: executable) else {
+            guard fileManager.isExecutableFile(atPath: executable) else {
                 logger.error("[\(plugin.name)] Setup command not found or not executable: \(executable)")
                 try configStore.save(baseConfig, for: plugin.identifier)
                 return
@@ -81,7 +82,7 @@ struct PluginSetupScanner {
             let args = substitute(args: setup.args, environment: environment)
 
             let dataDir = plugin.directory.appendingPathComponent(PluginDirectory.data)
-            try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: dataDir, withIntermediateDirectories: true)
             let exitCode = try runSetupBinary(
                 executable: executable, args: args,
                 environment: environment, workingDirectory: dataDir

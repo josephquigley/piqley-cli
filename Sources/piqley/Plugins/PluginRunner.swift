@@ -2,19 +2,26 @@ import Foundation
 import Logging
 import PiqleyCore
 
+// swiftlint:disable type_body_length
 /// Runs a single plugin hook as a subprocess.
 struct PluginRunner: Sendable {
     let plugin: LoadedPlugin
     let secrets: [String: String]
     let pluginConfig: PluginConfig
     let metadataBuffer: MetadataBuffer?
+    let fileManager: any FileSystemManager
     let logger = Logger(label: "piqley.runner")
 
-    init(plugin: LoadedPlugin, secrets: [String: String], pluginConfig: PluginConfig, metadataBuffer: MetadataBuffer? = nil) {
+    init(
+        plugin: LoadedPlugin, secrets: [String: String], pluginConfig: PluginConfig,
+        metadataBuffer: MetadataBuffer? = nil,
+        fileManager: any FileSystemManager = FileManager.default
+    ) {
         self.plugin = plugin
         self.secrets = secrets
         self.pluginConfig = pluginConfig
         self.metadataBuffer = metadataBuffer
+        self.fileManager = fileManager
     }
 
     static let defaultTimeoutSeconds = 30
@@ -450,7 +457,7 @@ struct PluginRunner: Sendable {
         in directory: URL,
         sort: SortConfig?
     ) throws -> [URL] {
-        let contents = try FileManager.default.contentsOfDirectory(
+        let contents = try fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil
         ).filter { TempFolder.imageExtensions.contains($0.pathExtension.lowercased()) }
@@ -470,6 +477,8 @@ struct PluginRunner: Sendable {
         }
     }
 }
+
+// swiftlint:enable type_body_length
 
 // MARK: - Concurrency Helpers
 

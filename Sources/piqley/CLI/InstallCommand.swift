@@ -36,9 +36,10 @@ enum InstallError: Error, CustomStringConvertible {
 
 enum PluginInstaller {
     @discardableResult
-    static func install(from zipURL: URL, to pluginsDirectory: URL, force: Bool = false) throws -> String {
-        let fileManager = FileManager.default
-
+    static func install(
+        from zipURL: URL, to pluginsDirectory: URL, force: Bool = false,
+        fileManager: any FileSystemManager = FileManager.default
+    ) throws -> String {
         // 1. Extract zip to temp dir
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("piqley-install-\(UUID().uuidString)")
         try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -72,7 +73,7 @@ enum PluginInstaller {
             throw InstallError.missingManifest
         }
 
-        let manifestData = try Data(contentsOf: manifestURL)
+        let manifestData = try fileManager.contents(of: manifestURL)
         let manifest: PluginManifest
         do {
             manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
@@ -169,13 +170,13 @@ enum PluginInstaller {
 
         // 10. Write installedPlatform to manifest
         let installedManifestURL = installLocation.appendingPathComponent(PluginFile.manifest)
-        let rawManifestData = try Data(contentsOf: installedManifestURL)
+        let rawManifestData = try fileManager.contents(of: installedManifestURL)
         var manifestDict = try JSONSerialization.jsonObject(with: rawManifestData) as? [String: Any] ?? [:]
         manifestDict["installedPlatform"] = HostPlatform.current
         let updatedManifestData = try JSONSerialization.data(
             withJSONObject: manifestDict, options: [.prettyPrinted, .sortedKeys]
         )
-        try updatedManifestData.write(to: installedManifestURL, options: .atomic)
+        try fileManager.write(updatedManifestData, to: installedManifestURL, options: .atomic)
 
         // 11. Set executable permissions on all files in bin
         let binDir = installLocation.appendingPathComponent(PluginDirectory.bin)
@@ -272,7 +273,8 @@ struct InstallSubcommand: ParsableCommand {
         var scanner = PluginSetupScanner(
             secretStore: secretStore,
             configStore: .default,
-            inputSource: StdinInputSource()
+            inputSource: StdinInputSource(),
+            fileManager: FileManager.default
         )
         try scanner.scan(plugin: plugin, force: force)
         print("\nSetup complete.")

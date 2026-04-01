@@ -7,9 +7,9 @@ enum WorkflowStore {
             .appendingPathComponent(PiqleyPath.workflows)
     }
 
-    static func ensureDirectory(root: URL? = nil) throws {
+    static func ensureDirectory(root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws {
         let dir = root ?? workflowsDirectory
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 
     static func directoryURL(name: String, root: URL? = nil) -> URL {
@@ -31,17 +31,18 @@ enum WorkflowStore {
     /// Scans all plugin rules directories under a workflow for stage files
     /// and auto-registers any stage names not already known to the registry.
     static func scanAndRegisterStages(
-        workflowName: String, registry: inout StageRegistry, root: URL? = nil
+        workflowName: String, registry: inout StageRegistry, root: URL? = nil,
+        fileManager: any FileSystemManager = FileManager.default
     ) {
         let rulesDir = rulesDirectory(name: workflowName, root: root)
-        guard let pluginDirs = try? FileManager.default.contentsOfDirectory(
+        guard let pluginDirs = try? fileManager.contentsOfDirectory(
             at: rulesDir, includingPropertiesForKeys: [.isDirectoryKey]
         ) else { return }
 
         let knownNames = registry.allKnownNames
         for pluginDir in pluginDirs {
             guard (try? pluginDir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
-            guard let files = try? FileManager.default.contentsOfDirectory(
+            guard let files = try? fileManager.contentsOfDirectory(
                 at: pluginDir, includingPropertiesForKeys: nil
             ) else { continue }
 
@@ -62,75 +63,76 @@ enum WorkflowStore {
 
     /// Checks whether a specific stage file exists in a workflow's rules directory for a plugin.
     static func hasStageFile(
-        workflowName: String, pluginIdentifier: String, stageName: String, root: URL? = nil
+        workflowName: String, pluginIdentifier: String, stageName: String, root: URL? = nil,
+        fileManager: any FileSystemManager = FileManager.default
     ) -> Bool {
         let stageFile = pluginRulesDirectory(
             workflowName: workflowName, pluginIdentifier: pluginIdentifier, root: root
         ).appendingPathComponent("\(PluginFile.stagePrefix)\(stageName)\(PluginFile.stageSuffix)")
-        return FileManager.default.fileExists(atPath: stageFile.path)
+        return fileManager.fileExists(atPath: stageFile.path)
     }
 
-    static func exists(name: String, root: URL? = nil) -> Bool {
+    static func exists(name: String, root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) -> Bool {
         let dir = directoryURL(name: name, root: root)
         var isDir: ObjCBool = false
-        return FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir) && isDir.boolValue
+        return fileManager.fileExists(atPath: dir.path, isDirectory: &isDir) && isDir.boolValue
     }
 
-    static func list(root: URL? = nil) throws -> [String] {
+    static func list(root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws -> [String] {
         let dir = root ?? workflowsDirectory
-        try ensureDirectory(root: root)
-        let contents = try FileManager.default.contentsOfDirectory(
+        try ensureDirectory(root: root, fileManager: fileManager)
+        let contents = try fileManager.contentsOfDirectory(
             at: dir, includingPropertiesForKeys: [.isDirectoryKey]
         )
         return contents
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
-            .filter { FileManager.default.fileExists(atPath: $0.appendingPathComponent("workflow.json").path) }
+            .filter { fileManager.fileExists(atPath: $0.appendingPathComponent("workflow.json").path) }
             .map(\.lastPathComponent)
             .sorted()
     }
 
-    static func load(name: String, root: URL? = nil) throws -> Workflow {
-        let data = try Data(contentsOf: fileURL(name: name, root: root))
+    static func load(name: String, root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws -> Workflow {
+        let data = try fileManager.contents(of: fileURL(name: name, root: root))
         return try JSONDecoder.piqley.decode(Workflow.self, from: data)
     }
 
-    static func loadAll(root: URL? = nil) throws -> [Workflow] {
-        try list(root: root).map { try load(name: $0, root: root) }
+    static func loadAll(root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws -> [Workflow] {
+        try list(root: root, fileManager: fileManager).map { try load(name: $0, root: root, fileManager: fileManager) }
     }
 
-    static func save(_ workflow: Workflow, root: URL? = nil) throws {
+    static func save(_ workflow: Workflow, root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws {
         let dir = directoryURL(name: workflow.name, root: root)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         let cleaned = workflow.strippingLifecycleStages()
         let data = try JSONEncoder.piqleyPrettyPrint.encode(cleaned)
-        try data.write(to: fileURL(name: workflow.name, root: root))
+        try fileManager.write(data, to: fileURL(name: workflow.name, root: root))
     }
 
-    static func delete(name: String, root: URL? = nil) throws {
+    static func delete(name: String, root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws {
         let dir = directoryURL(name: name, root: root)
-        guard FileManager.default.fileExists(atPath: dir.path) else {
+        guard fileManager.fileExists(atPath: dir.path) else {
             throw WorkflowError.notFound(name)
         }
-        try FileManager.default.removeItem(at: dir)
+        try fileManager.removeItem(at: dir)
     }
 
-    static func clone(source: String, destination: String, root: URL? = nil) throws {
-        guard exists(name: source, root: root) else {
+    static func clone(source: String, destination: String, root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws {
+        guard exists(name: source, root: root, fileManager: fileManager) else {
             throw WorkflowError.notFound(source)
         }
-        guard !exists(name: destination, root: root) else {
+        guard !exists(name: destination, root: root, fileManager: fileManager) else {
             throw WorkflowError.alreadyExists(destination)
         }
         // Deep-copy the entire directory (includes rules/)
         let srcDir = directoryURL(name: source, root: root)
         let dstDir = directoryURL(name: destination, root: root)
-        try FileManager.default.copyItem(at: srcDir, to: dstDir)
+        try fileManager.copyItem(at: srcDir, to: dstDir)
 
         // Update the workflow.json with new name
-        var workflow = try load(name: destination, root: root)
+        var workflow = try load(name: destination, root: root, fileManager: fileManager)
         workflow.name = destination
         workflow.displayName = destination
-        try save(workflow, root: root)
+        try save(workflow, root: root, fileManager: fileManager)
     }
 
     // MARK: - Rule Seeding
@@ -141,26 +143,27 @@ enum WorkflowStore {
         workflowName: String,
         pluginIdentifier: String,
         pluginDirectory: URL,
-        root: URL? = nil
+        root: URL? = nil,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws {
         let destDir = pluginRulesDirectory(
             workflowName: workflowName, pluginIdentifier: pluginIdentifier, root: root
         )
 
         // Skip if already seeded (preserves customizations)
-        if FileManager.default.fileExists(atPath: destDir.path) { return }
+        if fileManager.fileExists(atPath: destDir.path) { return }
 
-        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: destDir, withIntermediateDirectories: true)
 
         // Copy all stage-*.json files from plugin directory
-        let contents = try FileManager.default.contentsOfDirectory(
+        let contents = try fileManager.contentsOfDirectory(
             at: pluginDirectory, includingPropertiesForKeys: nil
         )
         for file in contents {
             let name = file.lastPathComponent
             guard name.hasPrefix(PluginFile.stagePrefix),
                   name.hasSuffix(PluginFile.stageSuffix) else { continue }
-            try FileManager.default.copyItem(
+            try fileManager.copyItem(
                 at: file, to: destDir.appendingPathComponent(name)
             )
         }
@@ -170,24 +173,26 @@ enum WorkflowStore {
     static func removePluginRules(
         workflowName: String,
         pluginIdentifier: String,
-        root: URL? = nil
+        root: URL? = nil,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws {
         let dir = pluginRulesDirectory(
             workflowName: workflowName, pluginIdentifier: pluginIdentifier, root: root
         )
-        if FileManager.default.fileExists(atPath: dir.path) {
-            try FileManager.default.removeItem(at: dir)
+        if fileManager.fileExists(atPath: dir.path) {
+            try fileManager.removeItem(at: dir)
         }
     }
 
     /// Seed the default workflow if no workflows exist.
-    static func seedDefault(activeStages: [String], root: URL? = nil) throws {
-        try ensureDirectory(root: root)
-        let existing = try list(root: root)
+    static func seedDefault(activeStages: [String], root: URL? = nil, fileManager: any FileSystemManager = FileManager.default) throws {
+        try ensureDirectory(root: root, fileManager: fileManager)
+        let existing = try list(root: root, fileManager: fileManager)
         if existing.isEmpty {
             try save(
                 .empty(name: "default", displayName: "Default", description: "Default workflow", activeStages: activeStages),
-                root: root
+                root: root,
+                fileManager: fileManager
             )
         }
     }

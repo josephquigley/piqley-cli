@@ -1,16 +1,20 @@
 #if !os(macOS)
     import Foundation
+    import PiqleyCore
 
     struct FileSecretStore: SecretStore {
         private let fileURL: URL
+        private let fileManager: any FileSystemManager
 
-        init() {
-            fileURL = FileManager.default.homeDirectoryForCurrentUser
+        init(fileManager: any FileSystemManager = FileManager.default) {
+            fileURL = fileManager.homeDirectoryForCurrentUser
                 .appendingPathComponent(PiqleyPath.secrets)
+            self.fileManager = fileManager
         }
 
-        init(fileURL: URL) {
+        init(fileURL: URL, fileManager: any FileSystemManager = FileManager.default) {
             self.fileURL = fileURL
+            self.fileManager = fileManager
         }
 
         func get(key: String) throws -> String {
@@ -39,15 +43,15 @@
         }
 
         private func loadSecrets() throws -> [String: String] {
-            let data = try Data(contentsOf: fileURL)
+            let data = try fileManager.contents(of: fileURL)
             return try JSONDecoder.piqley.decode([String: String].self, from: data)
         }
 
         private func saveSecrets(_ secrets: [String: String]) throws {
             let dir = fileURL.deletingLastPathComponent()
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
             let data = try JSONEncoder.piqley.encode(secrets)
-            try data.write(to: fileURL, options: .atomic)
+            try fileManager.write(data, to: fileURL, options: .atomic)
             chmod(fileURL.path, 0o600)
         }
     }

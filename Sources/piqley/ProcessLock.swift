@@ -1,14 +1,15 @@
 import Foundation
 import Logging
+import PiqleyCore
 
 final class ProcessLock {
     private var fileDescriptor: Int32
     private let path: String
     private var released = false
 
-    init(path: String) throws {
+    init(path: String, fileManager: any FileSystemManager = FileManager.default) throws {
         let dir = URL(fileURLWithPath: path).deletingLastPathComponent().path
-        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(atPath: dir, withIntermediateDirectories: true, attributes: nil)
         let fileDesc = open(path, O_CREAT | O_RDWR, 0o644)
         guard fileDesc >= 0 else { throw ProcessLockError.cannotOpenLockFile(path: path) }
         let result = flock(fileDesc, LOCK_EX | LOCK_NB)

@@ -9,6 +9,7 @@ struct PipelineOrchestrator: Sendable {
     let registry: StageRegistry
     let workflowsRoot: URL?
     let versionStateStore: any VersionStateStore
+    let fileManager: any FileSystemManager
     let logger = Logger(label: "piqley.pipeline")
 
     init(
@@ -19,7 +20,8 @@ struct PipelineOrchestrator: Sendable {
         workflowsRoot: URL? = nil,
         versionStateStore: any VersionStateStore = FileVersionStateStore(
             pluginsDirectory: defaultPluginsDirectory
-        )
+        ),
+        fileManager: any FileSystemManager = FileManager.default
     ) {
         self.workflow = workflow
         self.pluginsDirectory = pluginsDirectory
@@ -27,6 +29,7 @@ struct PipelineOrchestrator: Sendable {
         self.registry = registry
         self.workflowsRoot = workflowsRoot
         self.versionStateStore = versionStateStore
+        self.fileManager = fileManager
     }
 
     /// Resolves the default plugins directory.
@@ -35,6 +38,7 @@ struct PipelineOrchestrator: Sendable {
             .appendingPathComponent(PiqleyPath.plugins)
     }
 
+    // swiftlint:disable function_body_length
     /// Runs the full pipeline for a source folder.
     /// Returns `true` if all hooks succeeded, `false` if any hook aborted the pipeline.
     func run(sourceURL: URL, dryRun: Bool, debug: Bool, nonInteractive: Bool = false, overwriteSource: Bool = false) async throws -> Bool {
@@ -42,7 +46,7 @@ struct PipelineOrchestrator: Sendable {
         let pipelineRunId = UUID().uuidString
 
         // Create temp folder and copy images
-        let temp = try TempFolder.create()
+        let temp = try TempFolder.create(fileManager: fileManager)
         logger.info("Temp folder: \(temp.url.path)")
         let copyResult: TempFolder.CopyResult
         do {
@@ -65,7 +69,7 @@ struct PipelineOrchestrator: Sendable {
         var ruleEvaluatorCache: [String: RuleEvaluator] = [:]
 
         // Extract metadata from all images into original namespace
-        let imageFiles = try FileManager.default.contentsOfDirectory(
+        let imageFiles = try fileManager.contentsOfDirectory(
             at: temp.url, includingPropertiesForKeys: nil
         ).filter { TempFolder.imageExtensions.contains($0.pathExtension.lowercased()) }
 
@@ -120,6 +124,7 @@ struct PipelineOrchestrator: Sendable {
                 pluginIdentifier: pluginId,
                 hook: .pipelineStart,
                 temp: temp,
+                stateStore: stateStore,
                 imageFiles: imageFiles,
                 dryRun: dryRun,
                 debug: debug,
@@ -221,6 +226,8 @@ struct PipelineOrchestrator: Sendable {
         return true
     }
 
+    // swiftlint:enable function_body_length
+
     // MARK: - Types
 
     struct HookContext {
@@ -283,14 +290,14 @@ struct PipelineOrchestrator: Sendable {
         let execLogPath = pluginsDirectory
             .appendingPathComponent(ctx.pluginIdentifier)
             .appendingPathComponent(PluginFile.executionLog)
-        try FileManager.default.createDirectory(
+        try fileManager.createDirectory(
             at: execLogPath.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
 
         let manifestDeps = loadedPlugin.manifest.dependencyIdentifiers
 
-        let currentImageFiles = try FileManager.default.contentsOfDirectory(
+        let currentImageFiles = try fileManager.contentsOfDirectory(
             at: ctx.temp.url, includingPropertiesForKeys: nil
         ).filter { TempFolder.imageExtensions.contains($0.pathExtension.lowercased()) }
 
@@ -324,7 +331,7 @@ struct PipelineOrchestrator: Sendable {
         // Remove skipped images from the image folder so the binary never sees them
         for imageName in skippedImages {
             let imageURL = ctx.temp.url.appendingPathComponent(imageName)
-            try? FileManager.default.removeItem(at: imageURL)
+            try? fileManager.removeItem(at: imageURL)
         }
 
         // Binary

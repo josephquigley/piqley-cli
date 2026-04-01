@@ -417,7 +417,8 @@ struct UpdateSubcommand: ParsableCommand {
         var scanner = PluginSetupScanner(
             secretStore: secretStore,
             configStore: configStore,
-            inputSource: StdinInputSource()
+            inputSource: StdinInputSource(),
+            fileManager: FileManager.default
         )
         try scanner.scan(
             plugin: plugin,

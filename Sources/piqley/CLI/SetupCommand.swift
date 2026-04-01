@@ -69,7 +69,8 @@ struct SetupCommand: AsyncParsableCommand {
             var scanner = PluginSetupScanner(
                 secretStore: secretStore,
                 configStore: .default,
-                inputSource: StdinInputSource()
+                inputSource: StdinInputSource(),
+                fileManager: FileManager.default
             )
             for plugin in plugins {
                 try scanner.scan(plugin: plugin)

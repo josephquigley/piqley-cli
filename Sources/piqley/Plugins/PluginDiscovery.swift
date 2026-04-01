@@ -32,13 +32,20 @@ struct LoadedPlugin: Sendable {
 struct PluginDiscovery: Sendable {
     let pluginsDirectory: URL
     let registry: StageRegistry
+    let fileManager: any FileSystemManager
     private let logger = Logger(label: "piqley.discovery")
+
+    init(pluginsDirectory: URL, registry: StageRegistry, fileManager: any FileSystemManager = FileManager.default) {
+        self.pluginsDirectory = pluginsDirectory
+        self.registry = registry
+        self.fileManager = fileManager
+    }
 
     func loadManifests() throws -> (plugins: [LoadedPlugin], registry: StageRegistry) {
         var updatedRegistry = registry
-        guard FileManager.default.fileExists(atPath: pluginsDirectory.path) else { return ([], updatedRegistry) }
+        guard fileManager.fileExists(atPath: pluginsDirectory.path) else { return ([], updatedRegistry) }
 
-        let contents = try FileManager.default.contentsOfDirectory(
+        let contents = try fileManager.contentsOfDirectory(
             at: pluginsDirectory,
             includingPropertiesForKeys: [.isDirectoryKey]
         )
@@ -49,11 +56,11 @@ struct PluginDiscovery: Sendable {
             guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
             let dirName = url.lastPathComponent
             let manifestURL = url.appendingPathComponent(PluginFile.manifest)
-            guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
-            let data = try Data(contentsOf: manifestURL)
+            guard fileManager.fileExists(atPath: manifestURL.path) else { return nil }
+            let data = try fileManager.contents(of: manifestURL)
             let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: data)
 
-            let (stages, newStageNames) = Self.loadStages(from: url, knownHooks: knownHooks, logger: logger)
+            let (stages, newStageNames) = Self.loadStages(from: url, knownHooks: knownHooks, fileManager: fileManager, logger: logger)
             for name in newStageNames {
                 updatedRegistry.autoRegister(name)
             }
@@ -78,7 +85,7 @@ struct PluginDiscovery: Sendable {
             }
 
             let dataDir = url.appendingPathComponent(PluginDirectory.data)
-            try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: dataDir, withIntermediateDirectories: true)
             return LoadedPlugin(identifier: manifest.identifier, name: manifest.name, directory: url, manifest: manifest, stages: stages)
         }.sorted { $0.identifier < $1.identifier }
 
@@ -90,12 +97,13 @@ struct PluginDiscovery: Sendable {
 
     static func loadStages(
         from pluginDir: URL, knownHooks: Set<String>,
+        fileManager: any FileSystemManager = FileManager.default,
         logger: Logger = Logger(label: "piqley.discovery")
     ) -> (stages: [String: StageConfig], newStageNames: Set<String>) {
         var stages: [String: StageConfig] = [:]
         var newStageNames: Set<String> = []
 
-        guard let files = try? FileManager.default.contentsOfDirectory(
+        guard let files = try? fileManager.contentsOfDirectory(
             at: pluginDir, includingPropertiesForKeys: nil
         ) else { return (stages, newStageNames) }
 
@@ -114,7 +122,7 @@ struct PluginDiscovery: Sendable {
             }
 
             do {
-                let data = try Data(contentsOf: file)
+                let data = try fileManager.contents(of: file)
                 let config = try JSONDecoder.piqley.decode(StageConfig.self, from: data)
                 if config.isEffectivelyEmpty {
                     logger.debug("Plugin '\(pluginDir.lastPathComponent)' stage '\(stageName)' is empty — ignored")
@@ -135,7 +143,7 @@ struct PluginDiscovery: Sendable {
                     if !regexSanitizerWarned.contains(warnKey) {
                         regexSanitizerWarned.insert(warnKey)
                         let workflows = findWorkflowsWithBadRegex(
-                            plugin: plugin, stageName: stageName
+                            plugin: plugin, stageName: stageName, fileManager: fileManager
                         )
                         if workflows.isEmpty {
                             logger.warning(
@@ -158,15 +166,18 @@ struct PluginDiscovery: Sendable {
     }
 
     /// Returns sorted workflow names that have bad regex patterns for the given plugin and stage.
-    private static func findWorkflowsWithBadRegex(plugin: String, stageName: String) -> [String] {
-        guard let workflows = try? WorkflowStore.list() else { return [] }
+    private static func findWorkflowsWithBadRegex(
+        plugin: String, stageName: String,
+        fileManager: any FileSystemManager = FileManager.default
+    ) -> [String] {
+        guard let workflows = try? WorkflowStore.list(fileManager: fileManager) else { return [] }
         let stageFilename = "\(PluginFile.stagePrefix)\(stageName)\(PluginFile.stageSuffix)"
         var affected: [String] = []
         for workflow in workflows {
             let stageFile = WorkflowStore.pluginRulesDirectory(
                 workflowName: workflow, pluginIdentifier: plugin
             ).appendingPathComponent(stageFilename)
-            guard let data = try? Data(contentsOf: stageFile),
+            guard let data = try? fileManager.contents(of: stageFile),
                   let config = try? JSONDecoder.piqley.decode(StageConfig.self, from: data)
             else {
                 continue

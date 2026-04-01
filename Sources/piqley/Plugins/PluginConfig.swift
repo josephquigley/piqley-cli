@@ -2,24 +2,24 @@ import Foundation
 import PiqleyCore
 
 extension PluginConfig {
-    static func load(from url: URL) throws -> PluginConfig {
-        let data = try Data(contentsOf: url)
+    static func load(from url: URL, fileManager: any FileSystemManager = FileManager.default) throws -> PluginConfig {
+        let data = try fileManager.contents(of: url)
         return try JSONDecoder.piqley.decode(PluginConfig.self, from: data)
     }
 
     /// Loads from URL if the file exists, otherwise returns an empty config.
-    static func load(fromIfExists url: URL) -> PluginConfig {
-        guard FileManager.default.fileExists(atPath: url.path) else { return PluginConfig() }
-        return (try? load(from: url)) ?? PluginConfig()
+    static func load(fromIfExists url: URL, fileManager: any FileSystemManager = FileManager.default) -> PluginConfig {
+        guard fileManager.fileExists(atPath: url.path) else { return PluginConfig() }
+        return (try? load(from: url, fileManager: fileManager)) ?? PluginConfig()
     }
 
-    func save(to url: URL) throws {
-        try FileManager.default.createDirectory(
+    func save(to url: URL, fileManager: any FileSystemManager = FileManager.default) throws {
+        try fileManager.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
         let data = try JSONEncoder.piqleyPrettyPrint.encode(self)
-        try data.write(to: url)
+        try fileManager.write(data, to: url)
     }
 
     /// Returns a new PluginConfig with the given values dictionary.

@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 import Logging
 import PiqleyCore
@@ -56,8 +57,8 @@ extension PipelineOrchestrator {
     func loadPlugin(named identifier: String) throws -> LoadedPlugin? {
         let pluginDir = pluginsDirectory.appendingPathComponent(identifier)
         let manifestURL = pluginDir.appendingPathComponent(PluginFile.manifest)
-        guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
-        let data = try Data(contentsOf: manifestURL)
+        guard fileManager.fileExists(atPath: manifestURL.path) else { return nil }
+        let data = try fileManager.contents(of: manifestURL)
         let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: data)
 
         // Load stages from workflow rules dir instead of plugin dir
@@ -136,7 +137,10 @@ extension PipelineOrchestrator {
     func resolvePluginConfigAndSecrets(
         plugin: LoadedPlugin, pluginIdentifier: String
     ) -> ConfigResolutionResult {
-        let configStore = BasePluginConfigStore.default
+        let configStore = BasePluginConfigStore(
+            directory: fileManager.homeDirectoryForCurrentUser.appendingPathComponent(PiqleyPath.config),
+            fileManager: fileManager
+        )
         let baseConfig = (try? configStore.load(for: pluginIdentifier)) ?? BasePluginConfig()
         let workflowOverrides = workflow.config[pluginIdentifier]
 
@@ -329,7 +333,7 @@ extension PipelineOrchestrator {
         if let returnedState {
             let checkURL = ctx.temp.url
             for (imageName, values) in returnedState {
-                let imageExists = FileManager.default.fileExists(
+                let imageExists = fileManager.fileExists(
                     atPath: checkURL.appendingPathComponent(imageName).path
                 )
                 guard imageExists else { continue }
@@ -387,6 +391,7 @@ extension PipelineOrchestrator {
         pluginIdentifier: String,
         hook: StandardHook,
         temp: TempFolder,
+        stateStore pipelineStateStore: StateStore? = nil,
         imageFiles: [URL],
         dryRun: Bool,
         debug: Bool,
@@ -422,19 +427,19 @@ extension PipelineOrchestrator {
         let execLogPath = pluginsDirectory
             .appendingPathComponent(pluginIdentifier)
             .appendingPathComponent(PluginFile.executionLog)
-        try FileManager.default.createDirectory(
+        try fileManager.createDirectory(
             at: execLogPath.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
 
-        let stateStore = StateStore()
+        let localStateStore = StateStore()
         let ctx = HookContext(
             pluginIdentifier: pluginIdentifier,
             pluginName: loadedPlugin.name,
             hook: hook.rawValue,
             stage: hook.rawValue,
             temp: temp,
-            stateStore: stateStore,
+            stateStore: localStateStore,
             imageFiles: imageFiles,
             dryRun: dryRun,
             debug: debug,
@@ -455,6 +460,20 @@ extension PipelineOrchestrator {
             execLogPath: execLogPath,
             pipelineRunId: pipelineRunId
         )
+
+        // Merge returned state into the pipeline state store when provided
+        if let pipelineStateStore {
+            for imageName in await localStateStore.allImageNames {
+                let resolved = await localStateStore.resolve(
+                    image: imageName, dependencies: [pluginIdentifier]
+                )
+                if let values = resolved[pluginIdentifier] {
+                    await pipelineStateStore.mergeNamespace(
+                        image: imageName, plugin: pluginIdentifier, values: values
+                    )
+                }
+            }
+        }
 
         // Persist version after successful pipeline-start
         if hook == .pipelineStart {

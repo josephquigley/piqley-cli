@@ -30,7 +30,10 @@
         ]
 
         /// Write metadata to an image file. Copies image data as-is, only modifies metadata.
-        static func write(metadata: [String: JSONValue], to url: URL) throws {
+        static func write(
+            metadata: [String: JSONValue], to url: URL,
+            fileManager: any FileSystemManager = FileManager.default
+        ) throws {
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
                 throw MetadataWriteError.sourceCreationFailed
             }
@@ -61,17 +64,17 @@
             }
 
             guard CGImageDestinationFinalize(dest1) else {
-                try? FileManager.default.removeItem(at: tempURL)
+                try? fileManager.removeItem(at: tempURL)
                 throw MetadataWriteError.finalizeFailed
             }
 
             // Strip XMP APP1 segments — ImageIO copies them through as raw bytes.
-            try stripXMPSegments(at: tempURL)
+            try stripXMPSegments(at: tempURL, fileManager: fileManager)
 
             // Pass 2: Re-open the stripped file and apply only the desired metadata.
             if !desired.isEmpty {
                 guard let strippedSource = CGImageSourceCreateWithURL(tempURL as CFURL, nil) else {
-                    try? FileManager.default.removeItem(at: tempURL)
+                    try? fileManager.removeItem(at: tempURL)
                     throw MetadataWriteError.sourceCreationFailed
                 }
 
@@ -81,7 +84,7 @@
                 guard let dest2 = CGImageDestinationCreateWithURL(
                     tempURL2 as CFURL, uti, CGImageSourceGetCount(strippedSource), nil
                 ) else {
-                    try? FileManager.default.removeItem(at: tempURL)
+                    try? fileManager.removeItem(at: tempURL)
                     throw MetadataWriteError.destinationCreationFailed
                 }
 
@@ -90,24 +93,27 @@
                 }
 
                 guard CGImageDestinationFinalize(dest2) else {
-                    try? FileManager.default.removeItem(at: tempURL)
-                    try? FileManager.default.removeItem(at: tempURL2)
+                    try? fileManager.removeItem(at: tempURL)
+                    try? fileManager.removeItem(at: tempURL2)
                     throw MetadataWriteError.finalizeFailed
                 }
 
-                try? FileManager.default.removeItem(at: tempURL)
-                try stripXMPSegments(at: tempURL2)
-                _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL2)
+                try? fileManager.removeItem(at: tempURL)
+                try stripXMPSegments(at: tempURL2, fileManager: fileManager)
+                _ = try fileManager.replaceItemAt(url, withItemAt: tempURL2)
             } else {
-                _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL)
+                _ = try fileManager.replaceItemAt(url, withItemAt: tempURL)
             }
         }
 
         /// Strip XMP APP1 segments from a JPEG file in place.
         /// XMP is stored in APP1 (FF E1) segments with the "http://ns.adobe.com/xap/1.0/\0" header.
         /// ImageIO copies these through as raw bytes, so we strip them at the byte level.
-        private static func stripXMPSegments(at url: URL) throws {
-            var data = try Data(contentsOf: url)
+        private static func stripXMPSegments(
+            at url: URL,
+            fileManager: any FileSystemManager = FileManager.default
+        ) throws {
+            var data = try fileManager.contents(of: url)
             let xmpHeader = Data("http://ns.adobe.com/xap/1.0/\0".utf8)
             var offset = 2 // skip SOI (FF D8)
 
@@ -134,7 +140,7 @@
                 offset = segmentEnd
             }
 
-            try data.write(to: url)
+            try fileManager.write(data, to: url)
         }
 
         /// Convert flat "Group:Key" metadata to nested CGImageProperties format.
@@ -192,7 +198,7 @@
     enum MetadataWriter {
         private static let logger = Logger(label: "piqley.metadata-writer")
 
-        static func write(metadata _: [String: JSONValue], to _: URL) throws {
+        static func write(metadata _: [String: JSONValue], to _: URL, fileManager _: any FileSystemManager = FileManager.default) throws {
             logger.warning("Metadata writing is not available on this platform")
         }
     }

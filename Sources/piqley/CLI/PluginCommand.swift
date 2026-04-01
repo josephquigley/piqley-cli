@@ -82,7 +82,8 @@ struct PluginCommand: ParsableCommand {
             var scanner = PluginSetupScanner(
                 secretStore: secretStore,
                 configStore: .default,
-                inputSource: StdinInputSource()
+                inputSource: StdinInputSource(),
+                fileManager: FileManager.default
             )
 
             let targetPlugins: [LoadedPlugin]

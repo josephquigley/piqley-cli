@@ -12,9 +12,9 @@ enum ConfigMigrator {
     static func migrateIfNeeded(
         pluginsDirectory: URL,
         configStore: BasePluginConfigStore,
-        secretStore: any SecretStore
+        secretStore: any SecretStore,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws {
-        let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: pluginsDirectory.path) else { return }
 
         let contents = try fileManager.contentsOfDirectory(
@@ -40,7 +40,8 @@ enum ConfigMigrator {
                 pluginDirectory: pluginURL,
                 oldConfigURL: oldConfigURL,
                 configStore: configStore,
-                secretStore: secretStore
+                secretStore: secretStore,
+                fileManager: fileManager
             )
         }
     }
@@ -50,19 +51,20 @@ enum ConfigMigrator {
         pluginDirectory: URL,
         oldConfigURL: URL,
         configStore: BasePluginConfigStore,
-        secretStore: any SecretStore
+        secretStore: any SecretStore,
+        fileManager: any FileSystemManager = FileManager.default
     ) throws {
         logger.info("Migrating config for plugin '\(identifier)'")
 
         // Read old config.json
-        let oldData = try Data(contentsOf: oldConfigURL)
+        let oldData = try fileManager.contents(of: oldConfigURL)
         let oldConfig = try JSONDecoder.piqley.decode(PluginConfig.self, from: oldData)
 
         // Read manifest to find secret keys
         var secretAliases: [String: String] = [:]
         let manifestURL = pluginDirectory.appendingPathComponent(PluginFile.manifest)
-        if FileManager.default.fileExists(atPath: manifestURL.path) {
-            let manifestData = try Data(contentsOf: manifestURL)
+        if fileManager.fileExists(atPath: manifestURL.path) {
+            let manifestData = try fileManager.contents(of: manifestURL)
             let manifest = try JSONDecoder.piqley.decode(PluginManifest.self, from: manifestData)
 
             for entry in manifest.config {
@@ -92,7 +94,7 @@ enum ConfigMigrator {
         try configStore.save(baseConfig, for: identifier)
 
         // Delete old config.json
-        try FileManager.default.removeItem(at: oldConfigURL)
+        try fileManager.removeItem(at: oldConfigURL)
 
         logger.info("Migrated config for plugin '\(identifier)'")
     }

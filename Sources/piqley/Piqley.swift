@@ -32,7 +32,8 @@ struct Piqley: AsyncParsableCommand {
             )
 
             // Seed default workflow if none exist
-            let stagesDir = FileManager.default.homeDirectoryForCurrentUser
+            let fileManager: any FileSystemManager = FileManager.default
+            let stagesDir = fileManager.homeDirectoryForCurrentUser
                 .appendingPathComponent(PiqleyPath.stages)
             let seedRegistry = try StageRegistry.load(from: stagesDir)
             try WorkflowStore.seedDefault(activeStages: seedRegistry.executionOrder)

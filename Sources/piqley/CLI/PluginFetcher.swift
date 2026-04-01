@@ -1,4 +1,5 @@
 import Foundation
+import PiqleyCore
 
 enum PluginFetchError: Error, CustomStringConvertible {
     case downloadFailed(url: String, httpCode: String)
@@ -55,14 +56,17 @@ enum PluginFetcher {
     /// Downloads a `.piqleyplugin` file from a remote URL into a temporary directory.
     /// Returns the local file URL that the caller can pass to the installer/updater.
     /// The caller is responsible for removing the returned file's parent directory.
-    static func download(from remoteURL: String) throws -> (fileURL: URL, tempDir: URL) {
+    static func download(
+        from remoteURL: String,
+        fileManager: any FileSystemManager = FileManager.default
+    ) throws -> (fileURL: URL, tempDir: URL) {
         guard let url = URL(string: remoteURL), url.scheme == "http" || url.scheme == "https" else {
             throw PluginFetchError.invalidURL(remoteURL)
         }
 
-        let tempDir = FileManager.default.temporaryDirectory
+        let tempDir = fileManager.temporaryDirectory
             .appendingPathComponent("piqley-fetch-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         // Derive a filename from the URL, falling back to a default
         let filename: String
@@ -97,9 +101,9 @@ enum PluginFetcher {
 
         guard curl.terminationStatus == 0,
               httpCode == "200",
-              FileManager.default.fileExists(atPath: destFile.path)
+              fileManager.fileExists(atPath: destFile.path)
         else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw PluginFetchError.downloadFailed(url: remoteURL, httpCode: httpCode)
         }
 
@@ -109,10 +113,13 @@ enum PluginFetcher {
     /// Clones a git repository, removes the `.git` directory, packages the contents as a
     /// `.piqleyplugin` zip, and returns the zip path. The caller is responsible for
     /// removing the returned `tempDir`.
-    static func cloneAndPackage(from repoURL: String) throws -> (fileURL: URL, tempDir: URL) {
-        let tempDir = FileManager.default.temporaryDirectory
+    static func cloneAndPackage(
+        from repoURL: String,
+        fileManager: any FileSystemManager = FileManager.default
+    ) throws -> (fileURL: URL, tempDir: URL) {
+        let tempDir = fileManager.temporaryDirectory
             .appendingPathComponent("piqley-git-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let cloneDir = tempDir.appendingPathComponent("repo")
 
@@ -126,13 +133,13 @@ enum PluginFetcher {
         git.waitUntilExit()
 
         guard git.terminationStatus == 0 else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw PluginFetchError.cloneFailed(url: repoURL)
         }
 
         // Remove .git directory so it doesn't end up in the plugin installation
         let dotGit = cloneDir.appendingPathComponent(".git")
-        try? FileManager.default.removeItem(at: dotGit)
+        try? fileManager.removeItem(at: dotGit)
 
         // Package as .piqleyplugin zip using the zip command (cross-platform)
         let zipFile = tempDir.appendingPathComponent("plugin.piqleyplugin")
@@ -146,7 +153,7 @@ enum PluginFetcher {
         zip.waitUntilExit()
 
         guard zip.terminationStatus == 0 else {
-            try? FileManager.default.removeItem(at: tempDir)
+            try? fileManager.removeItem(at: tempDir)
             throw PluginFetchError.packageFailed
         }
 

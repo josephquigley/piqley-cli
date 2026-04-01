@@ -13,11 +13,14 @@ enum BinaryProbe {
     /// - Parameters:
     ///   - command: The command string from HookConfig (relative or absolute path)
     ///   - pluginDirectory: The plugin's directory for resolving relative paths
+    ///   - fileManager: The file system manager to use
     /// - Returns: The probe result
-    static func probe(command: String, pluginDirectory: URL) -> BinaryProbeResult {
+    static func probe(
+        command: String, pluginDirectory: URL,
+        fileManager: any FileSystemManager = FileManager.default
+    ) -> BinaryProbeResult {
         let resolvedPath = resolveExecutable(command, pluginDirectory: pluginDirectory)
 
-        let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: resolvedPath) else {
             return .notFound
         }
