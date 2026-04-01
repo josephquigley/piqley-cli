@@ -83,6 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `ProcessLock.acquire(path:timeout:)` retries acquiring a lock every 5 seconds until the timeout expires, logging a user-facing message on first contention and throwing `.timedOut` when the deadline is reached
 - `ProcessLock` now exposes a `formatDuration(seconds:)` helper and a `.timedOut(seconds:)` error case for user-facing timeout messages
 - Tests for orchestrator-level version persistence: save only on `pipeline-start` success, not on other stages or on failure
+- Tests for pipeline-start and pipeline-finished auto-invocation and error semantics in `PipelineOrchestratorTests`
 - `PipelineOrchestrator` now holds a `VersionStateStore` and persists plugin version after each successful `pipeline-start` stage; `lastExecutedVersion` is passed to `PluginRunner` and included in the JSON payload sent to plugin binaries
 - `VersionStateStore` protocol with `FileVersionStateStore` and `InMemoryVersionStateStore` implementations for persisting the last successfully executed plugin version
 - Integration test for wipe-and-restore pattern (removeField wildcard followed by clone to restore specific fields)

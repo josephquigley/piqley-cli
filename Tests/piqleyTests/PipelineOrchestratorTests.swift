@@ -514,4 +514,213 @@ struct PipelineOrchestratorTests {
         let hookValue = try String(contentsOf: hookFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(hookValue == "publish")
     }
+
+    @Test("pipeline-finished is invoked automatically for plugins with binaries")
+    func testPipelineFinishedAutoInvoked() async throws {
+        let markerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-lifecycle-\(UUID().uuidString)")
+        let script = try makeTempScript("""
+            if [ "$PIQLEY_HOOK" = "pipeline-finished" ]; then
+                echo "finished" >> "\(markerPath.path)"
+            fi
+            echo '{"type":"result"}'
+            exit 0
+            """)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let pluginsDir = try makePluginsDir(
+            withPlugin: "com.test.lifecycle-plugin", hook: "publish", scriptURL: script
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+        let sourceDir = try makeSourceDir()
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["publish"] = ["com.test.lifecycle-plugin"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.lifecycle-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == true)
+        let marker = try String(contentsOf: markerPath, encoding: .utf8)
+        #expect(marker.contains("finished"))
+    }
+
+    @Test("pipeline-start is invoked automatically before main stages")
+    func testPipelineStartAutoInvoked() async throws {
+        let markerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-start-\(UUID().uuidString)")
+        let script = try makeTempScript("""
+            if [ "$PIQLEY_HOOK" = "pipeline-start" ]; then
+                echo "started" >> "\(markerPath.path)"
+            fi
+            echo '{"type":"result"}'
+            exit 0
+            """)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let pluginsDir = try makePluginsDir(
+            withPlugin: "com.test.start-plugin", hook: "publish", scriptURL: script
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+        let sourceDir = try makeSourceDir()
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["publish"] = ["com.test.start-plugin"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.start-plugin"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == true)
+        let marker = try String(contentsOf: markerPath, encoding: .utf8)
+        #expect(marker.contains("started"))
+    }
+
+    @Test("pipeline-start failure aborts pipeline")
+    func testPipelineStartFailureAborts() async throws {
+        let mainMarkerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-main-\(UUID().uuidString)")
+        let script = try makeTempScript("""
+            if [ "$PIQLEY_HOOK" = "pipeline-start" ]; then
+                echo '{"type":"result"}'
+                exit 1
+            fi
+            if [ "$PIQLEY_HOOK" = "publish" ]; then
+                touch "\(mainMarkerPath.path)"
+            fi
+            echo '{"type":"result"}'
+            exit 0
+            """)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let pluginsDir = try makePluginsDir(
+            withPlugin: "com.test.fail-start", hook: "publish", scriptURL: script
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+        let sourceDir = try makeSourceDir()
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["publish"] = ["com.test.fail-start"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.fail-start"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == false)
+        #expect(!FileManager.default.fileExists(atPath: mainMarkerPath.path))
+    }
+
+    @Test("pipeline-finished runs even when main pipeline fails")
+    func testPipelineFinishedRunsAfterFailure() async throws {
+        let finishMarkerPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("piqley-finish-after-fail-\(UUID().uuidString)")
+        let script = try makeTempScript("""
+            if [ "$PIQLEY_HOOK" = "pipeline-finished" ]; then
+                echo "cleanup" >> "\(finishMarkerPath.path)"
+                echo '{"type":"result"}'
+                exit 0
+            fi
+            echo '{"type":"result"}'
+            if [ "$PIQLEY_HOOK" = "publish" ]; then
+                exit 1
+            fi
+            exit 0
+            """)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let pluginsDir = try makePluginsDir(
+            withPlugin: "com.test.fail-publish", hook: "publish", scriptURL: script
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+        let sourceDir = try makeSourceDir()
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["publish"] = ["com.test.fail-publish"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.fail-publish"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == false)
+        let marker = try String(contentsOf: finishMarkerPath, encoding: .utf8)
+        #expect(marker.contains("cleanup"))
+    }
+
+    @Test("pipeline-finished failure does not affect pipeline result")
+    func testPipelineFinishedFailureIsBestEffort() async throws {
+        let script = try makeTempScript("""
+            echo '{"type":"result"}'
+            if [ "$PIQLEY_HOOK" = "pipeline-finished" ]; then
+                exit 1
+            fi
+            exit 0
+            """)
+        defer { try? FileManager.default.removeItem(at: script) }
+        let pluginsDir = try makePluginsDir(
+            withPlugin: "com.test.finish-fail", hook: "publish", scriptURL: script
+        )
+        defer { try? FileManager.default.removeItem(at: pluginsDir) }
+        let sourceDir = try makeSourceDir()
+        defer { try? FileManager.default.removeItem(at: sourceDir) }
+
+        var workflow = Workflow.empty(name: "test", activeStages: StandardHook.defaultStageNames)
+        workflow.pipeline["publish"] = ["com.test.finish-fail"]
+
+        let workflowsRoot = try makeWorkflowsRoot(
+            workflowName: "test", pluginsDir: pluginsDir,
+            identifiers: ["com.test.finish-fail"]
+        )
+        defer { try? FileManager.default.removeItem(at: workflowsRoot) }
+
+        let orchestrator = PipelineOrchestrator(
+            workflow: workflow,
+            pluginsDirectory: pluginsDir,
+            secretStore: FakeSecretStore(),
+            registry: StageRegistry(active: StandardHook.defaultStageNames.map { StageEntry(name: $0) }),
+            workflowsRoot: workflowsRoot
+        )
+        let result = try await orchestrator.run(sourceURL: sourceDir, dryRun: false, debug: false)
+        #expect(result == true)
+    }
 }
