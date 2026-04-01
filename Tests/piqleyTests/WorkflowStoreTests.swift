@@ -6,11 +6,14 @@ import Testing
 @Suite("WorkflowStore")
 struct WorkflowStoreTests {
     let testDir: URL
+    let fm: any FileSystemManager
 
     init() throws {
+        // WorkflowStore.list uses URL.resourceValues which requires real filesystem
+        fm = FileManager.default
         testDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("piqley-wf-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: testDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: testDir, withIntermediateDirectories: true)
     }
 
     @Test("directoryURL returns workflow-name subdirectory")
@@ -36,14 +39,14 @@ struct WorkflowStoreTests {
     @Test("save creates directory and workflow.json")
     func saveCreatesDirectory() throws {
         let workflow = Workflow(name: "test", displayName: "Test", description: "A test workflow")
-        try WorkflowStore.save(workflow, root: testDir)
+        try WorkflowStore.save(workflow, root: testDir, fileManager: fm)
 
-        let dirExists = FileManager.default.fileExists(
+        let dirExists = fm.fileExists(
             atPath: testDir.appendingPathComponent("test").path
         )
         #expect(dirExists)
 
-        let fileExists = FileManager.default.fileExists(
+        let fileExists = fm.fileExists(
             atPath: testDir.appendingPathComponent("test/workflow.json").path
         )
         #expect(fileExists)
@@ -52,9 +55,9 @@ struct WorkflowStoreTests {
     @Test("load reads from directory layout")
     func loadFromDirectory() throws {
         let workflow = Workflow(name: "roundtrip", displayName: "RT", description: "desc")
-        try WorkflowStore.save(workflow, root: testDir)
+        try WorkflowStore.save(workflow, root: testDir, fileManager: fm)
 
-        let loaded = try WorkflowStore.load(name: "roundtrip", root: testDir)
+        let loaded = try WorkflowStore.load(name: "roundtrip", root: testDir, fileManager: fm)
         #expect(loaded.name == "roundtrip")
         #expect(loaded.displayName == "RT")
     }
@@ -63,13 +66,13 @@ struct WorkflowStoreTests {
     func listWorkflows() throws {
         try WorkflowStore.save(
             Workflow(name: "alpha", displayName: "Alpha", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
         try WorkflowStore.save(
             Workflow(name: "beta", displayName: "Beta", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
-        let names = try WorkflowStore.list(root: testDir)
+        let names = try WorkflowStore.list(root: testDir, fileManager: fm)
         #expect(names == ["alpha", "beta"])
     }
 
@@ -77,10 +80,10 @@ struct WorkflowStoreTests {
     func deleteWorkflow() throws {
         try WorkflowStore.save(
             Workflow(name: "doomed", displayName: "Doomed", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
-        try WorkflowStore.delete(name: "doomed", root: testDir)
-        let exists = FileManager.default.fileExists(
+        try WorkflowStore.delete(name: "doomed", root: testDir, fileManager: fm)
+        let exists = fm.fileExists(
             atPath: testDir.appendingPathComponent("doomed").path
         )
         #expect(!exists)
@@ -90,40 +93,40 @@ struct WorkflowStoreTests {
     func cloneDeepCopies() throws {
         try WorkflowStore.save(
             Workflow(name: "src", displayName: "Source", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
         // Create a rules file in source
         let rulesDir = testDir.appendingPathComponent("src/rules/my.plugin")
-        try FileManager.default.createDirectory(at: rulesDir, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: rulesDir.appendingPathComponent("stage-publish.json"))
+        try fm.createDirectory(at: rulesDir, withIntermediateDirectories: true)
+        try fm.write(Data("{}".utf8), to: rulesDir.appendingPathComponent("stage-publish.json"))
 
-        try WorkflowStore.clone(source: "src", destination: "dst", root: testDir)
+        try WorkflowStore.clone(source: "src", destination: "dst", root: testDir, fileManager: fm)
 
         // Verify workflow.json exists with new name
-        let loaded = try WorkflowStore.load(name: "dst", root: testDir)
+        let loaded = try WorkflowStore.load(name: "dst", root: testDir, fileManager: fm)
         #expect(loaded.name == "dst")
 
         // Verify rules were deep-copied
         let copiedRule = testDir.appendingPathComponent("dst/rules/my.plugin/stage-publish.json")
-        #expect(FileManager.default.fileExists(atPath: copiedRule.path))
+        #expect(fm.fileExists(atPath: copiedRule.path))
     }
 
     @Test("exists checks for workflow directory")
     func existsCheck() throws {
-        #expect(!WorkflowStore.exists(name: "nope", root: testDir))
+        #expect(!WorkflowStore.exists(name: "nope", root: testDir, fileManager: fm))
         try WorkflowStore.save(
             Workflow(name: "yep", displayName: "Yep", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
-        #expect(WorkflowStore.exists(name: "yep", root: testDir))
+        #expect(WorkflowStore.exists(name: "yep", root: testDir, fileManager: fm))
     }
 
     @Test("seedDefault creates default workflow when none exist")
     func seedDefault() throws {
-        try WorkflowStore.seedDefault(activeStages: ["pre-process", "publish"], root: testDir)
-        let names = try WorkflowStore.list(root: testDir)
+        try WorkflowStore.seedDefault(activeStages: ["pre-process", "publish"], root: testDir, fileManager: fm)
+        let names = try WorkflowStore.list(root: testDir, fileManager: fm)
         #expect(names == ["default"])
-        let wf = try WorkflowStore.load(name: "default", root: testDir)
+        let wf = try WorkflowStore.load(name: "default", root: testDir, fileManager: fm)
         #expect(wf.pipeline.keys.sorted() == ["pre-process", "publish"])
     }
 
@@ -131,10 +134,10 @@ struct WorkflowStoreTests {
     func seedDefaultNoOverwrite() throws {
         try WorkflowStore.save(
             Workflow(name: "custom", displayName: "Custom", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
-        try WorkflowStore.seedDefault(activeStages: ["publish"], root: testDir)
-        let names = try WorkflowStore.list(root: testDir)
+        try WorkflowStore.seedDefault(activeStages: ["publish"], root: testDir, fileManager: fm)
+        let names = try WorkflowStore.list(root: testDir, fileManager: fm)
         #expect(names == ["custom"]) // No "default" added
     }
 
@@ -148,8 +151,8 @@ struct WorkflowStoreTests {
                 "pipeline-finished": ["com.test.plugin"]
             ]
         )
-        try WorkflowStore.save(workflow, root: testDir)
-        let reloaded = try WorkflowStore.load(name: "strip-test", root: testDir)
+        try WorkflowStore.save(workflow, root: testDir, fileManager: fm)
+        let reloaded = try WorkflowStore.load(name: "strip-test", root: testDir, fileManager: fm)
         #expect(reloaded.pipeline["pipeline-start"] == nil)
         #expect(reloaded.pipeline["pipeline-finished"] == nil)
         #expect(reloaded.pipeline["pre-process"] == ["com.test.plugin"])
@@ -162,34 +165,35 @@ struct WorkflowStoreTests {
         // Create a workflow
         try WorkflowStore.save(
             Workflow(name: "test", displayName: "Test", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
 
         // Create a fake plugin dir with stage files
         let pluginDir = testDir.appendingPathComponent("plugins/my.plugin")
-        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: pluginDir, withIntermediateDirectories: true)
         let stageData = Data("""
         {"preRules": [{"match": {"field": "original:IPTC:Keywords", "pattern": "test"}, "emit": [], "write": []}]}
         """.utf8)
-        try stageData.write(to: pluginDir.appendingPathComponent("stage-publish.json"))
-        try stageData.write(to: pluginDir.appendingPathComponent("stage-pre-process.json"))
+        try fm.write(stageData, to: pluginDir.appendingPathComponent("stage-publish.json"))
+        try fm.write(stageData, to: pluginDir.appendingPathComponent("stage-pre-process.json"))
 
         // Seed rules
         try WorkflowStore.seedRules(
             workflowName: "test",
             pluginIdentifier: "my.plugin",
             pluginDirectory: pluginDir,
-            root: testDir
+            root: testDir,
+            fileManager: fm
         )
 
         // Verify files were copied
         let rulesDir = WorkflowStore.pluginRulesDirectory(
             workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
         )
-        let publishExists = FileManager.default.fileExists(
+        let publishExists = fm.fileExists(
             atPath: rulesDir.appendingPathComponent("stage-publish.json").path
         )
-        let preProcessExists = FileManager.default.fileExists(
+        let preProcessExists = fm.fileExists(
             atPath: rulesDir.appendingPathComponent("stage-pre-process.json").path
         )
         #expect(publishExists)
@@ -200,32 +204,33 @@ struct WorkflowStoreTests {
     func seedRulesSkipsExisting() throws {
         try WorkflowStore.save(
             Workflow(name: "test", displayName: "Test", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
 
         // Create plugin dir
         let pluginDir = testDir.appendingPathComponent("plugins/my.plugin")
-        try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: pluginDir.appendingPathComponent("stage-publish.json"))
+        try fm.createDirectory(at: pluginDir, withIntermediateDirectories: true)
+        try fm.write(Data("{}".utf8), to: pluginDir.appendingPathComponent("stage-publish.json"))
 
         // Pre-create rules dir with custom content
         let rulesDir = WorkflowStore.pluginRulesDirectory(
             workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
         )
-        try FileManager.default.createDirectory(at: rulesDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: rulesDir, withIntermediateDirectories: true)
         let customData = Data("{\"custom\": true}".utf8)
-        try customData.write(to: rulesDir.appendingPathComponent("stage-publish.json"))
+        try fm.write(customData, to: rulesDir.appendingPathComponent("stage-publish.json"))
 
         // Seed rules (should skip)
         try WorkflowStore.seedRules(
             workflowName: "test",
             pluginIdentifier: "my.plugin",
             pluginDirectory: pluginDir,
-            root: testDir
+            root: testDir,
+            fileManager: fm
         )
 
         // Verify custom content was preserved
-        let data = try Data(contentsOf: rulesDir.appendingPathComponent("stage-publish.json"))
+        let data = try fm.contents(of: rulesDir.appendingPathComponent("stage-publish.json"))
         let str = String(data: data, encoding: .utf8)
         #expect(str?.contains("custom") == true)
     }
@@ -234,18 +239,18 @@ struct WorkflowStoreTests {
     func removePluginRules() throws {
         try WorkflowStore.save(
             Workflow(name: "test", displayName: "Test", description: ""),
-            root: testDir
+            root: testDir, fileManager: fm
         )
         let rulesDir = WorkflowStore.pluginRulesDirectory(
             workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
         )
-        try FileManager.default.createDirectory(at: rulesDir, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: rulesDir.appendingPathComponent("stage-publish.json"))
+        try fm.createDirectory(at: rulesDir, withIntermediateDirectories: true)
+        try fm.write(Data("{}".utf8), to: rulesDir.appendingPathComponent("stage-publish.json"))
 
         try WorkflowStore.removePluginRules(
-            workflowName: "test", pluginIdentifier: "my.plugin", root: testDir
+            workflowName: "test", pluginIdentifier: "my.plugin", root: testDir, fileManager: fm
         )
 
-        #expect(!FileManager.default.fileExists(atPath: rulesDir.path))
+        #expect(!fm.fileExists(atPath: rulesDir.path))
     }
 }

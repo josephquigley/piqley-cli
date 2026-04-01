@@ -86,6 +86,8 @@ struct FieldDiscoveryTests {
     }
 
     // MARK: - Upstream field discovery
+    // These tests use real filesystem because FieldDiscovery.discoverUpstreamFields
+    // uses Data(contentsOf:) directly without a fileManager: parameter.
 
     private func createRulesFile(
         at baseDir: URL,

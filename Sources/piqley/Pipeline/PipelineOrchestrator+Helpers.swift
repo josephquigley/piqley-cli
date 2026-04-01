@@ -337,15 +337,9 @@ extension PipelineOrchestrator {
                     atPath: checkURL.appendingPathComponent(imageName).path
                 )
                 guard imageExists else { continue }
-                if rulesDidRun {
-                    await ctx.stateStore.mergeNamespace(
-                        image: imageName, plugin: ctx.pluginIdentifier, values: values
-                    )
-                } else {
-                    await ctx.stateStore.setNamespace(
-                        image: imageName, plugin: ctx.pluginIdentifier, values: values
-                    )
-                }
+                await ctx.stateStore.mergeNamespace(
+                    image: imageName, plugin: ctx.pluginIdentifier, values: values
+                )
             }
         }
 

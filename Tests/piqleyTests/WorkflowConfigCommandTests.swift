@@ -8,13 +8,7 @@ import Testing
 struct WorkflowConfigCommandTests {
     @Test("--set writes value override to workflow config")
     func setValueOverride() throws {
-        // Set up a temp workflow directory
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-wf-config-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        // Create a workflow file
+        // Create a workflow
         let workflow = Workflow(
             name: "staging",
             displayName: "Staging",
@@ -22,8 +16,6 @@ struct WorkflowConfigCommandTests {
             pipeline: ["publish": ["com.test.plugin"]]
         )
         let data = try JSONEncoder.piqleyPrettyPrint.encode(workflow)
-        let workflowFile = tempDir.appendingPathComponent("staging.json")
-        try data.write(to: workflowFile)
 
         // Load workflow, apply override, and save back
         var loadedWorkflow = try JSONDecoder.piqley.decode(Workflow.self, from: data)

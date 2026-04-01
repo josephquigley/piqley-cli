@@ -31,26 +31,21 @@ struct PluginConfigTests {
 
     @Test("save and load round-trip")
     func saveAndLoad() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let url = tempDir.appendingPathComponent("config.json")
+        let fm = InMemoryFileManager()
+        let url = URL(fileURLWithPath: "/test/plugin/config.json")
         let config = PluginConfig(values: ["quality": .number(80)], isSetUp: true)
-        try config.save(to: url)
+        try config.save(to: url, fileManager: fm)
 
-        let loaded = try PluginConfig.load(from: url)
+        let loaded = try PluginConfig.load(from: url, fileManager: fm)
         #expect(loaded.values["quality"] == .number(80))
         #expect(loaded.isSetUp == true)
     }
 
     @Test("loading from missing file returns empty config")
     func loadFromMissingFileReturnsEmpty() {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathComponent("config.json")
-        let config = PluginConfig.load(fromIfExists: url)
+        let fm = InMemoryFileManager()
+        let url = URL(fileURLWithPath: "/test/nonexistent/config.json")
+        let config = PluginConfig.load(fromIfExists: url, fileManager: fm)
         #expect(config.values.isEmpty)
         #expect(config.isSetUp == nil)
     }

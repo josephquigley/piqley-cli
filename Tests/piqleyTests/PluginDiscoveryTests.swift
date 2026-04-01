@@ -7,6 +7,9 @@ private let defaultRegistry = StageRegistry(active: StandardHook.defaultStageNam
 
 @Suite("PluginDiscovery")
 struct PluginDiscoveryTests {
+    // PluginDiscovery.loadManifests uses URL.resourceValues internally,
+    // which requires real filesystem.
+
     // Create a temp plugins dir with a given set of plugin subdirs.
     // Each plugin gets a manifest.json and optional stage files.
     func makePluginsDir(plugins: [(name: String, stages: [String])]) throws -> URL {
@@ -47,7 +50,7 @@ struct PluginDiscoveryTests {
         ])
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry, fileManager: FileManager.default)
         let (plugins, _) = try discovery.loadManifests()
         let names = plugins.map(\.name).sorted()
         #expect(names == ["365-project", "ghost"])
@@ -61,15 +64,16 @@ struct PluginDiscoveryTests {
         let bogus = dir.appendingPathComponent("not-a-plugin")
         try FileManager.default.createDirectory(at: bogus, withIntermediateDirectories: true)
 
-        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry, fileManager: FileManager.default)
         let (plugins, _) = try discovery.loadManifests()
         #expect(plugins.map(\.name) == ["ghost"])
     }
 
     @Test("returns empty list when plugins directory does not exist")
     func testMissingDir() throws {
+        let fm = InMemoryFileManager()
         let dir = URL(fileURLWithPath: "/nonexistent/path/plugins")
-        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry, fileManager: fm)
         let (plugins, _) = try discovery.loadManifests()
         #expect(plugins.isEmpty)
     }
@@ -88,7 +92,7 @@ struct PluginDiscoveryTests {
         let stage = #"{"binary": {"command": "./bin/tool"}}"#
         try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
 
-        let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: pluginsDirectory, registry: defaultRegistry, fileManager: FileManager.default)
         _ = try discovery.loadManifests()
 
         let dataDir = pluginDir.appendingPathComponent("data")
@@ -109,7 +113,7 @@ struct PluginDiscoveryTests {
         let stage = #"{"binary": {"command": "./bin/tool"}}"#
         try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
 
-        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry, fileManager: FileManager.default)
         #expect(throws: PluginDiscoveryError.self) {
             try discovery.loadManifests()
         }
@@ -129,7 +133,7 @@ struct PluginDiscoveryTests {
         let stage = #"{"binary": {"command": "./bin/tool"}}"#
         try stage.write(to: pluginDir.appendingPathComponent("stage-publish.json"), atomically: true, encoding: .utf8)
 
-        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry, fileManager: FileManager.default)
         #expect(throws: PluginDiscoveryError.self) {
             try discovery.loadManifests()
         }
@@ -147,7 +151,7 @@ struct PluginDiscoveryTests {
         let manifest = #"{"identifier": "no-stages", "name": "NoStages", "type": "static", "pluginSchemaVersion": "1"}"#
         try manifest.write(to: pluginDir.appendingPathComponent("manifest.json"), atomically: true, encoding: .utf8)
 
-        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry)
+        let discovery = PluginDiscovery(pluginsDirectory: dir, registry: defaultRegistry, fileManager: FileManager.default)
         let (plugins, _) = try discovery.loadManifests()
         #expect(plugins.count == 1)
         #expect(plugins.first?.identifier == "no-stages")

@@ -21,6 +21,8 @@ struct PluginSetupScanner {
     var inputSource: any InputSource
     let fileManager: any FileSystemManager
     private let logger = Logger(label: "piqley.setup-scanner")
+    /// Tracks whether a plugin header has been printed, to insert blank lines between sections.
+    var hasPrintedHeader = false
 
     /// Runs setup scan for a single plugin.
     mutating func scan(
@@ -35,7 +37,21 @@ struct PluginSetupScanner {
             (try? configStore.load(for: plugin.identifier)) ?? BasePluginConfig()
         }
 
-        print("\(plugin.name):")
+        let hasPromptableValues = plugin.manifest.config.contains { entry in
+            if case let .value(key, _, _, _) = entry { return !skipValueKeys.contains(key) }
+            if case let .secret(secretKey, _, _) = entry { return !skipSecretKeys.contains(secretKey) }
+            return false
+        }
+        let hasSetup = plugin.manifest.setup != nil
+        let showHeader = hasPromptableValues || hasSetup
+
+        if showHeader {
+            if hasPrintedHeader {
+                print()
+            }
+            print("\(plugin.name):")
+            hasPrintedHeader = true
+        }
 
         // Phase 1: Config value resolution
         for entry in plugin.manifest.config {

@@ -18,7 +18,7 @@ struct PluginWorkflowResolverTests {
     private func createWorkflow(name: String, plugins: [String: [String]]) throws {
         var wf = Workflow(name: name, displayName: name, description: "")
         wf.pipeline = plugins
-        try WorkflowStore.save(wf, root: testDir)
+        try WorkflowStore.save(wf, root: testDir, fileManager: FileManager.default)
     }
 
     private func createPlugin(id: String) throws {

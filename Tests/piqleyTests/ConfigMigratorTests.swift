@@ -19,6 +19,9 @@ private final class MigratorMockSecretStore: SecretStore, @unchecked Sendable {
 
 @Suite("ConfigMigrator")
 struct ConfigMigratorTests {
+    // ConfigMigrator.migrateIfNeeded uses URL.resourceValues internally,
+    // which requires real filesystem.
+
     @Test("Migrates old config.json values to BasePluginConfig")
     func migratesValues() throws {
         let tempDir = FileManager.default.temporaryDirectory
@@ -33,7 +36,7 @@ struct ConfigMigratorTests {
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
 
         let oldConfig = PluginConfig(values: ["url": .string("https://example.com")], isSetUp: true)
-        try oldConfig.save(to: pluginDir.appendingPathComponent("config.json"))
+        try oldConfig.save(to: pluginDir.appendingPathComponent("config.json"), fileManager: FileManager.default)
 
         // Write manifest with secret entries
         let manifest = PluginManifest(
@@ -54,12 +57,13 @@ struct ConfigMigratorTests {
         let oldKey = SecretNamespace.pluginKey(plugin: "com.test.plugin", key: "API_KEY")
         try secretStore.set(key: oldKey, value: "my-secret-value")
 
-        let configStore = BasePluginConfigStore(directory: configDir)
+        let configStore = BasePluginConfigStore(directory: configDir, fileManager: FileManager.default)
 
         try ConfigMigrator.migrateIfNeeded(
             pluginsDirectory: pluginsDir,
             configStore: configStore,
-            secretStore: secretStore
+            secretStore: secretStore,
+            fileManager: FileManager.default
         )
 
         // Verify base config was created
@@ -92,10 +96,10 @@ struct ConfigMigratorTests {
         let pluginDir = pluginsDir.appendingPathComponent("com.test.plugin")
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
         let oldConfig = PluginConfig(values: ["url": .string("https://old.com")])
-        try oldConfig.save(to: pluginDir.appendingPathComponent("config.json"))
+        try oldConfig.save(to: pluginDir.appendingPathComponent("config.json"), fileManager: FileManager.default)
 
         // Pre-create base config (migration should skip)
-        let configStore = BasePluginConfigStore(directory: configDir)
+        let configStore = BasePluginConfigStore(directory: configDir, fileManager: FileManager.default)
         let existingBase = BasePluginConfig(values: ["url": .string("https://existing.com")])
         try configStore.save(existingBase, for: "com.test.plugin")
 
@@ -104,7 +108,8 @@ struct ConfigMigratorTests {
         try ConfigMigrator.migrateIfNeeded(
             pluginsDirectory: pluginsDir,
             configStore: configStore,
-            secretStore: secretStore
+            secretStore: secretStore,
+            fileManager: FileManager.default
         )
 
         // Base config should be unchanged
@@ -130,7 +135,7 @@ struct ConfigMigratorTests {
         try FileManager.default.createDirectory(at: pluginDir, withIntermediateDirectories: true)
 
         let oldConfig = PluginConfig(values: ["port": .number(8080)])
-        try oldConfig.save(to: pluginDir.appendingPathComponent("config.json"))
+        try oldConfig.save(to: pluginDir.appendingPathComponent("config.json"), fileManager: FileManager.default)
 
         // Manifest with no secrets
         let manifest = PluginManifest(
@@ -144,12 +149,13 @@ struct ConfigMigratorTests {
         try manifestData.write(to: pluginDir.appendingPathComponent("manifest.json"))
 
         let secretStore = MigratorMockSecretStore()
-        let configStore = BasePluginConfigStore(directory: configDir)
+        let configStore = BasePluginConfigStore(directory: configDir, fileManager: FileManager.default)
 
         try ConfigMigrator.migrateIfNeeded(
             pluginsDirectory: pluginsDir,
             configStore: configStore,
-            secretStore: secretStore
+            secretStore: secretStore,
+            fileManager: FileManager.default
         )
 
         let baseConfig = try configStore.load(for: "com.test.plugin")
@@ -159,21 +165,19 @@ struct ConfigMigratorTests {
 
     @Test("Skips migration when no plugins directory exists")
     func skipsWhenNoPluginsDir() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-migrator-\(UUID().uuidString)")
-        let configDir = tempDir.appendingPathComponent("config")
-        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fm = InMemoryFileManager()
+        let configDir = URL(fileURLWithPath: "/test/config")
 
-        let pluginsDir = tempDir.appendingPathComponent("nonexistent")
+        let pluginsDir = URL(fileURLWithPath: "/test/nonexistent")
         let secretStore = MigratorMockSecretStore()
-        let configStore = BasePluginConfigStore(directory: configDir)
+        let configStore = BasePluginConfigStore(directory: configDir, fileManager: fm)
 
         // Should not throw
         try ConfigMigrator.migrateIfNeeded(
             pluginsDirectory: pluginsDir,
             configStore: configStore,
-            secretStore: secretStore
+            secretStore: secretStore,
+            fileManager: fm
         )
     }
 }

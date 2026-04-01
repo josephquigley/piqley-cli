@@ -1,44 +1,44 @@
 import Testing
 import Foundation
+import PiqleyCore
 @testable import piqley
 
 @Suite("TempFolder")
 struct TempFolderTests {
     @Test("creates a unique temp directory under /tmp")
     func testCreate() throws {
-        let temp = try TempFolder.create()
-        defer { try? temp.delete() }
-        #expect(FileManager.default.fileExists(atPath: temp.url.path))
-        #expect(temp.url.path.hasPrefix(NSTemporaryDirectory()))
+        let fm = InMemoryFileManager()
+        let temp = try TempFolder.create(fileManager: fm)
+        #expect(fm.fileExists(atPath: temp.url.path))
+        #expect(temp.url.path.hasPrefix(fm.temporaryDirectory.path))
     }
 
     @Test("delete removes the temp directory")
     func testDelete() throws {
-        let temp = try TempFolder.create()
+        let fm = InMemoryFileManager()
+        let temp = try TempFolder.create(fileManager: fm)
         let path = temp.url.path
         try temp.delete()
-        #expect(!FileManager.default.fileExists(atPath: path))
+        #expect(!fm.fileExists(atPath: path))
     }
 
     @Test("copyImages copies JPEG and JXL files")
     func testCopyImages() throws {
-        let sourceDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-source-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: sourceDir) }
+        let fm = InMemoryFileManager()
+        let sourceDir = URL(fileURLWithPath: "/test/source")
+        try fm.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
         // Create test files
-        try "data".write(to: sourceDir.appendingPathComponent("photo.jpg"), atomically: true, encoding: .utf8)
-        try "data".write(to: sourceDir.appendingPathComponent("photo.jpeg"), atomically: true, encoding: .utf8)
-        try "data".write(to: sourceDir.appendingPathComponent("raw.jxl"), atomically: true, encoding: .utf8)
-        try "data".write(to: sourceDir.appendingPathComponent("readme.txt"), atomically: true, encoding: .utf8)
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("photo.jpg"))
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("photo.jpeg"))
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("raw.jxl"))
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("readme.txt"))
 
-        let temp = try TempFolder.create()
-        defer { try? temp.delete() }
+        let temp = try TempFolder.create(fileManager: fm)
 
         let result = try temp.copyImages(from: sourceDir)
 
-        let copied = try FileManager.default.contentsOfDirectory(atPath: temp.url.path)
+        let copied = try fm.contentsOfDirectory(atPath: temp.url.path)
         #expect(copied.contains("photo.jpg"))
         #expect(copied.contains("photo.jpeg"))
         #expect(copied.contains("raw.jxl"))
@@ -49,19 +49,17 @@ struct TempFolderTests {
 
     @Test("copyImages skips hidden files")
     func testSkipsHidden() throws {
-        let sourceDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-source-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: sourceDir) }
+        let fm = InMemoryFileManager()
+        let sourceDir = URL(fileURLWithPath: "/test/source")
+        try fm.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
-        try "data".write(to: sourceDir.appendingPathComponent(".hidden.jpg"), atomically: true, encoding: .utf8)
-        try "data".write(to: sourceDir.appendingPathComponent("visible.jpg"), atomically: true, encoding: .utf8)
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent(".hidden.jpg"))
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("visible.jpg"))
 
-        let temp = try TempFolder.create()
-        defer { try? temp.delete() }
+        let temp = try TempFolder.create(fileManager: fm)
 
         let result = try temp.copyImages(from: sourceDir)
-        let copied = try FileManager.default.contentsOfDirectory(atPath: temp.url.path)
+        let copied = try fm.contentsOfDirectory(atPath: temp.url.path)
         #expect(copied.contains("visible.jpg"))
         #expect(!copied.contains(".hidden.jpg"))
         #expect(result.copiedCount == 1)
@@ -70,16 +68,14 @@ struct TempFolderTests {
 
     @Test("copyImages returns skipped files for unsupported formats")
     func testCopyImagesReturnsSkippedFiles() throws {
-        let sourceDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("piqley-source-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: sourceDir) }
+        let fm = InMemoryFileManager()
+        let sourceDir = URL(fileURLWithPath: "/test/source")
+        try fm.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
-        try "data".write(to: sourceDir.appendingPathComponent("photo.jpg"), atomically: true, encoding: .utf8)
-        try "data".write(to: sourceDir.appendingPathComponent("raw.cr3"), atomically: true, encoding: .utf8)
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("photo.jpg"))
+        try fm.write(Data("data".utf8), to: sourceDir.appendingPathComponent("raw.cr3"))
 
-        let temp = try TempFolder.create()
-        defer { try? temp.delete() }
+        let temp = try TempFolder.create(fileManager: fm)
 
         let result = try temp.copyImages(from: sourceDir)
         #expect(result.copiedCount == 1)
@@ -88,9 +84,9 @@ struct TempFolderTests {
 
     @Test("two TempFolders have different paths")
     func testUnique() throws {
-        let tempA = try TempFolder.create()
-        let tempB = try TempFolder.create()
-        defer { try? tempA.delete(); try? tempB.delete() }
+        let fm = InMemoryFileManager()
+        let tempA = try TempFolder.create(fileManager: fm)
+        let tempB = try TempFolder.create(fileManager: fm)
         #expect(tempA.url.path != tempB.url.path)
     }
 }
