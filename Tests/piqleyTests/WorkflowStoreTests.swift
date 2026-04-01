@@ -138,6 +138,23 @@ struct WorkflowStoreTests {
         #expect(names == ["custom"]) // No "default" added
     }
 
+    @Test("save strips lifecycle stages from pipeline")
+    func testSaveStripsLifecycleStages() throws {
+        let workflow = Workflow(
+            name: "strip-test", displayName: "strip-test", description: "",
+            pipeline: [
+                "pipeline-start": ["com.test.plugin"],
+                "pre-process": ["com.test.plugin"],
+                "pipeline-finished": ["com.test.plugin"]
+            ]
+        )
+        try WorkflowStore.save(workflow, root: testDir)
+        let reloaded = try WorkflowStore.load(name: "strip-test", root: testDir)
+        #expect(reloaded.pipeline["pipeline-start"] == nil)
+        #expect(reloaded.pipeline["pipeline-finished"] == nil)
+        #expect(reloaded.pipeline["pre-process"] == ["com.test.plugin"])
+    }
+
     // MARK: - Rule Seeding
 
     @Test("seedRules copies plugin stage files into workflow rules dir")

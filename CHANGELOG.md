@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Lifecycle hook runner now detects the plugin's protocol from stage config instead of hardcoding JSON protocol
+
 - Critical plugin failure now immediately stops remaining plugins in the same stage, instead of only stopping at the next stage boundary
 - Write action values containing templates (e.g. `{{original:EXIF:FNumber}}`) are now resolved from state instead of being treated as literal strings
 - Globally skipped images are now excluded from the state payload sent to plugin binaries, preventing skipped images from appearing in plugin input
@@ -73,11 +75,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Three-phase pipeline orchestration: `pipeline-start` runs for all plugins before main stages, `pipeline-finished` always runs after (even on failure) for cleanup
+- `collectLifecyclePlugins()` helper discovers plugins with binaries for automatic lifecycle hook invocation
+- `runLifecycleHook()` helper invokes a lifecycle hook for a single plugin with version persistence on successful `pipeline-start`
+- `WorkflowStore.save` now strips lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline before encoding, automatically cleaning up legacy keys on save
+- `Workflow.empty()` now excludes lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline dictionary; added `strippingLifecycleStages()` helper to remove lifecycle keys from an existing workflow
+
 - `plugin install` and `plugin update` now accept a URL to download a `.piqleyplugin` file or a git repository URL (SSH/HTTPS) as the source argument, in addition to local file paths
 - `process` command now accepts `--lock-timeout <seconds>` to control how long to wait for another instance to release the lock (default: 600s); validates non-negative values
 - `ProcessLock.acquire(path:timeout:)` retries acquiring a lock every 5 seconds until the timeout expires, logging a user-facing message on first contention and throwing `.timedOut` when the deadline is reached
 - `ProcessLock` now exposes a `formatDuration(seconds:)` helper and a `.timedOut(seconds:)` error case for user-facing timeout messages
 - Tests for orchestrator-level version persistence: save only on `pipeline-start` success, not on other stages or on failure
+- Tests for pipeline-start and pipeline-finished auto-invocation and error semantics in `PipelineOrchestratorTests`
 - `PipelineOrchestrator` now holds a `VersionStateStore` and persists plugin version after each successful `pipeline-start` stage; `lastExecutedVersion` is passed to `PluginRunner` and included in the JSON payload sent to plugin binaries
 - `VersionStateStore` protocol with `FileVersionStateStore` and `InMemoryVersionStateStore` implementations for persisting the last successfully executed plugin version
 - Integration test for wipe-and-restore pattern (removeField wildcard followed by clone to restore specific fields)
@@ -224,6 +233,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Lifecycle stages (pipeline-start, pipeline-finished) are now hidden from the TUI stage editor and plugin picker — they are invoked automatically for all plugins with binaries
 - `plugin init` no longer scaffolds example config entries; manifest and config start empty
 - Template resolution logic extracted from `PluginRunner` into a standalone `TemplateResolver` struct for shared use across the pipeline
 - Switched piqley-plugin-sdk dependency from local path to remote 0.14.0

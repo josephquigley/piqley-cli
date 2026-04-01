@@ -353,6 +353,122 @@ extension PipelineOrchestrator {
             return (.critical, output.skippedImages)
         }
     }
+
+    // MARK: - Lifecycle Hooks
+
+    /// Collects the unique set of plugin identifiers from the workflow that have a binary.
+    func collectLifecyclePlugins() throws -> [String] {
+        let userStages = workflow.pipeline.filter { !StandardHook.requiredStageNames.contains($0.key) }
+        let uniqueIdentifiers = Set(userStages.values.flatMap(\.self))
+        return uniqueIdentifiers.filter { identifier in
+            guard let plugin = try? loadPlugin(named: identifier) else { return false }
+            return plugin.stages.values.contains { stageConfig in
+                if let command = stageConfig.binary?.command, !command.isEmpty {
+                    return true
+                }
+                return false
+            }
+        }.sorted()
+    }
+
+    // Invokes a lifecycle hook for a single plugin. Returns `.critical` on failure, `.success` otherwise.
+    // swiftlint:disable:next function_parameter_count
+    func runLifecycleHook(
+        pluginIdentifier: String,
+        hook: StandardHook,
+        temp: TempFolder,
+        imageFiles: [URL],
+        dryRun: Bool,
+        debug: Bool,
+        pipelineRunId: String
+    ) async throws -> HookResult {
+        guard let loadedPlugin = try loadPlugin(named: pluginIdentifier) else {
+            logger.warning("[\(pluginIdentifier)] not found for lifecycle hook \(hook.rawValue)")
+            return .pluginNotFound
+        }
+
+        guard let stageWithBinary = loadedPlugin.stages.values.first(where: {
+            if let command = $0.binary?.command, !command.isEmpty { return true }
+            return false
+        }), let binaryCommand = stageWithBinary.binary?.command else {
+            logger.debug("[\(pluginIdentifier)] no binary found for lifecycle hook \(hook.rawValue)")
+            return .skipped
+        }
+
+        let detectedProtocol = stageWithBinary.binary?.pluginProtocol
+
+        let configResult = resolvePluginConfigAndSecrets(
+            plugin: loadedPlugin, pluginIdentifier: pluginIdentifier
+        )
+        let secrets: [String: String]
+        let pluginConfig: PluginConfig
+        switch configResult {
+        case let .resolved(sec, conf):
+            secrets = sec
+            pluginConfig = conf
+        case .secretMissing:
+            return .secretMissing
+        }
+
+        let hookConfig = HookConfig(command: binaryCommand, args: [], pluginProtocol: detectedProtocol, environment: nil)
+
+        let execLogPath = pluginsDirectory
+            .appendingPathComponent(pluginIdentifier)
+            .appendingPathComponent(PluginFile.executionLog)
+        try FileManager.default.createDirectory(
+            at: execLogPath.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let stateStore = StateStore()
+        let ctx = HookContext(
+            pluginIdentifier: pluginIdentifier,
+            pluginName: loadedPlugin.name,
+            hook: hook.rawValue,
+            stage: hook.rawValue,
+            temp: temp,
+            stateStore: stateStore,
+            imageFiles: imageFiles,
+            dryRun: dryRun,
+            debug: debug,
+            nonInteractive: true,
+            skippedImages: [],
+            executedPlugins: [],
+            pipelineRunId: pipelineRunId
+        )
+
+        let (result, _) = try await runBinary(
+            ctx,
+            loadedPlugin: loadedPlugin,
+            secrets: secrets,
+            pluginConfig: pluginConfig,
+            hookConfig: hookConfig,
+            manifestDeps: [],
+            rulesDidRun: false,
+            execLogPath: execLogPath,
+            pipelineRunId: pipelineRunId
+        )
+
+        // Persist version after successful pipeline-start
+        if hook == .pipelineStart {
+            switch result {
+            case .success, .warning:
+                let pluginVersion = loadedPlugin.manifest.pluginVersion
+                    ?? SemanticVersion(major: 0, minor: 0, patch: 0)
+                do {
+                    try versionStateStore.save(version: pluginVersion, for: pluginIdentifier)
+                } catch {
+                    logger.warning(
+                        "[\(loadedPlugin.name)] failed to save version state: \(error)"
+                    )
+                }
+            default:
+                break
+            }
+        }
+
+        return result
+    }
 }
 
 // MARK: - Pipeline Errors

@@ -101,7 +101,8 @@ enum WorkflowStore {
     static func save(_ workflow: Workflow, root: URL? = nil) throws {
         let dir = directoryURL(name: workflow.name, root: root)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let data = try JSONEncoder.piqleyPrettyPrint.encode(workflow)
+        let cleaned = workflow.strippingLifecycleStages()
+        let data = try JSONEncoder.piqleyPrettyPrint.encode(cleaned)
         try data.write(to: fileURL(name: workflow.name, root: root))
     }
 

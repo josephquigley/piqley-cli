@@ -38,12 +38,23 @@ struct Workflow: Codable, Sendable {
     }
 
     /// Creates a new empty workflow with all active stages initialized to empty arrays.
+    /// Lifecycle stages (pipeline-start, pipeline-finished) are excluded as they are managed automatically.
     static func empty(name: String, displayName: String = "", description: String = "", activeStages: [String]) -> Workflow {
-        Workflow(
+        let userStages = activeStages.filter { !StandardHook.requiredStageNames.contains($0) }
+        return Workflow(
             name: name,
             displayName: displayName.isEmpty ? name : displayName,
             description: description,
-            pipeline: Dictionary(uniqueKeysWithValues: activeStages.map { ($0, [String]()) })
+            pipeline: Dictionary(uniqueKeysWithValues: userStages.map { ($0, [String]()) })
         )
+    }
+
+    /// Returns a copy with lifecycle stage keys removed from the pipeline.
+    func strippingLifecycleStages() -> Workflow {
+        var copy = self
+        for stage in StandardHook.requiredStageNames {
+            copy.pipeline.removeValue(forKey: stage)
+        }
+        return copy
     }
 }
