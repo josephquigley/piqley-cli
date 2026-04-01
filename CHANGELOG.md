@@ -72,6 +72,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Field source prompt changed to "Match against field from which source?"
 - Remove value prompts now include the field name for context
 - Skip lifecycle hooks for plugins that don't vend the stage instead of invoking an arbitrary binary
+- Lifecycle hooks (pipeline-start, pipeline-finished) now load from the plugin directory when missing from the workflow rules directory, fixing cleanup and other lifecycle logic that was silently skipped
 
 ### Added
 

@@ -65,7 +65,17 @@ extension PipelineOrchestrator {
             workflowName: workflow.name, pluginIdentifier: identifier, root: workflowsRoot
         )
         let knownHooks = registry.allKnownNames
-        let (stages, _) = PluginDiscovery.loadStages(from: rulesDir, knownHooks: knownHooks, logger: logger)
+        var (stages, _) = PluginDiscovery.loadStages(from: rulesDir, knownHooks: knownHooks, logger: logger)
+
+        // Lifecycle hooks (pipeline-start, pipeline-finished) live in the plugin
+        // directory, not the workflow rules directory. Load them from the plugin
+        // dir so cleanup and other lifecycle logic actually fires.
+        let (pluginStages, _) = PluginDiscovery.loadStages(from: pluginDir, knownHooks: knownHooks, logger: logger)
+        for name in StandardHook.requiredStageNames where stages[name] == nil {
+            if let config = pluginStages[name] {
+                stages[name] = config
+            }
+        }
 
         return LoadedPlugin(
             identifier: manifest.identifier, name: manifest.name,
