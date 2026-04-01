@@ -7,6 +7,7 @@
         /// Known CGImageSource property dictionary keys mapped to short group names.
         private static let groupMappings: [(key: CFString, prefix: String)] = [
             (kCGImagePropertyExifDictionary, "EXIF"),
+            (kCGImagePropertyExifAuxDictionary, "ExifAux"),
             (kCGImagePropertyIPTCDictionary, "IPTC"),
             (kCGImagePropertyTIFFDictionary, "TIFF"),
             (kCGImagePropertyGPSDictionary, "GPS"),

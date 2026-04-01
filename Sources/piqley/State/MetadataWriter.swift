@@ -22,6 +22,7 @@
         /// Known group prefixes mapped to CGImageSource property dictionary keys.
         private static let groupMappings: [(prefix: String, key: CFString)] = [
             ("EXIF", kCGImagePropertyExifDictionary),
+            ("ExifAux", kCGImagePropertyExifAuxDictionary),
             ("IPTC", kCGImagePropertyIPTCDictionary),
             ("TIFF", kCGImagePropertyTIFFDictionary),
             ("GPS", kCGImagePropertyGPSDictionary),
@@ -38,27 +39,102 @@
                 throw MetadataWriteError.sourceCreationFailed
             }
 
-            let properties = buildProperties(from: metadata)
+            let desired = buildProperties(from: metadata)
 
             let tempURL = url.deletingLastPathComponent()
                 .appendingPathComponent(".\(url.lastPathComponent).tmp")
 
-            guard let destination = CGImageDestinationCreateWithURL(
+            // Pass 1: Copy image data as-is but strip all metadata groups with kCFNull.
+            var stripProperties: [String: Any] = [:]
+            for (_, dictKey) in groupMappings {
+                stripProperties[dictKey as String] = kCFNull
+            }
+
+            guard let dest1 = CGImageDestinationCreateWithURL(
                 tempURL as CFURL, uti, CGImageSourceGetCount(source), nil
             ) else {
                 throw MetadataWriteError.destinationCreationFailed
             }
 
             for index in 0 ..< CGImageSourceGetCount(source) {
-                CGImageDestinationAddImageFromSource(destination, source, index, properties as CFDictionary)
+                CGImageDestinationAddImageFromSource(dest1, source, index, stripProperties as CFDictionary)
             }
 
-            guard CGImageDestinationFinalize(destination) else {
+            guard CGImageDestinationFinalize(dest1) else {
                 try? FileManager.default.removeItem(at: tempURL)
                 throw MetadataWriteError.finalizeFailed
             }
 
-            _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL)
+            // Strip XMP APP1 segments — ImageIO copies them through as raw bytes.
+            try stripXMPSegments(at: tempURL)
+
+            // Pass 2: Re-open the stripped file and apply only the desired metadata.
+            if !desired.isEmpty {
+                guard let strippedSource = CGImageSourceCreateWithURL(tempURL as CFURL, nil) else {
+                    try? FileManager.default.removeItem(at: tempURL)
+                    throw MetadataWriteError.sourceCreationFailed
+                }
+
+                let tempURL2 = url.deletingLastPathComponent()
+                    .appendingPathComponent("..\(url.lastPathComponent).tmp")
+
+                guard let dest2 = CGImageDestinationCreateWithURL(
+                    tempURL2 as CFURL, uti, CGImageSourceGetCount(strippedSource), nil
+                ) else {
+                    try? FileManager.default.removeItem(at: tempURL)
+                    throw MetadataWriteError.destinationCreationFailed
+                }
+
+                for index in 0 ..< CGImageSourceGetCount(strippedSource) {
+                    CGImageDestinationAddImageFromSource(dest2, strippedSource, index, desired as CFDictionary)
+                }
+
+                guard CGImageDestinationFinalize(dest2) else {
+                    try? FileManager.default.removeItem(at: tempURL)
+                    try? FileManager.default.removeItem(at: tempURL2)
+                    throw MetadataWriteError.finalizeFailed
+                }
+
+                try? FileManager.default.removeItem(at: tempURL)
+                try stripXMPSegments(at: tempURL2)
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL2)
+            } else {
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: tempURL)
+            }
+        }
+
+        /// Strip XMP APP1 segments from a JPEG file in place.
+        /// XMP is stored in APP1 (FF E1) segments with the "http://ns.adobe.com/xap/1.0/\0" header.
+        /// ImageIO copies these through as raw bytes, so we strip them at the byte level.
+        private static func stripXMPSegments(at url: URL) throws {
+            var data = try Data(contentsOf: url)
+            let xmpHeader = Data("http://ns.adobe.com/xap/1.0/\0".utf8)
+            var offset = 2 // skip SOI (FF D8)
+
+            while offset + 4 < data.count {
+                guard data[offset] == 0xFF else { break }
+                let marker = data[offset + 1]
+
+                // Stop at SOS (FF DA) — rest is image data
+                if marker == 0xDA { break }
+
+                let segmentLength = Int(data[offset + 2]) << 8 | Int(data[offset + 3])
+                let segmentEnd = offset + 2 + segmentLength
+
+                // APP1 = FF E1; check if it contains the XMP header
+                if marker == 0xE1, segmentEnd <= data.count {
+                    let payloadStart = offset + 4
+                    let headerEnd = payloadStart + xmpHeader.count
+                    if headerEnd <= data.count, data[payloadStart ..< headerEnd] == xmpHeader {
+                        data.removeSubrange(offset ..< segmentEnd)
+                        continue // don't advance offset — next segment is now at same position
+                    }
+                }
+
+                offset = segmentEnd
+            }
+
+            try data.write(to: url)
         }
 
         /// Convert flat "Group:Key" metadata to nested CGImageProperties format.

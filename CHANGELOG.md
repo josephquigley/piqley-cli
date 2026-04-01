@@ -75,10 +75,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- ExifAux dictionary support in metadata extraction and writing
-- Two-pass metadata writer: strips all metadata first, then re-applies only desired fields, preventing stale metadata from leaking through
-- XMP APP1 segment stripping at the byte level, removing XMP data that ImageIO copies through as raw bytes
-- Rules and templates can now reference the current plugin's in-progress working state, allowing earlier emit results to be used in later rules within the same evaluation
 - Three-phase pipeline orchestration: `pipeline-start` runs for all plugins before main stages, `pipeline-finished` always runs after (even on failure) for cleanup
 - `collectLifecyclePlugins()` helper discovers plugins with binaries for automatic lifecycle hook invocation
 - `runLifecycleHook()` helper invokes a lifecycle hook for a single plugin with version persistence on successful `pipeline-start`
