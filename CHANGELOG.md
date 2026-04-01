@@ -229,6 +229,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Keychain-based secret storage for API keys and plugin credentials
 - Interactive setup command with config creation and Keychain storage
 - Homebrew formula with bottle support and GitHub Actions CI
+- plugin setup shows plugin name header before each plugin's config prompts
+- secret prompts support ? to reveal current value
 
 ### Changed
 
@@ -278,6 +280,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - All CLI source files now reference `StageRegistry` instead of `Hook` enum for stage names and ordering
 - `piqley setup` now seeds a default workflow and opens the workflow editor instead of auto-populating the pipeline
 - `piqley plugin list` shows which workflows each plugin appears in instead of pipeline stages
+- plugin setup always prompts for all config values and secrets, using existing values as defaults — fixes broken state from install --force
 
 ### Removed
 

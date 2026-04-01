@@ -34,17 +34,16 @@ struct PluginSetupScanner {
             (try? configStore.load(for: plugin.identifier)) ?? BasePluginConfig()
         }
 
+        print("\(plugin.name):")
+
         // Phase 1: Config value resolution
         for entry in plugin.manifest.config {
             guard case let .value(key, type, defaultValue, _) = entry else { continue }
             if skipValueKeys.contains(key) {
                 continue
             }
-            if !force, let existing = baseConfig.values[key] {
-                print("\(entry.displayLabel) already set to: \(displayValue(existing))")
-                continue
-            }
-            let resolved = promptForValue(pluginName: plugin.name, entry: entry, key: key, type: type, defaultValue: defaultValue)
+            let effectiveDefault = baseConfig.values[key] ?? defaultValue
+            let resolved = promptForValue(pluginName: plugin.name, entry: entry, key: key, type: type, defaultValue: effectiveDefault)
             baseConfig.values[key] = resolved
         }
 
@@ -56,16 +55,14 @@ struct PluginSetupScanner {
             }
             let alias = defaultSecretAlias(pluginIdentifier: plugin.identifier, secretKey: secretKey)
 
-            // Check if we already have this alias mapped and the secret exists
-            if let existingAlias = baseConfig.secrets[secretKey] {
-                if (try? secretStore.get(key: existingAlias)) != nil {
-                    print("\(entry.displayLabel) (secret) already set")
-                    continue
-                }
-            }
+            // Check if we already have this secret stored
+            let existingValue: String? = {
+                guard let existingAlias = baseConfig.secrets[secretKey] else { return nil }
+                return try? secretStore.get(key: existingAlias)
+            }()
 
-            // Prompt for secret value and store under alias
-            let value = promptForSecret(pluginName: plugin.name, entry: entry, key: secretKey)
+            // Prompt for secret value, allowing Enter to keep existing
+            let value = promptForSecret(pluginName: plugin.name, entry: entry, key: secretKey, existingValue: existingValue)
             try secretStore.set(key: alias, value: value)
             baseConfig.secrets[secretKey] = alias
         }
@@ -144,17 +141,28 @@ struct PluginSetupScanner {
         }
     }
 
-    private mutating func promptForSecret(pluginName _: String, entry: ConfigEntry, key _: String) -> String {
+    private mutating func promptForSecret(pluginName _: String, entry: ConfigEntry, key _: String, existingValue: String? = nil) -> String {
         while true {
             if case let .secret(_, _, metadata) = entry,
                let desc = metadata.description, !desc.isEmpty
             {
                 print("  \(desc)")
             }
-            print("\(entry.displayLabel) (secret): ", terminator: "")
+            if existingValue != nil {
+                print("\(entry.displayLabel) (secret) [set, ? to reveal]: ", terminator: "")
+            } else {
+                print("\(entry.displayLabel) (secret): ", terminator: "")
+            }
             guard let input = inputSource.readLine() else {
-                // EOF: return empty string to avoid infinite loop
-                return ""
+                // EOF: return existing value if available, otherwise empty string
+                return existingValue ?? ""
+            }
+            if input == "?", let existing = existingValue {
+                print("  Current value: \(existing)")
+                continue
+            }
+            if input.isEmpty, let existing = existingValue {
+                return existing
             }
             if !input.isEmpty { return input }
             print("Value is required.")
