@@ -36,6 +36,14 @@ private func makePluginsDir(withPlugin identifier: String, hook: String, scriptU
     ]
     let stageData = try JSONSerialization.data(withJSONObject: stageConfig)
     try stageData.write(to: pluginDir.appendingPathComponent("stage-\(hook).json"))
+    // Write lifecycle stage files so loadPlugin finds them in the plugin directory
+    for lifecycleHook in ["pipeline-start", "pipeline-finished"] {
+        let lifecycleStage: [String: Any] = [
+            "binary": ["command": scriptURL.path, "args": [], "protocol": "pipe"]
+        ]
+        let lifecycleData = try JSONSerialization.data(withJSONObject: lifecycleStage)
+        try lifecycleData.write(to: pluginDir.appendingPathComponent("stage-\(lifecycleHook).json"))
+    }
     try FileManager.default.createDirectory(at: pluginDir.appendingPathComponent("data"), withIntermediateDirectories: true)
     return dir
 }
