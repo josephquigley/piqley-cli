@@ -80,6 +80,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `runLifecycleHook()` helper invokes a lifecycle hook for a single plugin with version persistence on successful `pipeline-start`
 - `WorkflowStore.save` now strips lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline before encoding, automatically cleaning up legacy keys on save
 - `Workflow.empty()` now excludes lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline dictionary; added `strippingLifecycleStages()` helper to remove lifecycle keys from an existing workflow
+
 - `plugin install` and `plugin update` now accept a URL to download a `.piqleyplugin` file or a git repository URL (SSH/HTTPS) as the source argument, in addition to local file paths
 - `process` command now accepts `--lock-timeout <seconds>` to control how long to wait for another instance to release the lock (default: 600s); validates non-negative values
 - `ProcessLock.acquire(path:timeout:)` retries acquiring a lock every 5 seconds until the timeout expires, logging a user-facing message on first contention and throwing `.timedOut` when the deadline is reached
@@ -232,6 +233,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Lifecycle stages (pipeline-start, pipeline-finished) are now hidden from the TUI stage editor and plugin picker — they are invoked automatically for all plugins with binaries
 - `plugin init` no longer scaffolds example config entries; manifest and config start empty
 - Template resolution logic extracted from `PluginRunner` into a standalone `TemplateResolver` struct for shared use across the pipeline
 - Switched piqley-plugin-sdk dependency from local path to remote 0.14.0

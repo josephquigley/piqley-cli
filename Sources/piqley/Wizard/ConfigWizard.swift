@@ -51,7 +51,7 @@ final class ConfigWizard {
         var cursor = 0
 
         while true {
-            let stages = registry.executionOrder
+            let stages = registry.executionOrder.filter { !StandardHook.requiredStageNames.contains($0) }
             let menuItems: [StageMenuItem] = stages.map { .stage($0) } + [.allPlugins]
             cursor = min(cursor, menuItems.count - 1)
             drawStageScreen(stages: stages, menuItems: menuItems, cursor: cursor)

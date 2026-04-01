@@ -217,7 +217,7 @@ extension ConfigWizard {
 
     func showDiscoveredPluginDetail(plugin: LoadedPlugin) {
         let manifest = plugin.manifest
-        let allStages = registry.executionOrder
+        let allStages = registry.executionOrder.filter { !StandardHook.requiredStageNames.contains($0) }
         var cursor = 0
 
         while true {
@@ -370,7 +370,7 @@ extension ConfigWizard {
     // MARK: - Plugin Actions (missing plugins)
 
     func pluginActions(entry: PluginEntry) {
-        let allStages = registry.executionOrder
+        let allStages = registry.executionOrder.filter { !StandardHook.requiredStageNames.contains($0) }
         let identifier = entry.identifier
 
         while true {
