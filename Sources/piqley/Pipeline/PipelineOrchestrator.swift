@@ -103,13 +103,57 @@ struct PipelineOrchestrator: Sendable {
             }
         }
 
-        // Execute hooks in order from registry
+        // Collect plugins eligible for lifecycle hooks
+        let lifecyclePlugins: [String]
+        do {
+            lifecyclePlugins = try collectLifecyclePlugins()
+        } catch {
+            logger.error("Failed to collect lifecycle plugins: \(error)")
+            return false
+        }
+
         logger.info("Pipeline run \(pipelineRunId) starting")
+
+        // === Phase 1: pipeline-start (failure aborts pipeline) ===
+        for pluginId in lifecyclePlugins {
+            let result = try await runLifecycleHook(
+                pluginIdentifier: pluginId,
+                hook: .pipelineStart,
+                temp: temp,
+                imageFiles: imageFiles,
+                dryRun: dryRun,
+                debug: debug,
+                pipelineRunId: pipelineRunId
+            )
+            switch result {
+            case .success, .warning, .skipped:
+                break
+            case .pluginNotFound, .secretMissing, .ruleCompilationFailed, .critical:
+                logger.error("[\(pluginId)] pipeline-start failed — aborting pipeline")
+                // Still run pipeline-finished for cleanup
+                for finishPluginId in lifecyclePlugins {
+                    _ = try? await runLifecycleHook(
+                        pluginIdentifier: finishPluginId,
+                        hook: .pipelineFinished,
+                        temp: temp,
+                        imageFiles: imageFiles,
+                        dryRun: dryRun,
+                        debug: debug,
+                        pipelineRunId: pipelineRunId
+                    )
+                }
+                return false
+            }
+        }
+
+        // === Phase 2: main stage loop (skip lifecycle stages) ===
         var skippedImages: Set<String> = []
         var executedPlugins: [(hook: String, pluginId: String)] = []
         var pipelineFailed = false
 
         for stage in registry.executionOrder {
+            // Skip lifecycle stages — they are handled in phases 1 and 3
+            guard !StandardHook.requiredStageNames.contains(stage) else { continue }
             guard !pipelineFailed else { break }
 
             for pluginEntry in pipeline[stage] ?? [] {
@@ -139,6 +183,26 @@ struct PipelineOrchestrator: Sendable {
                     blocklist.block(pluginEntry)
                     pipelineFailed = true
                 }
+            }
+        }
+
+        // === Phase 3: pipeline-finished (always runs, best-effort) ===
+        for pluginId in lifecyclePlugins {
+            do {
+                let result = try await runLifecycleHook(
+                    pluginIdentifier: pluginId,
+                    hook: .pipelineFinished,
+                    temp: temp,
+                    imageFiles: imageFiles,
+                    dryRun: dryRun,
+                    debug: debug,
+                    pipelineRunId: pipelineRunId
+                )
+                if case .critical = result {
+                    logger.warning("[\(pluginId)] pipeline-finished returned critical — ignoring")
+                }
+            } catch {
+                logger.warning("[\(pluginId)] pipeline-finished threw error: \(error) — ignoring")
             }
         }
 
@@ -323,19 +387,6 @@ struct PipelineOrchestrator: Sendable {
 
         if !preRulesDidRun, !binaryDidRun, (stageConfig.postRules ?? []).isEmpty {
             return (.skipped, skippedImages)
-        }
-
-        // Persist version after successful pipeline-start
-        if ctx.stage == StandardHook.pipelineStart.rawValue {
-            let pluginVersion = loadedPlugin.manifest.pluginVersion
-                ?? SemanticVersion(major: 0, minor: 0, patch: 0)
-            do {
-                try versionStateStore.save(version: pluginVersion, for: ctx.pluginIdentifier)
-            } catch {
-                logger.warning(
-                    "[\(loadedPlugin.name)] failed to save version state: \(error)"
-                )
-            }
         }
 
         return (.success, skippedImages)

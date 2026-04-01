@@ -73,6 +73,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Three-phase pipeline orchestration: `pipeline-start` runs for all plugins before main stages, `pipeline-finished` always runs after (even on failure) for cleanup
+- `collectLifecyclePlugins()` helper discovers plugins with binaries for automatic lifecycle hook invocation
+- `runLifecycleHook()` helper invokes a lifecycle hook for a single plugin with version persistence on successful `pipeline-start`
 - `WorkflowStore.save` now strips lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline before encoding, automatically cleaning up legacy keys on save
 - `Workflow.empty()` now excludes lifecycle stages (`pipeline-start`, `pipeline-finished`) from the pipeline dictionary; added `strippingLifecycleStages()` helper to remove lifecycle keys from an existing workflow
 - `plugin install` and `plugin update` now accept a URL to download a `.piqleyplugin` file or a git repository URL (SSH/HTTPS) as the source argument, in addition to local file paths
