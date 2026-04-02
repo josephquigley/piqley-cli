@@ -18,5 +18,5 @@ These constant enums live in `Sources/piqley/Constants/` (not in PiqleyCore):
 |--------|------|----------|
 | Environment variables | `PluginEnvironment` | `Sources/piqley/Constants/PluginEnvironment.swift` |
 | Filesystem paths | `PiqleyPath` | `Sources/piqley/Constants/PiqleyPath.swift` |
-| Plugin directories | `PluginDirectory` | `Sources/piqley/Constants/PluginDirectory.swift` |
+| Host platform detection | `HostPlatform` | `Sources/piqley/Constants/HostPlatform.swift` |
 | Secret namespacing | `SecretNamespace` | `Sources/piqley/Constants/SecretNamespace.swift` |

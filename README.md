@@ -54,6 +54,7 @@ piqley process /path/to/exported/photos
 | `piqley plugin install <source>` | Install a `.piqleyplugin` from a file path, URL, or git repo (`--force` to overwrite) |
 | `piqley plugin update <source>` | Update an installed plugin from a file path, URL, or git repo |
 | `piqley plugin uninstall <id>` | Uninstall a plugin by identifier |
+| `piqley plugin edit [id]` | Edit rules for a mutable plugin (lists mutable plugins if id omitted) |
 | `piqley workflow list` | List all workflows |
 | `piqley workflow edit [name]` | Edit a workflow interactively (lists all workflows if name omitted) |
 | `piqley workflow create [name]` | Create a new workflow |
@@ -102,7 +103,7 @@ Plugins support multiple platforms. A `.piqleyplugin` package can bundle binarie
 
 ### Pipeline
 
-Plugins register for hooks in a four-stage pipeline:
+Plugins register for hooks in a pipeline. The default stages are:
 
 | Hook | Purpose |
 |------|---------|
@@ -110,6 +111,8 @@ Plugins register for hooks in a four-stage pipeline:
 | `post-process` | Modify images after processing (e.g. resize, metadata) |
 | `publish` | Upload or distribute processed images |
 | `post-publish` | Clean up, notify, or log after publishing |
+
+Two lifecycle stages (`pipeline-start`, `pipeline-finished`) run automatically and cannot be removed. You can also add custom stages and reorder the pipeline via the workflow editor.
 
 Workflows are stored in `~/.config/piqley/workflows/` as named JSON files. Each workflow defines its own pipeline. `piqley setup` creates a default workflow.
 

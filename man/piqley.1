@@ -15,6 +15,7 @@
 .Op Fl -delete-source-folder
 .Op Fl -overwrite-source
 .Op Fl -non-interactive
+.Op Fl -lock-timeout Ar seconds
 .Nm
 .Cm setup
 .Nm
@@ -98,6 +99,9 @@
 .Ar identifier
 .Op Fl -force
 .Nm
+.Cm plugin edit
+.Op Ar identifier
+.Nm
 .Cm uninstall
 .Op Fl -force
 .Sh DESCRIPTION
@@ -136,7 +140,9 @@ Only one instance of
 .Nm
 may run at a time.
 An advisory file lock is used; if another instance is detected, the tool
-exits immediately with an error.
+waits up to
+.Fl -lock-timeout
+seconds (default: 600) for it to finish before exiting with an error.
 .Sh COMMANDS
 .Ss process folder-path
 Scan
@@ -167,6 +173,9 @@ Overwrite source images with processed versions after a successful run.
 .It Fl -non-interactive
 Skip interactive prompts; drop invalid rules with warnings instead of
 asking for confirmation.
+.It Fl -lock-timeout Ar seconds
+Seconds to wait for another instance to finish before giving up.
+Default: 600.
 .El
 .Ss setup
 Interactive configuration wizard.
@@ -423,6 +432,12 @@ Available flags:
 .It Fl -force
 Force uninstall even if other plugins depend on this one.
 .El
+.Ss plugin edit Op identifier
+Edit rules for a mutable plugin.
+Lists all mutable plugins if
+.Ar identifier
+is omitted.
+Static plugins cannot be edited with this command.
 .Ss uninstall
 Remove all piqley configuration, plugins, and stored secrets.
 Deletes the
