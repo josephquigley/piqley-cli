@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Homebrew formula head URL now points to GitHub remote instead of local path
 - Lifecycle hook runner now detects the plugin's protocol from stage config instead of hardcoding JSON protocol
 - Critical plugin failure now immediately stops remaining plugins in the same stage, instead of only stopping at the next stage boundary
 - Write action values containing templates (e.g. `{{original:EXIF:FNumber}}`) are now resolved from state instead of being treated as literal strings

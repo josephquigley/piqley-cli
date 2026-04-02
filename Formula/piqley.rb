@@ -12,9 +12,7 @@ class Piqley < Formula
   #   sha256 cellar: :any_skip_relocation, arm64_sequoia: "..."
   # end
 
-  # Local development — switch to GitHub URL when published:
-  # head "https://github.com/josephquigley/piqley.git", branch: "main"
-  head "file:///Users/wash/Developer/tools/quigsphoto-uploader", using: :git, branch: "main"
+  head "https://github.com/josephquigley/piqley-cli.git", branch: "main"
 
   depends_on xcode: ["26.0", :build]
   depends_on :macos
