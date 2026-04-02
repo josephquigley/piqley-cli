@@ -75,6 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Lifecycle hooks (pipeline-start, pipeline-finished) now load from the plugin directory when missing from the workflow rules directory, fixing cleanup and other lifecycle logic that was silently skipped
 - Reduced noisy pipeline logging: empty binary command log downgraded to debug, redundant upload success lines suppressed
 - Emit clone actions now normalize string values to arrays for consistent plugin SDK access
+- Stream plugin output incrementally using readabilityHandler instead of bytes.lines which buffered until EOF
 
 ### Added
 

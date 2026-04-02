@@ -2,7 +2,6 @@ import Foundation
 import Logging
 import PiqleyCore
 
-// swiftlint:disable type_body_length
 /// Runs a single plugin hook as a subprocess.
 struct PluginRunner: Sendable {
     let plugin: LoadedPlugin
@@ -209,8 +208,7 @@ struct PluginRunner: Sendable {
 
         // Background task reads stderr and updates activity
         let stderrTask = Task {
-            let handle = stderrPipe.fileHandleForReading
-            for try await line in handle.bytes.lines {
+            for await line in pipeLines(stderrPipe.fileHandleForReading) {
                 await activityTracker.touch()
                 logger.debug("[\(plugin.name)] stderr: \(line)")
             }
@@ -228,44 +226,41 @@ struct PluginRunner: Sendable {
             }
         }
 
-        // Read stdout lines
-        do {
-            for try await line in stdoutPipe.fileHandleForReading.bytes.lines {
-                await activityTracker.touch()
-                guard let data = line.data(using: .utf8) else { continue }
-                guard let obj = try? JSONDecoder.piqley.decode(PluginOutputLine.self, from: data) else {
-                    // Non-JSON line — log and skip (plugin may emit debug output before result)
-                    logger.debug("[\(plugin.name)]: non-JSON stdout line — skipping: \(line)")
-                    continue
-                }
-                switch obj.type {
-                case "progress":
-                    logger.info("[\(plugin.name)]: \(obj.message ?? "")")
-                case "imageResult":
-                    if let filename = obj.filename {
-                        let detail = obj.message ?? obj.error ?? ""
-                        let suffix = detail.isEmpty ? "" : " \(detail)"
-                        switch obj.status {
-                        case .success:
-                            if !suffix.isEmpty { logger.info("[\(plugin.name)]\(suffix)") }
-                        case .failure: logger.error("[\(plugin.name)] Failed: \(filename)\(suffix)")
-                        case .skip:
-                            skippedFilenames.append(filename)
-                            logger.info("[\(plugin.name)] Skipping: \(filename)\(detail.isEmpty ? "" : " — \(detail)")")
-                        case .warning: logger.warning("[\(plugin.name)] Warning: \(filename)\(suffix)")
-                        case .none: logger.debug("[\(plugin.name)] imageResult: \(filename) status=unknown")
-                        }
-                    }
-                case "result":
-                    gotResult = true
-                    resultState = obj.state
-                    resultError = obj.error
-                default:
-                    break
-                }
+        // Read stdout lines — uses readabilityHandler-based stream for
+        // immediate delivery instead of bytes.lines which may buffer on pipes.
+        for await line in pipeLines(stdoutPipe.fileHandleForReading) {
+            await activityTracker.touch()
+            guard let data = line.data(using: .utf8) else { continue }
+            guard let obj = try? JSONDecoder.piqley.decode(PluginOutputLine.self, from: data) else {
+                // Non-JSON line — log and skip (plugin may emit debug output before result)
+                logger.debug("[\(plugin.name)]: non-JSON stdout line — skipping: \(line)")
+                continue
             }
-        } catch {
-            logger.warning("[\(plugin.name)]: error reading stdout: \(error)")
+            switch obj.type {
+            case "progress":
+                logger.info("[\(plugin.name)]: \(obj.message ?? "")")
+            case "imageResult":
+                if let filename = obj.filename {
+                    let detail = obj.message ?? obj.error ?? ""
+                    let suffix = detail.isEmpty ? "" : " \(detail)"
+                    switch obj.status {
+                    case .success:
+                        if !suffix.isEmpty { logger.info("[\(plugin.name)]\(suffix)") }
+                    case .failure: logger.error("[\(plugin.name)] Failed: \(filename)\(suffix)")
+                    case .skip:
+                        skippedFilenames.append(filename)
+                        logger.info("[\(plugin.name)] Skipping: \(filename)\(detail.isEmpty ? "" : " — \(detail)")")
+                    case .warning: logger.warning("[\(plugin.name)] Warning: \(filename)\(suffix)")
+                    case .none: logger.debug("[\(plugin.name)] imageResult: \(filename) status=unknown")
+                    }
+                }
+            case "result":
+                gotResult = true
+                resultState = obj.state
+                resultError = obj.error
+            default:
+                break
+            }
         }
 
         watchdog.cancel()
@@ -475,22 +470,5 @@ struct PluginRunner: Sendable {
             )
             return contents.sorted { $0.lastPathComponent < $1.lastPathComponent }
         }
-    }
-}
-
-// swiftlint:enable type_body_length
-
-// MARK: - Concurrency Helpers
-
-/// Tracks the timestamp of last activity for inactivity-based timeouts.
-private actor ActivityTracker {
-    private var lastActivity: Date = .init()
-
-    func touch() {
-        lastActivity = Date()
-    }
-
-    func secondsSinceLastActivity() -> Double {
-        Date().timeIntervalSince(lastActivity)
     }
 }

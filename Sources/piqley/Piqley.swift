@@ -75,5 +75,6 @@ struct CleanLogHandler: LogHandler {
         source _: String, file _: String, function _: String, line _: UInt
     ) {
         FileHandle.standardError.write(Data("\(message)\n".utf8))
+        fflush(stderr)
     }
 }
