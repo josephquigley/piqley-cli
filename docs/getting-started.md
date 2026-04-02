@@ -7,8 +7,8 @@ Everything is a plugin. Piqley's core is a lightweight orchestrator that copies 
 ## Install
 
 ```bash
-brew tap quigs/tools https://github.com/josephquigley/piqley-cli.git
-brew install quigs/tools/piqley
+brew tap josephquigley/piqley
+brew install --HEAD josephquigley/piqley/piqley
 ```
 
 ## First-Time Setup
