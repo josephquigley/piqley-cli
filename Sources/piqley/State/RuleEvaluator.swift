@@ -9,7 +9,7 @@ enum EmitAction: Sendable {
     case replace(field: String, replacements: [(matcher: any TagMatcher & Sendable, replacement: String)])
     case removeField(field: String, not: Bool)
     case clone(field: String, sourceNamespace: String, sourceField: String?)
-    case writeBack
+    case writeBack // Designed for image forking (not yet implemented)
 }
 
 struct CompiledRule: Sendable {

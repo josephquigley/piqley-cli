@@ -238,57 +238,6 @@ The behavior depends on which fields are present:
 | absent | present | Plugin accepts all formats, converts output to the declared format |
 | present | present | Plugin only receives matching formats, converts output to the declared format |
 
-When `conversionFormat` is set, the orchestrator implicitly creates a fork for this plugin so the format conversion does not affect the main pipeline or other plugins.
-
-## Fork/COW Pipeline
-
-Forking creates a copy-on-write branch of the image data so a plugin can modify images without affecting the main pipeline. This is essential for plugins that resize, convert, or watermark images while other plugins need the original.
-
-### Declaring a Fork
-
-Set `fork: true` in a plugin's hook configuration:
-
-```json
-{
-  "pipeline": {
-    "pre-process": [
-      { "plugin": "privacy-strip" },
-      { "plugin": "resize", "fork": true }
-    ]
-  }
-}
-```
-
-When `conversionFormat` is declared in the manifest, forking is implicit. You do not need to set `fork: true` separately.
-
-### Fork Lifetime
-
-A fork persists across all pipeline stages. If a plugin forks in pre-process, its fork is available in post-process, publish, and post-publish. Downstream plugins that declare a dependency on the forking plugin operate on that fork, not on main.
-
-### Fork Source Resolution
-
-When a plugin forks, it copies from its dependency's fork if one exists, otherwise from main. This creates a tree of forks:
-
-- `resize` forks from main.
-- `watermark` depends on `resize`, so it forks from the resize fork.
-- `ghost-pre-process` depends on `watermark`, so it forks from the watermark fork.
-
-Each fork is independent. Changes to the watermark fork do not affect the resize fork or main.
-
-### writeBack
-
-A plugin can merge its fork back to main using the `writeBack` post-rule action. This is useful when you want the main pipeline to receive the plugin's modified images (for example, writing watermarked images back so an archival plugin can pick them up):
-
-```json
-{
-  "postRules": [
-    { "action": "writeBack" }
-  ]
-}
-```
-
-writeBack replaces the main pipeline's image data with this fork's data. Only one plugin should writeBack per stage to avoid conflicts.
-
 ## Rule Negation
 
 Rules support a `not` flag that inverts the match or action condition.
